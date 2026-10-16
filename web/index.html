@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Shardfall</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+  <canvas id="hud"></canvas>
+  <div id="vignette"></div>
+  <div id="fade"></div>
+  <div id="banner"><div class="b1"></div><div class="b2"></div></div>
+
+  <div id="touch">
+    <div id="stickBase"><div id="stickKnob"></div></div>
+    <div class="btn fire" data-btn="fire">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      <span class="lbl">FIRE</span>
+    </div>
+    <div class="btn boost" data-btn="boost">
+      <svg viewBox="0 0 48 48"><path d="M12 30l12-10 12 10M12 40l12-10 12 10M12 20l12-10 12 10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">BOOST</span>
+    </div>
+    <div class="btn brake" data-btn="brake">
+      <svg viewBox="0 0 48 48"><path d="M12 14l12 10 12-10M12 26l12 10 12-10" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">BRAKE</span>
+    </div>
+    <div class="btn missile" data-btn="missile">
+      <svg viewBox="0 0 48 48"><path d="M24 5c5 5 7 11 7 18v10h-14V23c0-7 2-13 7-18z" fill="currentColor"/><path d="M17 27l-6 8v4l6-3M31 27l6 8v4l-6-3" fill="currentColor"/><path d="M21 36h6l-3 8z" fill="#ffb060"/></svg>
+      <span class="count" id="missileCount">0</span>
+    </div>
+    <div class="btn bomb" data-btn="bomb">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="7" fill="currentColor"/><circle cx="24" cy="24" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".75"/><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>
+      <span class="count" id="bombCount">0</span>
+    </div>
+  </div>
+
+  <button id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>
+
+  <!-- Screens -->
+  <div class="screen" id="title">
+    <div class="logo">SHARD<span>FALL</span></div>
+    <div class="tag">Dodge. Shatter. Survive the belt.</div>
+    <div class="menu">
+      <button class="primary" data-act="play">LAUNCH</button>
+      <button data-act="howto">HOW TO PLAY</button>
+      <button data-act="settings">SETTINGS</button>
+    </div>
+    <div class="best">BEST <span id="bestScore">0</span></div>
+  </div>
+
+  <div class="screen" id="howto">
+    <h2>FLIGHT MANUAL</h2>
+    <div class="cols">
+      <div class="col">
+        <h3>Controls</h3>
+        <p><b>Left thumb</b> anywhere on the left half: floating stick. Push to steer.</p>
+        <p><b>FIRE</b> twin cannons (aim assist helps near targets). Slide your thumb between buttons without lifting it.</p>
+        <p><b>BOOST</b> burns the yellow meter. <b>BRAKE</b> for tight turns.</p>
+        <p><b>Seeker</b> missiles home on the target in the lock ring. <b>Nova</b> wipes out everything nearby.</p>
+        <p>Tap the <b>radar</b> to toggle the full sector map.</p>
+        <p class="dim">Keyboard: WASD/arrows, Space fire, Shift boost, L brake, E missile, Q nova, P pause.</p>
+      </div>
+      <div class="col">
+        <h3>Objective</h3>
+        <p>Clear 3 waves of hostiles, then fly through the <b class="g">warp gate</b>. Pick an upgrade and push deeper.</p>
+        <p>Shoot big asteroids to split them. <b class="o">Orange volatile</b> rocks explode and hurt everything nearby. <b class="c">Cyan crystal</b> rocks drop power-ups.</p>
+        <h3>Power-ups</h3>
+        <div id="puLegend"></div>
+      </div>
+    </div>
+    <div class="menu row"><button data-act="back">BACK</button></div>
+  </div>
+
+  <div class="screen" id="settings">
+    <h2>SETTINGS</h2>
+    <div class="settings">
+      <label>Steering sensitivity <input type="range" id="sSens" min="0.5" max="1.6" step="0.05"></label>
+      <label>Music volume <input type="range" id="sMusic" min="0" max="1" step="0.05"></label>
+      <label>Effects volume <input type="range" id="sSfx" min="0" max="1" step="0.05"></label>
+      <label class="tog">Invert vertical <input type="checkbox" id="sInvert"></label>
+      <label class="tog">Auto-fire at targets <input type="checkbox" id="sAuto"></label>
+      <label class="tog">Left-handed layout <input type="checkbox" id="sLefty"></label>
+      <label class="tog">Vibration <input type="checkbox" id="sHaptics"></label>
+      <label>Graphics
+        <select id="sQuality"><option value="0">Low (battery saver)</option><option value="1">Medium</option><option value="2">High</option></select>
+      </label>
+    </div>
+    <div class="menu row"><button data-act="back">BACK</button></div>
+  </div>
+
+  <div class="screen" id="pause">
+    <h2>PAUSED</h2>
+    <div class="menu">
+      <button class="primary" data-act="resume">RESUME</button>
+      <button data-act="settings">SETTINGS</button>
+      <button data-act="quit">ABANDON RUN</button>
+    </div>
+  </div>
+
+  <div class="screen" id="upgrade">
+    <h2 id="upTitle">SECTOR CLEARED</h2>
+    <div class="sub">Choose a ship upgrade</div>
+    <div class="cards" id="upCards"></div>
+  </div>
+
+  <div class="screen" id="gameover">
+    <h2 class="red">SHIP DESTROYED</h2>
+    <div class="stats" id="goStats"></div>
+    <div class="menu row">
+      <button class="primary" data-act="play">RETRY</button>
+      <button data-act="title">TITLE</button>
+    </div>
+  </div>
+
+  <div class="screen" id="loading"><div class="logo small">SHARD<span>FALL</span></div><div class="sub" id="loadMsg">Charting sector…</div></div>
+  <div id="rotate"><div>↻</div>Rotate your device to landscape</div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

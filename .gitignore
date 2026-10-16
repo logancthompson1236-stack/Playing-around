@@ -1,0 +1,15 @@
+# Web
+web/node_modules/
+web/dist/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/www/
+*.apk
+*.aab
+.idea/
+*.iml
+.DS_Store

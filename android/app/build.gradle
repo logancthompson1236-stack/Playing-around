@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.shardfall.game'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.shardfall.game'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Signed with the debug key so the APK can be sideloaded without a keystore setup.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// The game itself is built from ../web (npm run build) into src/main/assets/www.
+tasks.register('checkWebAssets') {
+    def marker = file('src/main/assets/www/game.js')
+    doLast {
+        if (!marker.exists()) {
+            throw new GradleException("Missing web build. Run `npm ci && npm run build` in ../web first (or use ../build-apk.sh).")
+        }
+    }
+}
+preBuild.dependsOn checkWebAssets
