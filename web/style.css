@@ -40,7 +40,7 @@ html, body { margin: 0; height: 100%; background: #05060f; color: var(--text); o
 .btn.boost { border-color: rgba(255,220,100,.55); color: #ffe48a; }
 .btn.brake { border-color: rgba(160,200,255,.4); }
 .btn.missile { border-color: rgba(255,90,110,.5); color: #ff9aa8; }
-.btn.bomb { border-color: rgba(200,110,255,.55); color: #e0b0ff; }
+.btn.emp { border-color: rgba(90,216,255,.6); color: #a8ecff; }
 .btn.down { transform: scale(.92); background: rgba(120,200,255,.28); }
 .btn.fire.down { background: rgba(255,110,80,.35); }
 .btn.empty { opacity: .35; }

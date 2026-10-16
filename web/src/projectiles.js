@@ -7,11 +7,14 @@ const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3(1, 1, 1);
 const _v = new THREE.Vector3();
 const _aim = new THREE.Vector3();
+const _want = new THREE.Vector3();
 
 class BoltSet {
-  constructor(scene, cap, coreColor, glowColor, len) {
+  constructor(scene, cap, coreColor, glowColor, len, homingColor = glowColor) {
     this.cap = cap;
     this.items = [];
+    this.glowColor = new THREE.Color(glowColor);
+    this.homingColor = new THREE.Color(homingColor);
     const along = (g) => g.rotateX(Math.PI / 2);
     const coreGeo = along(new THREE.CylinderGeometry(0.32, 0.32, len, 6));
     const glowGeo = along(new THREE.CylinderGeometry(1.35, 0.9, len * 1.3, 8));
@@ -27,16 +30,22 @@ class BoltSet {
       return m;
     };
     this.core = mk(coreGeo, coreColor, 1);
-    this.glow = mk(glowGeo, glowColor, 0.45);
+    // Glow is tinted per instance so homing bolts can read differently.
+    this.glow = mk(glowGeo, 0xffffff, 0.45);
+    for (let i = 0; i < cap; i++) this.glow.setColorAt(i, this.glowColor);
   }
 
-  spawn(pos, dir, speed, damage, life, inherit) {
+  // `target` (optional) makes the bolt curve toward that ship at `turn` rad/s.
+  spawn(pos, dir, speed, damage, life, inherit, target = null, turn = 0) {
     if (this.items.length >= this.cap) this.items.shift();
     const b = {
       pos: pos.clone(), prev: pos.clone(), dir: dir.clone(),
       vel: dir.clone().multiplyScalar(speed), damage, life, dead: false,
+      target, turn, speed: 0,
     };
     if (inherit) b.vel.add(inherit);
+    b.speed = b.vel.length();
+    if (target) b.dir.copy(b.vel).normalize();
     this.items.push(b);
     return b;
   }
@@ -44,6 +53,17 @@ class BoltSet {
   update(dt, hitFn) {
     let w = 0;
     for (const b of this.items) {
+      if (b.target) {
+        if (b.target.alive) {
+          leadPoint(b.pos, b.target.pos, b.target.vel, b.speed, _aim);
+          _want.subVectors(_aim, b.pos).normalize();
+          // Don't U-turn after overshooting; keep flying straight instead.
+          if (_want.dot(b.dir) > -0.1) {
+            rotateTowards(b.dir, _want, b.turn * dt);
+            b.vel.copy(b.dir).multiplyScalar(b.speed);
+          }
+        } else b.target = null;
+      }
       b.prev.copy(b.pos);
       b.pos.addScaledVector(b.vel, dt);
       b.life -= dt;
@@ -58,10 +78,12 @@ class BoltSet {
       _m.compose(b.pos, _q, _s);
       this.core.setMatrixAt(i, _m);
       this.glow.setMatrixAt(i, _m);
+      this.glow.setColorAt(i, b.target ? this.homingColor : this.glowColor);
     }
     this.core.count = this.glow.count = w;
     this.core.instanceMatrix.needsUpdate = true;
     this.glow.instanceMatrix.needsUpdate = true;
+    if (this.glow.instanceColor) this.glow.instanceColor.needsUpdate = true;
   }
 
   clear() {
@@ -74,7 +96,7 @@ export class Projectiles {
   constructor(scene, fx) {
     this.scene = scene;
     this.fx = fx;
-    this.player = new BoltSet(scene, 220, 0xe8fdff, 0x34c8ff, 10);
+    this.player = new BoltSet(scene, 220, 0xe8fdff, 0x34c8ff, 10, 0xffc84a);
     this.enemy = new BoltSet(scene, 220, 0xfff0e0, 0xff3a2a, 8);
     this.missiles = [];
     this.missilePool = [];
@@ -95,8 +117,8 @@ export class Projectiles {
     }
   }
 
-  firePlayer(pos, dir, speed, damage, life, inherit) {
-    return this.player.spawn(pos, dir, speed, damage, life, inherit);
+  firePlayer(pos, dir, speed, damage, life, inherit, target = null, turn = 0) {
+    return this.player.spawn(pos, dir, speed, damage, life, inherit, target, turn);
   }
 
   fireEnemy(pos, dir, speed, damage) {

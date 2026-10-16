@@ -35,9 +35,9 @@
       <svg viewBox="0 0 48 48"><path d="M24 5c5 5 7 11 7 18v10h-14V23c0-7 2-13 7-18z" fill="currentColor"/><path d="M17 27l-6 8v4l6-3M31 27l6 8v4l-6-3" fill="currentColor"/><path d="M21 36h6l-3 8z" fill="#ffb060"/></svg>
       <span class="count" id="missileCount">0</span>
     </div>
-    <div class="btn bomb" data-btn="bomb">
-      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="7" fill="currentColor"/><circle cx="24" cy="24" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".75"/><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2" opacity=".45"/></svg>
-      <span class="count" id="bombCount">0</span>
+    <div class="btn emp" data-btn="emp">
+      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2" opacity=".5"/><path d="M27 6L14 27h9l-3 15 14-22h-9z" fill="currentColor"/></svg>
+      <span class="count" id="empCount">0</span>
     </div>
   </div>
 
@@ -63,13 +63,14 @@
         <p><b>Left thumb</b> anywhere on the left half: floating stick. Push to steer.</p>
         <p><b>FIRE</b> twin cannons (aim assist helps near targets). Slide your thumb between buttons without lifting it.</p>
         <p><b>BOOST</b> burns the yellow meter. <b>BRAKE</b> for tight turns.</p>
-        <p><b>Seeker</b> missiles home on the target in the lock ring. <b>Nova</b> wipes out everything nearby.</p>
+        <p>Keep an enemy in the lock ring until it reads <b>LOCK</b>: your cannon bolts turn gold and curve toward it, and <b>Seeker</b> missiles home in on it.</p>
+        <p><b>EMP</b> stuns nearby enemies for a few seconds and erases incoming fire. Stunned ships can't shoot and take extra damage.</p>
         <p>Tap the <b>radar</b> to toggle the full sector map.</p>
-        <p class="dim">Keyboard: WASD/arrows, Space fire, Shift boost, L brake, E missile, Q nova, P pause.</p>
+        <p class="dim">Keyboard: WASD/arrows, Space fire, Shift boost, L brake, E missile, Q EMP, P pause.</p>
       </div>
       <div class="col">
         <h3>Objective</h3>
-        <p>Clear 3 waves of hostiles, then fly through the <b class="g">warp gate</b>. Pick an upgrade and push deeper.</p>
+        <p>Clear 3 waves of hostiles, then fly through the <b class="g">warp gate</b>. Pick an upgrade and push deeper. Every cleared wave drops supplies just ahead of you.</p>
         <p>Shoot big asteroids to split them. <b class="o">Orange volatile</b> rocks explode and hurt everything nearby. <b class="c">Cyan crystal</b> rocks drop power-ups.</p>
         <h3>Power-ups</h3>
         <div id="puLegend"></div>
@@ -88,6 +89,9 @@
       <label class="tog">Auto-fire at targets <input type="checkbox" id="sAuto"></label>
       <label class="tog">Left-handed layout <input type="checkbox" id="sLefty"></label>
       <label class="tog">Vibration <input type="checkbox" id="sHaptics"></label>
+      <label>Difficulty
+        <select id="sDifficulty"><option value="relaxed">Relaxed</option><option value="normal">Normal</option><option value="veteran">Veteran</option></select>
+      </label>
       <label>Graphics
         <select id="sQuality"><option value="0">Low (battery saver)</option><option value="1">Medium</option><option value="2">High</option></select>
       </label>

@@ -14,8 +14,8 @@ export const PLAYER = {
   maxPitch: 1.25,
   hull: 100,
   shield: 100,
-  shieldRegen: 14,      // per second
-  shieldDelay: 3.2,     // seconds after damage before regen
+  shieldRegen: 17,      // per second
+  shieldDelay: 2.8,     // seconds after damage before regen
   boost: 100,
   boostDrain: 32,
   boostRegen: 18,
@@ -23,12 +23,14 @@ export const PLAYER = {
   boltSpeed: 520,
   boltDamage: 10,
   boltLife: 0.95,
-  missiles: 4,
-  maxMissiles: 6,
+  missiles: 5,
+  maxMissiles: 8,
   missileDamage: 75,
-  bombs: 1,
-  maxBombs: 2,
-  bombRadius: 320,
+  homingTurn: 2.7,      // rad/s that cannon bolts curve toward a locked target
+  emps: 1,
+  maxEmps: 2,
+  empRadius: 260,
+  empStun: 4.0,         // seconds enemies are disabled
   pickupRadius: 9,
   magnetRadius: 45,
   radius: 2.6,
@@ -87,31 +89,31 @@ export const ASTEROID_TIERS = {
 
 export const ENEMIES = {
   raider: {
-    name: 'Raider', hp: 45, speed: 74, turn: 1.6, radius: 4.2,
-    fireCooldown: 1.0, burst: 2, burstGap: 0.14, spread: 0, damage: 6, range: 620,
-    score: 100, drop: 0.14,
+    name: 'Raider', hp: 45, speed: 58, turn: 1.4, radius: 4.2,
+    fireCooldown: 1.25, burst: 2, burstGap: 0.14, spread: 0, damage: 5, range: 580,
+    score: 100, drop: 0.26,
   },
   lancer: {
-    name: 'Lancer', hp: 30, speed: 106, turn: 2.3, radius: 3.8,
-    fireCooldown: 1.5, burst: 3, burstGap: 0.09, spread: 0, damage: 5, range: 520,
-    score: 150, drop: 0.16,
+    name: 'Lancer', hp: 30, speed: 84, turn: 2.0, radius: 3.8,
+    fireCooldown: 1.8, burst: 3, burstGap: 0.1, spread: 0, damage: 4, range: 500,
+    score: 150, drop: 0.28,
   },
   warden: {
-    name: 'Warden', hp: 220, speed: 42, turn: 0.75, radius: 9,
-    fireCooldown: 1.7, burst: 2, burstGap: 0.25, spread: 3, damage: 8, range: 720,
-    score: 400, drop: 0.55,
+    name: 'Warden', hp: 220, speed: 34, turn: 0.7, radius: 9,
+    fireCooldown: 2.0, burst: 2, burstGap: 0.25, spread: 3, damage: 7, range: 680,
+    score: 400, drop: 0.85,
   },
 };
 
 // Power-ups. `timed` ones count down; others are instant.
 export const POWERUPS = {
-  repair:  { name: 'HULL REPAIR',   color: 0x45ff8a, css: '#45ff8a', icon: '+', weight: 3 },
-  shield:  { name: 'OVERSHIELD',    color: 0x4aa8ff, css: '#4aa8ff', icon: 'S', weight: 3 },
-  rapid:   { name: 'RAPID FIRE',    color: 0xffe14a, css: '#ffe14a', icon: 'R', weight: 2.5, timed: 14 },
-  spread:  { name: 'SPREAD SHOT',   color: 0xff8a2a, css: '#ff8a2a', icon: 'W', weight: 2.5, timed: 14 },
-  missile: { name: 'SEEKER PACK',   color: 0xff4a5e, css: '#ff4a5e', icon: 'M', weight: 2.5 },
-  nova:    { name: 'NOVA BOMB',     color: 0xc86bff, css: '#c86bff', icon: 'N', weight: 1 },
-  phase:   { name: 'PHASE SHIELD',  color: 0xffffff, css: '#ffffff', icon: 'P', weight: 0.8, timed: 8 },
+  repair:  { name: 'HULL REPAIR',   color: 0x45ff8a, css: '#45ff8a', icon: '+', weight: 3.5 },
+  shield:  { name: 'OVERSHIELD',    color: 0x4aa8ff, css: '#4aa8ff', icon: 'S', weight: 4 },
+  rapid:   { name: 'RAPID FIRE',    color: 0xffe14a, css: '#ffe14a', icon: 'R', weight: 2.5, timed: 15 },
+  spread:  { name: 'SPREAD SHOT',   color: 0xff8a2a, css: '#ff8a2a', icon: 'W', weight: 2.5, timed: 15 },
+  missile: { name: 'SEEKER PACK',   color: 0xff4a5e, css: '#ff4a5e', icon: 'M', weight: 4 },
+  emp:     { name: 'EMP CELL',      color: 0x5ad8ff, css: '#5ad8ff', icon: 'E', weight: 1.4 },
+  phase:   { name: 'PHASE SHIELD',  color: 0xffffff, css: '#ffffff', icon: 'P', weight: 0.9, timed: 8 },
 };
 
 export const UPGRADES = [
@@ -120,18 +122,18 @@ export const UPGRADES = [
   { id: 'regen',   name: 'Fast Recharge',     desc: 'Shields regen 40% faster, start sooner' },
   { id: 'damage',  name: 'Overcharged Bolts', desc: '+20% cannon damage' },
   { id: 'rate',    name: 'Autoloaders',       desc: '+15% fire rate' },
-  { id: 'missile', name: 'Missile Rack',      desc: '+2 max seekers, refill' },
+  { id: 'missile', name: 'Missile Rack',      desc: '+3 max seekers, refill' },
   { id: 'boost',   name: 'Afterburner',       desc: '+35% boost capacity & regen' },
   { id: 'agility', name: 'Vector Thrusters',  desc: '+15% turn rate & speed' },
   { id: 'magnet',  name: 'Salvage Magnet',    desc: 'Bigger pickup range, +30% power-up time' },
-  { id: 'nova',    name: 'Nova Cell',         desc: '+1 max nova bomb, refill' },
+  { id: 'emp',     name: 'EMP Capacitor',     desc: '+1 max EMP charge, bigger pulse, refill' },
 ];
 
 export const WAVES_PER_SECTOR = 3;
 
 export function waveComposition(sector, wave) {
   const list = [];
-  const count = Math.min(4 + sector + wave, 14);
+  const count = Math.min(3 + sector + wave, 12);
   const lancerW = wave >= 2 || sector >= 2 ? 0.35 + 0.08 * sector : 0;
   const wardenW = sector >= 2 ? 0.1 + 0.04 * sector : 0;
   for (let i = 0; i < count; i++) {
@@ -144,3 +146,10 @@ export function waveComposition(sector, wave) {
   if (sector === 1 && wave === WAVES_PER_SECTOR) list.push('warden');
   return list;
 }
+
+// Difficulty presets (multipliers on enemy stats). "normal" is the default.
+export const DIFFICULTY = {
+  relaxed: { label: 'Relaxed', hp: 0.8, damage: 0.6, speed: 0.88, fireRate: 0.75, accuracy: 1.5 },
+  normal:  { label: 'Normal',  hp: 1.0, damage: 1.0, speed: 1.0,  fireRate: 1.0,  accuracy: 1.0 },
+  veteran: { label: 'Veteran', hp: 1.25, damage: 1.35, speed: 1.15, fireRate: 1.25, accuracy: 0.7 },
+};

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA, PLAYER, THEMES, ASTEROID_TIERS, POWERUPS, UPGRADES, WAVES_PER_SECTOR, waveComposition } from './config.js';
+import { ARENA, PLAYER, THEMES, ASTEROID_TIERS, POWERUPS, UPGRADES, WAVES_PER_SECTOR, waveComposition, DIFFICULTY } from './config.js';
 import { audio } from './audio.js';
 import { World } from './world.js';
 import { Effects } from './particles.js';
@@ -19,7 +19,7 @@ const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
 const _camRight = new THREE.Vector3();
 
-const PLAYER_CAUSES = new Set(['player', 'missile', 'nova', 'ram', 'blast']);
+const PLAYER_CAUSES = new Set(['player', 'missile', 'ram', 'blast']);
 
 class Game {
   constructor() {
@@ -61,16 +61,16 @@ class Game {
     this.gate.visible = false;
     this.scene.add(this.gate);
 
-    // Nova shockwave sphere
-    this.novaMesh = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1, 3),
-      new THREE.MeshBasicMaterial({ color: 0xc86bff, wireframe: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    // EMP pulse: an expanding electric shell.
+    this.empMesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1, 2),
+      new THREE.MeshBasicMaterial({ color: 0x7fe0ff, wireframe: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
     );
-    this.novaMesh.visible = false;
-    this.scene.add(this.novaMesh);
-    this.novaGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color: 0xc86bff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
-    this.novaGlow.visible = false;
-    this.scene.add(this.novaGlow);
+    this.empMesh.visible = false;
+    this.scene.add(this.empMesh);
+    this.empGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color: 0x5ad8ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
+    this.empGlow.visible = false;
+    this.scene.add(this.empGlow);
 
     this.hud = new HUD(document.getElementById('hud'));
     this.input = new Input(document.getElementById('touch'));
@@ -98,9 +98,9 @@ class Game {
       vignette: document.getElementById('vignette'),
       fade: document.getElementById('fade'),
       missiles: document.getElementById('missileCount'),
-      bombs: document.getElementById('bombCount'),
+      emps: document.getElementById('empCount'),
       bMissile: document.querySelector('.btn.missile'),
-      bBomb: document.querySelector('.btn.bomb'),
+      bEmp: document.querySelector('.btn.emp'),
     };
     this.dom.pause.addEventListener('click', (e) => { e.stopPropagation(); this.pause(); });
 
@@ -126,7 +126,7 @@ class Game {
     this.lock = { target: null, progress: 0, locked: false };
     this.aimTarget = null;
     this.aimPoint = new THREE.Vector3();
-    this.novas = [];
+    this.emps = [];
     this.blasts = [];
     this.proximity = 0;
     this.hudVisible = false;
@@ -223,21 +223,23 @@ class Game {
     this.proj.clear();
     this.powerups.clear();
     this.fx.clear();
-    this.novas.length = 0;
+    this.emps.length = 0;
     this.blasts.length = 0;
     this.gate.visible = false;
-    this.novaMesh.visible = this.novaGlow.visible = false;
+    this.empMesh.visible = this.empGlow.visible = false;
     const yaw = Math.atan2(-spawn.x, -spawn.z);
     this.player.spawn(spawn, yaw);
     this.lock = { target: null, progress: 0, locked: false };
     this.camPos.copy(spawn).addScaledVector(this.player.forward, -16).add(_v.set(0, 5, 0));
     // Field power-ups scattered around the sector.
-    for (let i = 0; i < 7 + Math.min(n, 4); i++) {
+    for (let i = 0; i < 12 + Math.min(n, 4); i++) {
       for (let tries = 0; tries < 10; tries++) {
         const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * ARENA.radius * 0.85;
         _v.set(Math.cos(a) * r, rand(-ARENA.halfHeight, ARENA.halfHeight) * 0.6, Math.sin(a) * r);
         if (this.isClear(_v, 25)) {
-          this.powerups.spawn(randomPowerupType(i < 2 ? ['nova', 'phase'] : []), _v);
+          // A few guaranteed seeker packs and shields, the rest random.
+          const type = i < 3 ? 'missile' : i < 5 ? 'shield' : randomPowerupType();
+          this.powerups.spawn(type, _v);
           break;
         }
       }
@@ -304,8 +306,12 @@ class Game {
         if (this.wave < WAVES_PER_SECTOR) {
           this.waveState = 'intermission';
           this.waveTimer = 3.5;
-          this.ui.showBanner('WAVE CLEARED', `Next wave incoming`, 2.2);
-        } else this.sectorCleared();
+          this.ui.showBanner('WAVE CLEARED', 'Supply drop ahead', 2.2);
+          this.supplyDrop();
+        } else {
+          this.sectorCleared();
+          this.supplyDrop();
+        }
       }
     }
   }
@@ -339,11 +345,26 @@ class Game {
     if (!anchor) anchor = _v.set(0, 0, 0).clone();
     for (const type of types) {
       const pos = anchor.clone().add(randomUnit(_v3).multiplyScalar(rand(10, 40)));
-      const e = this.enemies.spawn(type, pos, this.sector);
+      const diff = DIFFICULTY[this.settings.difficulty] || DIFFICULTY.normal;
+      const e = this.enemies.spawn(type, pos, this.sector, diff);
       e.fwd.subVectors(p.pos, pos).normalize();
     }
     const s = this.spatial(anchor);
     audio.warpIn(Math.max(0.35, s.vol), s.pan);
+  }
+
+  // Two crates just ahead of the player: seekers if running low, then shields or repairs.
+  supplyDrop() {
+    const p = this.player;
+    if (!p.alive) return;
+    const first = p.missiles < p.maxMissiles * 0.6 ? 'missile' : randomPowerupType(['phase']);
+    const second = p.hull < p.maxHull * 0.7 ? 'repair' : 'shield';
+    const side = _v3.crossVectors(p.forward, p.levelUp).normalize();
+    [first, second].forEach((type, i) => {
+      const pos = p.pos.clone().addScaledVector(p.forward, 90).addScaledVector(side, i ? 14 : -14);
+      this.powerups.spawn(type, pos, 30);
+      this.fx.warp(pos, POWERUPS[type].color, 0.6);
+    });
   }
 
   sectorCleared() {
@@ -421,11 +442,11 @@ class Game {
       case 'regen': p.shieldRegen *= 1.4; p.shieldDelay = Math.max(1, p.shieldDelay - 0.6); break;
       case 'damage': p.damageMul *= 1.2; break;
       case 'rate': p.rateMul *= 1.15; break;
-      case 'missile': p.maxMissiles += 2; p.missiles = p.maxMissiles; break;
+      case 'missile': p.maxMissiles += 3; p.missiles = p.maxMissiles; break;
       case 'boost': p.maxBoost *= 1.35; p.boostRegen *= 1.35; p.boost = p.maxBoost; break;
       case 'agility': p.agility *= 1.15; break;
       case 'magnet': p.magnet *= 1.6; p.puDur *= 1.3; break;
-      case 'nova': p.maxBombs += 1; p.bombs = p.maxBombs; break;
+      case 'emp': p.maxEmps += 1; p.empRadius *= 1.15; p.emps = p.maxEmps; break;
     }
   }
 
@@ -636,50 +657,52 @@ class Game {
     haptic(25);
   }
 
-  fireNova() {
+  fireEmp() {
     const p = this.player;
-    if (p.bombs <= 0) { audio.ui(); return; }
-    p.bombs--;
-    this.novas.push({ c: p.pos.clone(), r: 0, max: PLAYER.bombRadius, hit: new Set() });
-    this.fx.flash(p.pos, 70, 0xd08bff, 0.45);
-    this.fx.ring(p.pos, 5, PLAYER.bombRadius, 0xd08bff, 0.8);
-    audio.nova();
-    haptic(90);
-    this.shake(0.6);
-    this.slowmo = Math.max(this.slowmo, 0.25);
+    if (p.emps <= 0) { audio.ui(); return; }
+    p.emps--;
+    this.emps.push({ c: p.pos.clone(), r: 0, max: p.empRadius, hit: new Set() });
+    this.fx.flash(p.pos, 45, 0x8fe6ff, 0.35);
+    this.fx.ring(p.pos, 4, p.empRadius, 0x8fe6ff, 0.55);
+    audio.emp();
+    haptic(60);
+    this.shake(0.3);
   }
 
-  updateNovas(dt) {
-    for (const n of this.novas) {
-      const prevR = n.r;
-      n.r = Math.min(n.max, n.r + 520 * dt);
-      this.novaMesh.visible = this.novaGlow.visible = true;
-      this.novaMesh.position.copy(n.c);
-      this.novaMesh.scale.setScalar(Math.max(1, n.r));
-      this.novaMesh.rotation.y += dt;
-      this.novaMesh.material.opacity = 0.45 * (1 - n.r / n.max) + 0.03;
-      this.novaGlow.position.copy(n.c);
-      this.novaGlow.scale.setScalar(n.r * 1.6);
-      this.novaGlow.material.opacity = 0.16 * (1 - n.r / n.max);
+  // EMP: stuns enemies (no kills), erases hostile fire, nudges loose rocks away.
+  updateEmps(dt) {
+    for (const n of this.emps) {
+      n.r = Math.min(n.max, n.r + 650 * dt);
+      const k = n.r / n.max;
+      this.empMesh.visible = this.empGlow.visible = true;
+      this.empMesh.position.copy(n.c);
+      this.empMesh.scale.setScalar(Math.max(1, n.r));
+      this.empMesh.rotation.set(Math.random() * 6, Math.random() * 6, 0); // flicker like arcing
+      this.empMesh.material.opacity = 0.35 * (1 - k) + 0.03;
+      this.empGlow.position.copy(n.c);
+      this.empGlow.scale.setScalar(n.r * 1.2);
+      this.empGlow.material.opacity = 0.12 * (1 - k);
       for (const e of this.enemies.list) {
         if (e.alive && !n.hit.has(e) && e.pos.distanceTo(n.c) < n.r + e.radius) {
           n.hit.add(e);
-          this.enemies.damage(e, 300);
+          this.enemies.stun(e, PLAYER.empStun * (e.type === 'warden' ? 0.6 : 1));
+          this.enemies.damage(e, 8);
+          this.fx.sparks(e.pos, 0x9fe6ff, 18, 45);
+          if (e.alive) this.hud.popup(e.pos, 'STUNNED', '#8fe6ff');
+          if (this.lock.target === e) this.lock.progress = 1;
         }
       }
-      const rocks = [];
-      this.field.query(n.c, n.r + 60, (a) => {
-        if (a.tier !== 'X' && !n.hit.has(a) && a.pos.distanceTo(n.c) < n.r + a.r * 0.5) rocks.push(a);
-      });
-      for (const a of rocks) {
+      this.field.query(n.c, n.r + 20, (a) => {
+        if (a.tier === 'X' || a.tier === 'L' || n.hit.has(a)) return;
+        if (a.pos.distanceTo(n.c) > n.r) return;
         n.hit.add(a);
-        this.field.destroy(a, 'nova', _v.subVectors(a.pos, n.c).normalize().multiplyScalar(600));
-      }
+        a.vel.addScaledVector(_v.subVectors(a.pos, n.c).normalize(), a.tier === 'S' ? 40 : 18);
+      });
       for (const b of this.proj.enemy.items) if (b.pos.distanceTo(n.c) < n.r) b.life = 0;
-      if (prevR >= n.max) n.done = true;
+      if (n.r >= n.max) n.done = true;
     }
-    this.novas = this.novas.filter((n) => !n.done);
-    if (!this.novas.length) this.novaMesh.visible = this.novaGlow.visible = false;
+    this.emps = this.emps.filter((n) => !n.done);
+    if (!this.emps.length) this.empMesh.visible = this.empGlow.visible = false;
   }
 
   updateBlasts(dt) {
@@ -745,23 +768,30 @@ class Game {
       if (!e.alive) continue;
       _v.subVectors(e.pos, p.pos);
       const d = _v.length();
-      if (d > 1100) continue;
+      if (d > 950) continue;
       const ang = Math.acos(clamp(_v.dot(p.forward) / d, -1, 1));
-      if (ang > 0.4) continue;
+      if (ang > 0.42) continue;
       const sc = ang * (1 + d / 1500);
       if (sc < cs) { cs = sc; cand = e; }
     }
     const L = this.lock;
+    // Keep an existing lock while it stays loosely in view, so homing fire doesn't flip targets.
+    if (L.locked && L.target && L.target.alive && cand !== L.target) {
+      _v.subVectors(L.target.pos, p.pos);
+      const d = _v.length();
+      if (d < 1000 && _v.dot(p.forward) / d > Math.cos(0.65)) cand = L.target;
+    }
     if (cand !== L.target) {
       L.target = cand;
       L.progress = 0;
       L.locked = false;
     } else if (cand) {
-      L.progress = Math.min(1, L.progress + dt * 1.8);
+      L.progress = Math.min(1, L.progress + dt * 2.3);
       if (L.progress >= 1 && !L.locked) {
         L.locked = true;
-        if (p.missiles > 0) audio.lockBeep(true);
-      } else if (!L.locked && p.missiles > 0) audio.lockBeep(false);
+        audio.lockBeep(true);
+        haptic(10);
+      } else if (!L.locked) audio.lockBeep(false);
     }
   }
 
@@ -897,10 +927,10 @@ class Game {
       this.dom.missiles.textContent = p.missiles;
       this.dom.bMissile.classList.toggle('empty', p.missiles <= 0);
     }
-    if (this._bc !== p.bombs) {
-      this._bc = p.bombs;
-      this.dom.bombs.textContent = p.bombs;
-      this.dom.bBomb.classList.toggle('empty', p.bombs <= 0);
+    if (this._bc !== p.emps) {
+      this._bc = p.emps;
+      this.dom.emps.textContent = p.emps;
+      this.dom.bEmp.classList.toggle('empty', p.emps <= 0);
     }
     this.vignette = Math.max(0, (this.vignette || 0) - dt * 1.8);
     const low = p.alive && this.hudVisible && p.hull / p.maxHull < 0.25 ? 0.25 + 0.15 * Math.sin(this.time * 6) : 0;
@@ -968,14 +998,22 @@ class Game {
     if (this.state === 'playing') {
       for (const ev of this.input.consume()) {
         if (ev === 'missile') this.fireMissile();
-        else if (ev === 'bomb') this.fireNova();
+        else if (ev === 'emp') this.fireEmp();
         else if (ev === 'pause') { this.pause(); return; }
       }
       p.update(dt, this.input, this.settings, this.time);
       this.updateTargeting(dt);
       p.fireCd -= dt;
-      const auto = this.settings.autoFire && this.aimTarget;
-      if ((this.input.fire || auto) && p.fireCd <= 0 && p.alive) p.fire(this.aimTarget ? this.aimPoint : null);
+      const L = this.lock;
+      const homing = L.locked && L.target && L.target.alive ? L.target : null;
+      const auto = this.settings.autoFire && (this.aimTarget || homing);
+      if ((this.input.fire || auto) && p.fireCd <= 0 && p.alive) {
+        if (homing) {
+          // Locked: lead the target and let the bolts curve in.
+          leadPoint(p.pos, homing.pos, _v2.subVectors(homing.vel, p.vel), PLAYER.boltSpeed, _v);
+          p.fire(_v, 1, homing);
+        } else p.fire(this.aimTarget ? this.aimPoint : null);
+      }
       this.updateWaves(dt);
       if (p.hull / p.maxHull < 0.25) audio.alarm();
       if (this.time - this.lastKill > 4 && this.comboMult > 1) { this.comboMult = 1; this.combo = 0; }
@@ -998,7 +1036,7 @@ class Game {
     const simulate = this.state !== 'title' || true;
     if (simulate) {
       this.field.update(dt);
-      this.enemies.update(dt, p, 1);
+      this.enemies.update(dt, p);
       this.proj.update(dt, this.projHooks);
       this.powerups.update(dt, p, (pu) => {
         p.applyPowerup(pu.type);
@@ -1009,7 +1047,7 @@ class Game {
       });
       if (this.state === 'playing' || this.state === 'dead') {
         this.updateCollisions(dt);
-        this.updateNovas(dt);
+        this.updateEmps(dt);
         this.updateBlasts(dt);
       }
       if (this.gate.visible) {

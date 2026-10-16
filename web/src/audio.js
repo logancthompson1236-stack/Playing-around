@@ -144,7 +144,7 @@ export class AudioEngine {
 
   // ---------- Effects ----------
 
-  laser(pan = 0) {
+  laser(pan = 0, homing = false) {
     if (!this.ctx || !this._gate('laser', 0.045)) return;
     const t = this.now, ctx = this.ctx;
     const out = this._out(0.5, pan, 0.08);
@@ -153,7 +153,13 @@ export class AudioEngine {
     const g = ctx.createGain();
     g.connect(lp);
     this._env(g.gain, t, 0.002, 0.22, 0.13);
-    const j = 1 + (Math.random() - 0.5) * 0.08;
+    const j = (1 + (Math.random() - 0.5) * 0.08) * (homing ? 0.8 : 1);
+    if (homing) {
+      const g3 = ctx.createGain();
+      g3.connect(lp);
+      this._env(g3.gain, t, 0.002, 0.12, 0.16);
+      this._osc('triangle', 2400 * j, 1600 * j, t, 0.16, g3);
+    }
     this._osc('square', 1500 * j, 240 * j, t, 0.13, g);
     const g2 = ctx.createGain();
     g2.connect(lp);
@@ -328,28 +334,48 @@ export class AudioEngine {
     }
   }
 
-  nova() {
+  emp() {
     if (!this.ctx) return;
     const t = this.now, ctx = this.ctx;
-    const out = this._out(1.0, 0, 0.7);
-    // Rising charge then a deep boom.
+    const out = this._out(0.9, 0, 0.6);
+    // Capacitor charge chirp.
     const g0 = ctx.createGain();
     g0.connect(out);
-    this._env(g0.gain, t, 0.15, 0.3, 0.12);
-    this._osc('sawtooth', 180, 1800, t, 0.27, g0);
-    const tb = t + 0.22;
-    const lp = this._filter('lowpass', 900, 0.6);
-    lp.frequency.setValueAtTime(1600, tb);
-    lp.frequency.exponentialRampToValueAtTime(40, tb + 2.6);
-    lp.connect(out);
+    this._env(g0.gain, t, 0.08, 0.25, 0.06);
+    this._osc('sine', 500, 3200, t, 0.14, g0);
+    // Electric discharge: FM buzz through a falling band-pass.
+    const tb = t + 0.12;
+    const bp = this._filter('bandpass', 2400, 1.4);
+    bp.frequency.setValueAtTime(3400, tb);
+    bp.frequency.exponentialRampToValueAtTime(260, tb + 0.9);
+    bp.connect(out);
     const g = ctx.createGain();
-    g.connect(lp);
-    this._env(g.gain, tb, 0.005, 1.0, 2.6);
-    this._noise(tb, 2.7, g);
+    g.connect(bp);
+    this._env(g.gain, tb, 0.004, 0.9, 0.9);
+    const car = this._osc('square', 140, 60, tb, 0.95, g);
+    const mod = ctx.createOscillator();
+    mod.frequency.setValueAtTime(1900, tb);
+    mod.frequency.exponentialRampToValueAtTime(240, tb + 0.9);
+    const mg = ctx.createGain();
+    mg.gain.value = 900;
+    mod.connect(mg).connect(car.frequency);
+    mod.start(tb);
+    mod.stop(tb + 1);
+    // Crackle.
+    for (let i = 0; i < 14; i++) {
+      const tt = tb + Math.random() * 0.8;
+      const hp = this._filter('highpass', 2500 + Math.random() * 3000, 0.8);
+      hp.connect(out);
+      const gc = ctx.createGain();
+      gc.connect(hp);
+      this._env(gc.gain, tt, 0.001, 0.2 + Math.random() * 0.3, 0.02 + Math.random() * 0.03);
+      this._noise(tt, 0.06, gc);
+    }
+    // Low thump.
     const g2 = ctx.createGain();
     g2.connect(out);
-    this._env(g2.gain, tb, 0.005, 1.0, 2.0);
-    this._osc('sine', 75, 18, tb, 2.0, g2);
+    this._env(g2.gain, tb, 0.004, 0.7, 0.45);
+    this._osc('sine', 95, 38, tb, 0.45, g2);
   }
 
   warpIn(vol = 1, pan = 0) {

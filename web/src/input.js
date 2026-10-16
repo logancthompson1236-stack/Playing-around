@@ -9,7 +9,7 @@ const LAYOUT = {
   boost:   { r: 205, b: 56,  d: 74 },
   brake:   { r: 292, b: 46,  d: 56 },
   missile: { r: 190, b: 152, d: 66 },
-  bomb:    { r: 82,  b: 205, d: 60 },
+  emp:     { r: 82,  b: 205, d: 60 },
 };
 
 export class Input {
@@ -222,7 +222,7 @@ export class Input {
     else this.keys.delete(k);
     if (!down) return;
     if (k === 'KeyE' || k === 'KeyI') this.events.push('missile');
-    if (k === 'KeyQ' || k === 'KeyO') this.events.push('bomb');
+    if (k === 'KeyQ' || k === 'KeyO') this.events.push('emp');
     if (k === 'Escape' || k === 'KeyP') this.events.push('pause');
   }
 

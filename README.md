@@ -17,18 +17,19 @@ Built with [three.js](https://threejs.org) and packaged as an Android APK throug
 | Control | Action |
 | --- | --- |
 | Left thumb (anywhere on the left half) | Floating joystick: steer |
-| **FIRE** | Twin cannons, with light aim assist near targets |
+| **FIRE** | Twin cannons, with light aim assist. Once a target reads **LOCKED**, bolts turn gold and home in on it |
 | **BOOST** / **BRAKE** | Burn the boost meter / slow down for tight turns |
 | **Seeker** (rocket icon) | Homing missile; locks onto the target in the lock ring |
-| **Nova** (rings icon) | Shockwave that destroys everything nearby |
+| **EMP** (lightning icon) | Pulse that stuns nearby enemies for ~4s and erases incoming fire. Stunned ships can't shoot and take +50% damage |
 | Tap the radar | Toggle the full sector map |
 
-Slide your right thumb between buttons without lifting it. Settings include sensitivity, invert-Y, auto-fire, a left-handed layout, vibration, and graphics quality.
+Slide your right thumb between buttons without lifting it. Settings include difficulty (Relaxed / Normal / Veteran), sensitivity, invert-Y, auto-fire, a left-handed layout, vibration, and graphics quality.
 
-Keyboard (desktop testing): WASD/arrows to steer, Space to fire, Shift to boost, L to brake, E for missiles, Q for nova, P to pause.
+Keyboard (desktop testing): WASD/arrows to steer, Space to fire, Shift to boost, L to brake, E for missiles, Q for EMP, P to pause.
 
 ### Each sector
 - Survive 3 waves of hostiles, then fly through the **warp gate** and pick 1 of 3 ship upgrades.
+- Every cleared wave drops two supply crates just ahead of you (seekers when you're low, plus shields or repairs).
 - Large asteroids split into smaller ones. **Orange volatile** rocks explode and damage everything nearby, enemies included. **Cyan crystal** rocks drop power-ups.
 - Huge monolith asteroids can't be destroyed. Fly around them.
 - Kills in quick succession build a combo multiplier.
@@ -39,7 +40,7 @@ Keyboard (desktop testing): WASD/arrows to steer, Space to fire, Shift to boost,
 - **Warden**: heavy gunship. Holds range and fires spreads; appears more from sector 2 on.
 
 ### Power-ups
-Hull Repair, Overshield, Rapid Fire, Spread Shot, Seeker Pack (+3 missiles), Nova Bomb, Phase Shield (temporary invulnerability; fly through rock).
+Hull Repair, Overshield, Rapid Fire, Spread Shot, Seeker Pack (+4 missiles), EMP Cell (+1 EMP charge), Phase Shield (temporary invulnerability; fly through rock).
 
 ## Build from source
 

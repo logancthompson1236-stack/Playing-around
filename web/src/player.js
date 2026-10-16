@@ -64,14 +64,15 @@ export class Player {
     this.rateMul = 1;
     this.agility = 1;
     this.maxMissiles = PLAYER.maxMissiles;
-    this.maxBombs = PLAYER.maxBombs;
+    this.maxEmps = PLAYER.maxEmps;
+    this.empRadius = PLAYER.empRadius;
     this.magnet = 1;
     this.puDur = 1;
     this.hull = this.maxHull;
     this.shield = this.maxShield;
     this.boost = this.maxBoost;
     this.missiles = PLAYER.missiles;
-    this.bombs = PLAYER.bombs;
+    this.emps = PLAYER.emps;
   }
 
   spawn(pos, yaw) {
@@ -192,7 +193,8 @@ export class Player {
   }
 
   // Fires the main cannons. `aim` (optional) is a world-space point to converge on.
-  fire(aim, damageScale = 1) {
+  // `homing` (optional) is a locked enemy the bolts will curve toward.
+  fire(aim, damageScale = 1, homing = null) {
     const rapid = this.timers.rapid > 0;
     const interval = PLAYER.fireInterval / this.rateMul / (rapid ? 1.75 : 1);
     this.fireCd = interval;
@@ -205,16 +207,18 @@ export class Player {
     else dir.copy(this.pos).addScaledVector(this.forward, 260).sub(m).normalize();
     const dmg = PLAYER.boltDamage * this.damageMul * damageScale;
     const inherit = _v2.copy(this.forward).multiplyScalar(this.speed * 0.9);
-    this.proj.firePlayer(m, dir, PLAYER.boltSpeed, dmg, PLAYER.boltLife, inherit);
+    const life = homing ? PLAYER.boltLife * 1.45 : PLAYER.boltLife;
+    const turn = homing ? PLAYER.homingTurn : 0;
+    this.proj.firePlayer(m, dir, PLAYER.boltSpeed, dmg, life, inherit, homing, turn);
     if (this.timers.spread > 0) {
       const side = new THREE.Vector3().crossVectors(this.forward, this.up).normalize();
       for (const s of [-1, 1]) {
         const d2 = dir.clone().addScaledVector(side, s * 0.07).normalize();
-        this.proj.firePlayer(m, d2, PLAYER.boltSpeed, dmg * 0.75, PLAYER.boltLife, inherit);
+        this.proj.firePlayer(m, d2, PLAYER.boltSpeed, dmg * 0.75, life, inherit, homing, turn * 0.7);
       }
     }
-    this.fx.flash(m, 4, rapid ? 0xfff2a0 : 0x9fe8ff, 0.06);
-    audio.laser(this.gunSide ? -0.25 : 0.25);
+    this.fx.flash(m, 4, homing ? 0xffd27a : rapid ? 0xfff2a0 : 0x9fe8ff, 0.06);
+    audio.laser(this.gunSide ? -0.25 : 0.25, !!homing);
   }
 
   applyPowerup(type) {
@@ -222,8 +226,8 @@ export class Player {
     switch (type) {
       case 'repair': this.hull = Math.min(this.maxHull, this.hull + this.maxHull * 0.4); break;
       case 'shield': this.shield = Math.max(this.shield, this.maxShield * 1.5); this.shieldFlash = 1; break;
-      case 'missile': this.missiles = Math.min(this.maxMissiles, this.missiles + 3); break;
-      case 'nova': this.bombs = Math.min(this.maxBombs, this.bombs + 1); break;
+      case 'missile': this.missiles = Math.min(this.maxMissiles, this.missiles + 4); break;
+      case 'emp': this.emps = Math.min(this.maxEmps, this.emps + 1); break;
       default: if (def.timed) this.timers[type] = def.timed * this.puDur;
     }
   }

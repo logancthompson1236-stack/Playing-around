@@ -7,7 +7,7 @@ const BEST_KEY = 'shardfall.best.v1';
 
 const DEFAULTS = {
   sensitivity: 1, musicVol: 0.55, sfxVol: 0.85, invertY: false, autoFire: false,
-  lefty: false, haptics: true, quality: 1,
+  lefty: false, haptics: true, quality: 1, difficulty: 'normal',
 };
 
 function store() {
@@ -113,6 +113,9 @@ export class UI {
     bindCheck('sAuto', 'autoFire');
     bindCheck('sLefty', 'lefty', () => this.h.layout());
     bindCheck('sHaptics', 'haptics');
+    const d = $('sDifficulty');
+    d.value = s.difficulty;
+    d.addEventListener('change', () => { s.difficulty = d.value; saveSettings(s); audio.ui(); });
     const q = $('sQuality');
     q.value = String(s.quality);
     q.addEventListener('change', () => {

@@ -125,7 +125,7 @@ export class HUD {
       const locked = game.lock.target === e;
       if (sp.on) {
         const size = clamp(900 / Math.max(d, 1), 7, 34) * s * (e.type === 'warden' ? 1.5 : 1);
-        g.strokeStyle = locked ? '#ff3b3b' : 'rgba(255,90,80,0.85)';
+        g.strokeStyle = locked ? '#ffc84a' : e.stunT > 0 ? 'rgba(140,230,255,0.95)' : 'rgba(255,90,80,0.85)';
         g.lineWidth = locked ? 2.2 : 1.4;
         const c = size * 0.4;
         g.beginPath();
@@ -163,16 +163,16 @@ export class HUD {
         g.translate(sp.x, sp.y);
         if (L.locked) {
           g.rotate(this.warnBlink * 2);
-          g.strokeStyle = '#ff3b3b';
+          g.strokeStyle = '#ffc84a';
           g.lineWidth = 2.5;
           g.beginPath();
           g.moveTo(0, -r); g.lineTo(r, 0); g.lineTo(0, r); g.lineTo(-r, 0); g.closePath();
           g.stroke();
           g.rotate(-this.warnBlink * 2);
-          g.fillStyle = '#ff3b3b';
+          g.fillStyle = '#ffc84a';
           g.font = `bold ${11 * s}px monospace`;
           g.textAlign = 'center';
-          g.fillText('LOCK', 0, r + 14 * s);
+          g.fillText('LOCKED', 0, r + 14 * s);
         } else {
           g.strokeStyle = 'rgba(255,200,80,0.9)';
           g.lineWidth = 2;
@@ -238,8 +238,9 @@ export class HUD {
     if (player.alive) {
       _p.copy(player.pos).addScaledVector(player.forward, 280);
       this.project(_p, cam, sp);
+      const homing = game.lock.locked && game.lock.target && game.lock.target.alive;
       const hot = !!game.aimTarget;
-      g.strokeStyle = hot ? 'rgba(255,120,100,0.95)' : 'rgba(140,230,255,0.9)';
+      g.strokeStyle = homing ? 'rgba(255,200,74,0.95)' : hot ? 'rgba(255,120,100,0.95)' : 'rgba(140,230,255,0.9)';
       g.lineWidth = 1.6;
       const r = 15 * s;
       g.beginPath();

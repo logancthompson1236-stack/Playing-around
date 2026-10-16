@@ -35,7 +35,8 @@ export class Enemies {
     return n;
   }
 
-  spawn(type, pos, sector) {
+  // `diff` is a DIFFICULTY preset from config.js.
+  spawn(type, pos, sector, diff) {
     const def = ENEMIES[type];
     const mat = getHullMaterial().clone();
     mat.emissive = new THREE.Color(0x000000);
@@ -43,20 +44,21 @@ export class Enemies {
     mesh.position.copy(pos);
     mesh.scale.setScalar(0.01);
     this.scene.add(mesh);
-    const hpScale = 1 + 0.16 * (sector - 1);
+    const hpScale = (1 + 0.14 * (sector - 1)) * diff.hp;
     const e = {
       id: uid++, type, def, mesh, mat, pos: mesh.position,
       vel: new THREE.Vector3(), fwd: randomUnit(new THREE.Vector3()),
       hp: def.hp * hpScale, maxHp: def.hp * hpScale,
-      damage: def.damage * (1 + 0.1 * (sector - 1)),
-      accuracy: Math.max(0.012, 0.034 - sector * 0.004),
-      fireRateMul: 1 + 0.06 * (sector - 1),
-      speed: def.speed, radius: def.radius,
+      damage: def.damage * (1 + 0.08 * (sector - 1)) * diff.damage,
+      accuracy: Math.max(0.014, 0.04 - sector * 0.004) * diff.accuracy,
+      fireRateMul: (1 + 0.05 * (sector - 1)) * diff.fireRate,
+      speed: def.speed * Math.min(1.25, 1 + 0.03 * (sector - 1)) * diff.speed, radius: def.radius,
       state: 'attack', timer: 0, breakDir: new THREE.Vector3(),
       orbitAxis: randomUnit(new THREE.Vector3()),
       fireCd: rand(1, 2.5), burstLeft: 0, burstCd: 0, gun: 0,
       bank: 0, flash: 0, spawnT: 0, alive: true, lastHitBy: null,
       jink: new THREE.Vector3(), jinkT: 0,
+      stunT: 0, tumbleAxis: new THREE.Vector3(), tumbleRate: 0,
     };
     // Face the player-ish on arrival.
     this.list.push(e);
@@ -66,6 +68,7 @@ export class Enemies {
 
   damage(e, amount) {
     if (!e.alive) return false;
+    if (e.stunT > 0) amount *= 1.5; // disabled ships are easy prey
     e.hp -= amount;
     e.flash = 0.1;
     if (e.hp <= 0) {
@@ -73,6 +76,15 @@ export class Enemies {
       return true;
     }
     return false;
+  }
+
+  // EMP: knock systems offline. The ship drifts and tumbles, can't steer or fire.
+  stun(e, seconds) {
+    if (!e.alive) return;
+    e.stunT = Math.max(e.stunT, seconds);
+    e.burstLeft = 0;
+    e.tumbleAxis.copy(randomUnit(_v));
+    e.tumbleRate = rand(1.2, 2.6) * (e.type === 'warden' ? 0.4 : 1);
   }
 
   kill(e, silent = false) {
@@ -88,7 +100,7 @@ export class Enemies {
     this.list.length = 0;
   }
 
-  update(dt, player, difficulty) {
+  update(dt, player) {
     const field = this.field;
     let w = 0;
     for (const e of this.list) if (e.alive) this.list[w++] = e;
@@ -99,6 +111,23 @@ export class Enemies {
       e.spawnT += dt;
       if (e.spawnT < 0.6) e.mesh.scale.setScalar(Math.max(0.01, e.spawnT / 0.6));
       else e.mesh.scale.setScalar(1);
+
+      if (e.stunT > 0) {
+        e.stunT -= dt;
+        e.vel.multiplyScalar(Math.exp(-0.7 * dt));
+        e.pos.addScaledVector(e.vel, dt);
+        _q.setFromAxisAngle(e.tumbleAxis, e.tumbleRate * dt);
+        e.mesh.quaternion.premultiply(_q);
+        e.fwd.set(0, 0, 1).applyQuaternion(e.mesh.quaternion);
+        e.mat.emissive.setRGB(0.25, 0.6, 1).multiplyScalar(0.25 + 0.5 * Math.random());
+        for (const s of e.mesh.userData.engines) s.scale.setScalar(s.userData.baseSize * 0.2 * Math.random());
+        if (Math.random() < 0.2) this.fx.sparks(e.pos, 0x9fe6ff, 3, 22);
+        if (e.stunT <= 0) {
+          e.mat.emissive.setRGB(0, 0, 0);
+          e.fireCd = Math.max(e.fireCd, 1.2);
+        }
+        continue;
+      }
 
       _v.subVectors(player.pos, e.pos);
       const dist = _v.length();
@@ -195,7 +224,7 @@ export class Enemies {
       _prev.copy(e.fwd);
       const turn = def.turn * (e.state === 'break' ? 1.3 : 1);
       rotateTowards(e.fwd, _desired, turn * dt);
-      const sp = e.speed * (dist > 750 ? 1.7 : 1) * (e.spawnT < 0.6 ? 0.2 : 1);
+      const sp = e.speed * (dist > 750 ? 1.5 : 1) * (e.spawnT < 0.6 ? 0.2 : 1);
       e.vel.copy(e.fwd).multiplyScalar(sp);
       e.pos.addScaledVector(e.vel, dt);
 
@@ -224,7 +253,7 @@ export class Enemies {
 
       // ---- Weapons ----
       if (!player.alive || e.spawnT < 1) continue;
-      e.fireCd -= dt * e.fireRateMul * difficulty;
+      e.fireCd -= dt * e.fireRateMul;
       e.burstCd -= dt;
       const facing = e.fwd.dot(aimDir);
       if (e.burstLeft <= 0 && e.fireCd <= 0 && dist < def.range && facing > 0.9) {
