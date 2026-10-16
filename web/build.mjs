@@ -36,6 +36,12 @@ html = html.replace('<link rel="stylesheet" href="style.css">', () => `<style>\n
 html = html.replace('<script src="game.js"></script>', () => `<script>\n${js}\n</script>`);
 fs.writeFileSync(path.join(dist, 'shardfall.html'), html);
 
+// Body-only variant for hosts that supply their own document skeleton.
+const title = html.match(/<title>[\s\S]*?<\/title>/)[0];
+const style = html.match(/<style>[\s\S]*?<\/style>/)[0];
+const body = html.match(/<body>([\s\S]*)<\/body>/)[1];
+fs.writeFileSync(path.join(dist, 'shardfall-embed.html'), `${title}\n${style}\n${body}`);
+
 if (fs.existsSync(path.join(root, '..', 'android'))) {
   fs.mkdirSync(androidAssets, { recursive: true });
   for (const f of ['index.html', 'style.css', 'game.js']) fs.copyFileSync(path.join(dist, f), path.join(androidAssets, f));

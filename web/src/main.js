@@ -151,6 +151,9 @@ class Game {
     window.addEventListener('pointerdown', unlock, { capture: true });
     window.addEventListener('keydown', unlock, { capture: true });
 
+    const rd = document.getElementById('rotateDismiss');
+    if (rd) rd.addEventListener('click', () => { document.body.classList.add('portrait-ok'); setTimeout(() => this.resize(), 50); });
+
     this.resize();
     this.loadSector(1, true);
     this.toTitle();
@@ -873,6 +876,12 @@ class Game {
       this.fov = warping ? 115 : p.boosting ? 84 : p.braking ? 66 : 72;
     }
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
+    if (cam.aspect < 1.2) {
+      // Convert the intended landscape-ish view into a taller vertical FOV for narrow screens.
+      const h = THREE.MathUtils.degToRad(this.fov) * 0.5;
+      const want = 2 * Math.atan(Math.tan(h) * 1.35 / cam.aspect);
+      this.fov = Math.min(105, THREE.MathUtils.radToDeg(want));
+    }
     const f = damp(cam.fov, this.fov, 4, dt);
     if (Math.abs(f - cam.fov) > 0.01) {
       cam.fov = f;
@@ -931,7 +940,8 @@ class Game {
   }
 
   resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const app = document.getElementById('app');
+    const w = app.clientWidth || window.innerWidth, h = app.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

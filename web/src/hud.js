@@ -21,8 +21,9 @@ export class HUD {
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     this.dpr = dpr;
-    this.w = window.innerWidth;
-    this.h = window.innerHeight;
+    const app = document.getElementById('app');
+    this.w = (app && app.clientWidth) || window.innerWidth;
+    this.h = (app && app.clientHeight) || window.innerHeight;
     this.canvas.width = Math.round(this.w * dpr);
     this.canvas.height = Math.round(this.h * dpr);
     this.s = clamp(Math.min(this.h / 390, this.w / 760), 0.75, 1.4);
@@ -334,18 +335,20 @@ export class HUD {
 
   drawTop(g, game) {
     const s = this.s;
+    const portrait = this.w < 560;
+    const top = portrait ? this.radarSmall.y + this.radarSmall.r + 34 * s : 0;
     g.textAlign = 'center';
     g.fillStyle = '#ffffff';
     g.font = `bold ${20 * s}px monospace`;
-    g.fillText(String(game.score).padStart(7, '0'), this.w / 2, 26 * s);
+    g.fillText(String(game.score).padStart(7, '0'), this.w / 2, top + 26 * s);
     if (game.comboMult > 1) {
       g.fillStyle = '#ffd36b';
       g.font = `bold ${12 * s}px monospace`;
-      g.fillText('x' + game.comboMult + ' COMBO', this.w / 2, 42 * s);
+      g.fillText('x' + game.comboMult + ' COMBO', this.w / 2, top + 42 * s);
     }
     g.fillStyle = 'rgba(200,225,255,0.85)';
     g.font = `${10 * s}px monospace`;
-    g.fillText(game.objectiveText(), this.w / 2, (game.comboMult > 1 ? 56 : 42) * s);
+    g.fillText(game.objectiveText(), this.w / 2, top + (game.comboMult > 1 ? 56 : 42) * s);
   }
 
   drawWarnings(g, game) {

@@ -24,6 +24,8 @@ export class Input {
     this.held = { fire: 0, boost: 0, brake: 0 };
     this.keys = new Set();
     this.lefty = false;
+    this.ox = 0;
+    this.oy = 0;
     this.enabled = false;
     this.stickRadius = 62;
     this.base = root.querySelector('#stickBase');
@@ -51,8 +53,13 @@ export class Input {
     this.layout();
   }
 
+  _size() {
+    const app = document.getElementById('app');
+    return { w: (app && app.clientWidth) || window.innerWidth, h: (app && app.clientHeight) || window.innerHeight };
+  }
+
   layout() {
-    const h = window.innerHeight, w = window.innerWidth;
+    const { w, h } = this._size();
     const s = clamp(Math.min(h / 390, w / 760), 0.72, 1.35);
     this.scale = s;
     this.stickRadius = 62 * s;
@@ -74,8 +81,9 @@ export class Input {
 
   _restBase() {
     const s = this.scale || 1;
-    const x = this.lefty ? window.innerWidth - 130 * s : 130 * s;
-    const y = window.innerHeight - 120 * s;
+    const { w, h } = this._size();
+    const x = this.lefty ? w - 130 * s : 130 * s;
+    const y = h - 120 * s;
     this._placeBase(x, y);
     this.base.classList.remove('active');
     this.knob.style.transform = 'translate(-50%, -50%)';
@@ -89,10 +97,15 @@ export class Input {
   }
 
   _cacheRects() {
+    // Everything is kept in #app-local coordinates (the app is inset by phone safe areas).
+    const app = document.getElementById('app');
+    const ar = app ? app.getBoundingClientRect() : { left: 0, top: 0 };
+    this.ox = ar.left;
+    this.oy = ar.top;
     this.rects = {};
     for (const [k, el] of Object.entries(this.buttons)) {
       const r = el.getBoundingClientRect();
-      this.rects[k] = { x: r.left + r.width / 2, y: r.top + r.height / 2, r: (r.width / 2) * 1.12 };
+      this.rects[k] = { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, r: (r.width / 2) * 1.12 };
     }
   }
 
@@ -121,14 +134,15 @@ export class Input {
   }
 
   _isStickSide(x) {
-    return this.lefty ? x > window.innerWidth * 0.55 : x < window.innerWidth * 0.45;
+    const w = this._size().w;
+    return this.lefty ? x > w * 0.55 : x < w * 0.45;
   }
 
   _down(e) {
     if (!this.enabled) return;
     e.preventDefault();
     try { this.root.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-    const x = e.clientX, y = e.clientY;
+    const x = e.clientX - this.ox, y = e.clientY - this.oy;
     if (this.tapHandler && this.tapHandler(x, y)) return;
     const btn = this._hit(x, y);
     if (btn) {
@@ -149,10 +163,10 @@ export class Input {
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     e.preventDefault();
-    if (p.kind === 'stick') this._stickMove(e.clientX, e.clientY);
+    if (p.kind === 'stick') this._stickMove(e.clientX - this.ox, e.clientY - this.oy);
     else {
       // Slide between buttons without lifting the thumb.
-      const btn = this._hit(e.clientX, e.clientY);
+      const btn = this._hit(e.clientX - this.ox, e.clientY - this.oy);
       if (btn !== p.btn) {
         const old = p.btn;
         p.btn = btn;
