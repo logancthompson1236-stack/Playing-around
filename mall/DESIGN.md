@@ -553,6 +553,17 @@ v0.7.0 changes, from playtest feedback:
 - **New decor:** the Shade tree (level 13).
 - **Economy:** breaks, restrooms, wing utilities and the expansion costs keep late-game money in check. The balance bot now has about $12,000 on day 40 (it had $81,000 in v0.6.0) and reaches level 18 around day 35–41.
 
+v0.8.0 changes, from playtest feedback:
+- **New floor plan:** the starting building is 30×17 (was 26×15) with a four-row concourse, storefronts grouped side by side, and a small open alcove next to the restrooms. Older saves get remodeled automatically: stores move to storefronts of the same size (or get a new one on cleared floor), clerks stay with their stores, and decorations are refunded so they can be placed again.
+- **Real restrooms:** 4×3, with three stalls (toilet, partitions, a door that shuts with a red light when someone's in) and two sinks. Shoppers take a free stall, then wash their hands on the way out; if every stall is taken they wait by the door for up to 12 seconds.
+- **Supervisor (level 14):** walks from storefront to storefront, spots anyone on their phone within 4–6 tiles and gets them back to work. Staff near a supervisor work 18% faster and take breaks half as often. Up to two by level 17.
+- **One-star staff are slower:** clerks take 2.5 seconds per checkout (two-stars 1.5), one-star janitors walk and sweep slower, one-star stockers are slower too.
+- **Smaller crowds later on:** from level 4 to level 12, the crowd a mall draws tapers to 20% below what it was. Early days are unchanged.
+- **Bigger East Wing:** 16 columns (was 12) with two big 5×4 plots, four storefronts and its own 4×3 restrooms. The Garden Court has a third big plot.
+- **Attractions:** Starlight Cinema (level 12, $12,000) and Bounce Zone (level 15, $15,000) need a 5×4 plot. Tickets come from a machine at the door; there are 8 cinema seats and 6 trampolines, and a line forms outside when it's full (people give up if they wait too long). Cinema-goers sit facing an animated screen; jumpers bounce. Upkeep is $160 and $130 a day.
+- **Pacing:** levels 10–18 need less XP to make up for the smaller crowds. The balance bot reaches level 18 around day 38–42 and opens the East Wing around day 42, with money staying tight rather than piling up.
+- **Room to grow:** the map now reserves 58 columns for wings, so more expansions can be added later.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

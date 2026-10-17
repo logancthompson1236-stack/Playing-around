@@ -96,6 +96,8 @@ export function floor(kind, x, y, w, h, seed){
       else { g.beginPath(); g.moveTo(px - 0.08, py); g.quadraticCurveTo(px - 0.04, py - 0.07, px, py); g.quadraticCurveTo(px + 0.04, py + 0.07, px + 0.08, py); g.stroke(); }
     }
   }
+  else if (kind === 'cinema'){ checker(0.5, '#5b2a3e', '#53263a'); grid(1, 'rgba(255,210,63,.12)', 0.02); }
+  else if (kind === 'bounce'){ checker(1, '#e9f3ff', '#d9e8fb'); grid(1, 'rgba(90,141,238,.2)', 0.03); }
   else if (kind === 'mint'){ checker(1, '#e3f6ea', '#c9ecd8'); grid(1, 'rgba(60,140,100,.2)', 0.025); }
   else if (kind === 'wood'){ planks('#ead2ac', '#e2c69b', 'rgba(120,80,40,.2)'); }
   else if (kind === 'wood2'){ planks('#c49a6c', '#b98d5f', 'rgba(70,40,20,.25)'); }
@@ -245,6 +247,14 @@ export function storeIcon(icon, x, y, s, mono = null){
       rr(-0.42, -0.3, 0.84, 0.62, 0.12); fs(c('#118ab2'), 0.08);
       rr(-0.32, -0.21, 0.5, 0.44, 0.08); fs(c('#a8f0e6'), 0.05);
       circ(0.29, -0.1, 0.05); fs('#ffd23f', 0.03); circ(0.29, 0.08, 0.05); fs('#ef476f', 0.03); break;
+    case 'film':
+      rr(-0.42, -0.12, 0.84, 0.5, 0.06); fs(c('#3d2b56'), 0.08);
+      g.save(); g.translate(-0.42, -0.14); g.rotate(-0.35); rr(0, -0.16, 0.86, 0.16, 0.03); fs(c('#ffd23f'), 0.07); g.restore();
+      for (let i = 0; i < 4; i++){ g.fillStyle = '#fff'; g.fillRect(-0.32 + i * 0.2, 0.0, 0.1, 0.06); }
+      circ(0, 0.2, 0.08); fs('#ef476f', 0); break;
+    case 'bounce':
+      ell(0, 0.22, 0.42, 0.14); fs(c('#3d405b'), 0.07); ell(0, 0.2, 0.32, 0.09); fs(c('#5a8dee'), 0);
+      circ(0, -0.2, 0.1); fs('#ffd23f', 0.05); g.strokeStyle = OUT; g.lineWidth = 0.06; g.beginPath(); g.moveTo(0, -0.1); g.lineTo(0, 0.05); g.moveTo(-0.15, -0.05); g.lineTo(0.15, -0.05); g.stroke(); break;
     case 'wc':
       rr(-0.42, -0.36, 0.84, 0.72, 0.14); fs(c('#5cc8bf'), 0.08);
       for (const [px, dress] of [[-0.18, false], [0.18, true]]){
@@ -405,6 +415,7 @@ export function person(x, y, o){
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }
   if (o.hold && !o.back) heldItem(o.hold, 0.235, -0.31, o.bagColor);
+  if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
   if (o.thermos){ rr(-0.31, -0.42, 0.12, 0.22, 0.04); fs('#c0392b', 0.03); rr(-0.3, -0.45, 0.1, 0.05, 0.02); fs('#bbb', 0.025); }
@@ -516,7 +527,7 @@ export function unitBack(u, def, t){
     rr(u.x - 0.04, u.y - H - 0.14, u.w + 0.08, 0.14, 0.03); fs(wl);
     if (isOpen(u)){
       rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs('#fffaf3');
-      if (def.icon === 'joystick') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, '#ff5fa2', u.w - 0.6);
+      if (def.icon === 'joystick' || def.icon === 'film') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', u.w - 0.6);
       else text(def.name, u.x + u.w / 2, u.y - 0.76, 0.27, shade(def.color, -0.3), 700, 'Fredoka', u.w - 0.6);
     }
     if (u.state === 'vacant'){ forLease(u.x + u.w / 2, u.y - 0.6, -0.05, 0.9); }
@@ -623,6 +634,8 @@ function counter(u, def){
 // Store furniture split across sort layers: 'back' items sit along the back wall, 'mid' items stand in the room.
 export function storeFurniture(u, def, t, layer){
   const W = u.w, H = u.h, ic = def.icon;
+  if (ic === 'wc') return restroomFurniture(u, layer);
+  if (def.attraction){ if (layer === 'back') attractionBack(u, def, t); return; }
   const sw = Math.max(0.6, W - 1.25);
   if (layer === 'back'){
     const [x, y] = local(u, 0.1, 0.08, sw, 0.4);
@@ -657,7 +670,6 @@ export function storeFurniture(u, def, t, layer){
     else shelf(x, y, sw, 0.4, 0.7, 'goods', u.id);
     return;
   }
-  if (ic === 'wc') return restroomFurniture(u, layer);
   if (layer === 'counter'){ counter(u, def); return; }
   // Mid-room pieces
   if (ic === 'dollar' && H >= 3){ const [x, y] = local(u, 0.3, 1.9, Math.max(0.6, W - 1.6), 0.36); shelf(x, y, Math.max(0.6, W - 1.6), 0.36, 0.5, 'goods', u.id + 5); }
@@ -670,20 +682,100 @@ export function storeFurniture(u, def, t, layer){
   if (ic === 'tv' && H >= 3){ const [x, y] = local(u, 0.3, 1.9, 1.2, 0.5); box(x, y, 1.2, 0.5, 0.45, '#e9e1d4', '#c9bfb0'); rr(x + 0.12, y - 0.36, 0.26, 0.16, 0.03); fs('#ffd23f', 0.025); rr(x + 0.5, y - 0.38, 0.2, 0.22, 0.03); fs('#a0a8b0', 0.025); rr(x + 0.84, y - 0.36, 0.24, 0.14, 0.04); fs('#ef476f', 0.025); }
   if (ic === 'book' && H >= 3){ const [x, y] = local(u, 0.3, 2.05); box(x - 0.2, y - 0.35, 0.45, 0.35, 0.35, '#e07a5f', '#c0583f'); }
 }
-// Restrooms: a row of stall doors along the back and a sink by the door.
+// Restrooms: stalls with toilets along the back, sinks on a counter by the door.
+// roomState holds each restroom's live state (which stalls are taken), set by the renderer.
+export const roomState = new WeakMap();
+export function restroomSpots(u){
+  const W = u.w, H = u.h, n = Math.max(1, Math.floor((W - 0.2) / 1.25)), sw = (W - 0.2) / n;
+  const at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
+  const stalls = [];
+  for (let i = 0; i < n; i++){ const c = 0.1 + i * sw + sw / 2; stalls.push({ lx: 0.1 + i * sw, sw, front: at(c, 1.62), inside: at(c, 0.85) }); }
+  const sinks = [];
+  for (let j = 0; j < (W >= 3 ? 2 : 1); j++) sinks.push({ lx: 0.5 + j * 0.7, at: at(0.5 + j * 0.7, H - 1.02) });
+  const dl = doorX(u) - u.x + 0.5;
+  return { stalls, sinks, aisle: (ly) => at(dl, ly), sinkY: H - 1.02 };
+}
 function restroomFurniture(u, layer){
+  const st = roomState.get(u), sp = restroomSpots(u), down = u.face === 'down';
   if (layer === 'back'){
-    const n = u.w * 2 - 1, [x, y] = local(u, 0.08, 0.08, u.w - 0.16, 0.42);
-    for (let i = 0; i < n; i++){
-      const sx = x + i * (u.w - 0.16) / n, sw = (u.w - 0.16) / n - 0.05;
-      box(sx, y, sw, 0.42, 0.95, '#d9f0ee', i % 2 ? '#a8ddd8' : '#bfe7e3');
-      circ(sx + sw - 0.08, y + 0.42 - 0.5, 0.025); fs('#7a8a8a', 0);
+    for (let i = 0; i < sp.stalls.length; i++){
+      const s0 = sp.stalls[i], taken = st && st.stalls && st.stalls[i];
+      // Stalls stand a little off the back wall so their tops stay under the sign.
+      const D = 1.0, [x, y] = local(u, s0.lx, 0.3, s0.sw, D);
+      // Toilet: tank against the back of the stall, bowl in front of it.
+      const back = down ? y : y + D - 0.25, bowlY = down ? y + 0.5 : y + 0.45;
+      if (down || !taken){
+        box(x + s0.sw / 2 - 0.17, back, 0.34, 0.2, 0.42, '#ffffff', '#e4ecec');
+        ell(x + s0.sw / 2, bowlY, 0.17, 0.12); fs('#ffffff', 0.03); ell(x + s0.sw / 2, bowlY, 0.1, 0.07); fs('#cfe9f2', 0);
+      }
+      // Partitions either side, and the door: shut (with a red light) when someone's in, swung open when free.
+      box(x - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
+      if (i === sp.stalls.length - 1) box(x + s0.sw - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
+      const dy = down ? y + D - 0.05 : y;
+      if (taken){ box(x + 0.04, dy, s0.sw - 0.08, 0.05, 0.78, '#7fcfc6', '#5cc8bf'); circ(x + s0.sw - 0.16, dy - 0.42, 0.04); fs('#ef476f', 0.015); }
+      else { box(x + 0.04, dy - (down ? 0.25 : 0), 0.05, 0.3, 0.78, '#7fcfc6', '#5cc8bf'); circ(x + s0.sw / 2, dy - 0.74, 0.035); fs('#4cc38a', 0.015); }
     }
   } else if (layer === 'mid'){
-    const [x, y] = local(u, 0.2, u.h - 0.75, 0.6, 0.32);
-    box(x, y, 0.6, 0.32, 0.45, '#ffffff', '#dfe7e6');
-    ell(x + 0.3, y - 0.36, 0.17, 0.07); fs('#cfe9f2', 0.025);
-    rr(x + 0.27, y - 0.58, 0.06, 0.16, 0.02); fs('#a0a8b0', 0.02);
+    // Sink counter by the door, one basin and faucet per sink.
+    const n = sp.sinks.length, [x, y] = local(u, 0.15, u.h - 0.72, 0.7 * n, 0.38);
+    box(x, y, 0.7 * n, 0.38, 0.5, '#ffffff', '#dfe7e6');
+    for (let j = 0; j < n; j++){
+      const cx = x + 0.35 + j * 0.7;
+      ell(cx, y - 0.32, 0.18, 0.08); fs('#cfe9f2', 0.025);
+      rr(cx - 0.03, y - 0.52, 0.06, 0.18, 0.02); fs('#a0a8b0', 0.02);
+    }
+  }
+}
+/* ---------- Attractions ---------- */
+// Seats (or trampolines), each with the path in from the door. Tickets are sold by a machine at the door.
+export function attractionSpots(u, def){
+  const W = u.w, H = u.h, at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
+  const dl = doorX(u) - u.x + 0.5;
+  const door = { x: u.x + dl, y: u.face === 'down' ? u.y + H - 0.25 : u.y + 0.25 };
+  const front = { x: u.x + dl, y: u.face === 'down' ? u.y + H + 0.5 : u.y - 0.5 };
+  const seats = [];
+  if (def.attraction === 'theater'){
+    // Two rows of four, split by a center aisle, all facing the screen on the back wall.
+    [1.55, 2.45].forEach((ly, row) => { for (const lx of [0.75, 1.55, W - 1.55, W - 0.75]) seats.push({ row, ly, lx, at: at(lx, ly), path: [at(dl, ly + 0.5), at(lx, ly + 0.5), at(lx, ly)] }); });
+  } else {
+    for (const ly of [1.2, 2.45]) for (const lx of [0.95, W / 2, W - 0.95]) seats.push({ ly, lx, at: at(lx, ly), path: [at(dl, H - 0.7), at(lx, H - 0.7), at(lx, ly)] });
+  }
+  return { door, front, seats, queue: [], staff: front, staffPath: [], browse: [], counter: [u.x, u.y, 0, 0] };
+}
+function attractionBack(u, def, t){
+  if (def.attraction === 'theater'){
+    // The big screen, playing a cartoon: rolling hills, a bouncing ball and a sun that won't stop grinning.
+    const [x, y] = local(u, 0.35, 0.3, u.w - 0.7, 0.18), sw = u.w - 0.7, top = y - 0.72, sh = 0.62;
+    box(x - 0.08, y, sw + 0.16, 0.18, 0.8, '#2b2d42', '#1d1430');
+    g.save(); rr(x, top, sw, sh, 0.04); g.clip();
+    const sky = g.createLinearGradient(0, top, 0, top + sh); sky.addColorStop(0, '#8ecae6'); sky.addColorStop(1, '#ffd6e0');
+    g.fillStyle = sky; g.fillRect(x, top, sw, sh);
+    g.fillStyle = '#7bd389'; g.beginPath(); g.moveTo(x, top + sh); for (let i = 0; i <= 8; i++) g.lineTo(x + i * sw / 8, top + sh * 0.72 + Math.sin(i * 1.3 + t * 0.6) * 0.06); g.lineTo(x + sw, top + sh); g.fill();
+    const bx = x + ((t * 0.5) % 1) * sw, by = top + sh * 0.7 - Math.abs(Math.sin(t * 3.2)) * sh * 0.45;
+    circ(bx, by, 0.09); fs('#ef476f', 0.02);
+    circ(x + sw * 0.82, top + 0.2, 0.12); fs('#ffd23f', 0.02);
+    g.restore();
+    rr(x, top, sw, sh, 0.04); fs(null, 0.05);
+  } else {
+    // Trampolines: a padded frame with a stretchy blue bed, plus foam mats along the walls.
+    const sp = attractionSpots(u, def);
+    const [mx, my] = local(u, 0.08, 0.08, u.w - 0.16, 0.3); box(mx, my, u.w - 0.16, 0.3, 0.35, '#ffd23f', '#f4b942');
+    for (const s0 of sp.seats){
+      const cx = s0.at.x, cy = s0.at.y + 0.05;
+      ell(cx, cy, 0.55, 0.3); fs('#3d405b', 0.04);
+      ell(cx, cy, 0.44, 0.22); fs('#5a8dee', 0.025);
+      for (let a = 0; a < 6; a++){ circ(cx + Math.cos(a) * 0.5, cy + Math.sin(a) * 0.27, 0.035); fs('#ef476f', 0); }
+    }
+  }
+}
+// One row of cinema seats (drawn separately so people sit in them properly).
+export function theaterRow(u, def, row){
+  const sp = attractionSpots(u, def), down = u.face === 'down';
+  for (const s0 of sp.seats){
+    if (s0.row !== row) continue;
+    const x = s0.at.x - 0.3, y = s0.at.y;
+    box(x, y - 0.12, 0.6, 0.3, 0.22, '#e05a4f', '#c0392b');
+    box(x, down ? y + 0.16 : y - 0.26, 0.6, 0.1, 0.55, '#e05a4f', '#a83226');
   }
 }
 function puppy(x, y, t){

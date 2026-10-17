@@ -1,5 +1,5 @@
 // The save file and per-device settings. The save is plain JSON so it can later be shared for mall visits.
-import { START_CASH, START_UNITS, START_KIOSKS, STORES, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, RESTROOM_SPOT } from './config.js';
+import { START_CASH, START_UNITS, START_KIOSKS, STORES, DECOR, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, LAYOUT, EXPANSIONS, RESTROOM } from './config.js';
 
 const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
@@ -8,7 +8,7 @@ export const S = { save: null, settings: { sound: true, music: true, tips: true 
 
 export function newSave(player){
   const save = {
-    v: 1, version: VERSION, created: Date.now(),
+    v: 1, layout: LAYOUT, version: VERSION, created: Date.now(),
     day: 1, money: START_CASH, xp: 0, level: 1,
     rating: 1, ratingHist: [],
     player,
@@ -19,8 +19,7 @@ export function newSave(player){
     stats: { visitors: 0, served: 0, revenue: 0, lastVisitors: 0 },
   };
   for (const u of START_UNITS){
-    const restroom = u.x === RESTROOM_SPOT.x && u.y === RESTROOM_SPOT.y;
-    save.units.push({ id: save.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.store ? 'store' : restroom ? 'restroom' : 'derelict', store: u.store || null, stock: u.store ? STORES[u.store].stock : 0 });
+    save.units.push({ id: save.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.store ? 'store' : u.restroom ? 'restroom' : 'derelict', store: u.store || null, stock: u.store ? STORES[u.store].stock : 0 });
   }
   for (const k of START_KIOSKS){
     const d = STORES[k.store];
@@ -40,15 +39,34 @@ export function loadSave(){
     return s && s.v === 1 ? upgradeSave(s) : null;
   } catch { return null; }
 }
-// Older saves predate restrooms and expansions: turn the spare 2×2 storefront into restrooms if there is one.
+// Older saves were built on the first floor plan. Remodel them onto the current one: every store moves to an
+// empty storefront of the same size (keeping its id, so clerks stay put), and anything that can't fit is refunded.
 function upgradeSave(s){
   s.expansions = s.expansions || {};
-  if (!s.units.some(u => u.state === 'restroom')){
-    const spare = s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.x === RESTROOM_SPOT.x && u.y === RESTROOM_SPOT.y && u.state !== 'store')
-      || s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.state === 'derelict')
-      || s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.state === 'vacant');
-    if (spare){ spare.state = 'restroom'; spare.store = null; spare.stock = 0; }
+  if ((s.layout || 1) >= LAYOUT) return s;
+  const old = s.units, units = [];
+  for (const u of START_UNITS) units.push({ id: s.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.restroom ? 'restroom' : 'derelict', store: null, stock: 0 });
+  for (const e of EXPANSIONS) if (s.expansions[e.id]){
+    for (const l of e.lots) units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
+    if (e.restroom) units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: RESTROOM.w, h: RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
   }
+  const leftovers = [];
+  const free = (w, h) => units.find(n => (n.state === 'derelict' || n.state === 'vacant') && n.w === w && n.h === h);
+  const moved = old.filter(u => u.state === 'store' && !u.kiosk).sort((a, b) => (b.store === 'dollar') - (a.store === 'dollar'));
+  for (const u of moved){
+    const n = (u.store === 'dollar' && units.find(v => v.x === START_UNITS[3].x && v.y === START_UNITS[3].y && v.state === 'derelict')) || free(u.w, u.h);
+    if (n){ n.id = u.id; n.state = 'store'; n.store = u.store; n.stock = u.stock; }
+    else leftovers.push({ id: u.id, store: u.store, stock: u.stock, w: u.w, h: u.h });
+  }
+  for (const u of old.filter(u => u.state === 'vacant')){ const n = units.find(v => v.state === 'derelict' && v.w === u.w && v.h === u.h); if (n) n.state = 'vacant'; }
+  // Kiosks, and stores with no matching storefront, get placed once the map is built (see placeLeftovers in main.js).
+  s.pendingKiosks = old.filter(u => u.kiosk && u.state === 'store').map(u => ({ id: u.id, store: u.store, stock: u.stock }));
+  s.pendingStores = leftovers;
+  const decorRefund = s.decor.reduce((a, d) => a + (DECOR[d.type] ? DECOR[d.type].cost : 0), 0);
+  s.units = units; s.decor = [];
+  s.money += decorRefund;
+  s.layout = LAYOUT;
+  s.flags.remodel = { refund: 0, decor: decorRefund };
   return s;
 }
 export function writeSave(){

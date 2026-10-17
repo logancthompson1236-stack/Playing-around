@@ -66,7 +66,8 @@ function unitCard(u){
   const refund = Math.round(def.cost * 0.5);
   showCard({
     title: def.name,
-    text: `${def.cat} · Stock ${u.stock}/${def.stock}${clerk ? ` · ${clerk.name} runs the register` : ' · You run the register'}`,
+    text: def.attraction ? `Attraction · ${def.seats} ${def.attraction === 'theater' ? 'seats' : 'trampolines'} · tickets $${def.price[0]}–${def.price[1]} from the machine at the door · upkeep ${money(def.upkeep)}/day`
+      : `${def.cat} · Stock ${u.stock}/${def.stock}${clerk ? ` · ${clerk.name} runs the register` : ' · You run the register'}`,
     actions: [
       { label: 'Move', onClick: () => startPlacement({ kind: u.kiosk ? 'kiosk' : 'unit', store: u.store, w: u.w, h: u.h, face: u.face, cost: 0, moveId: u.id, x: u.x, y: u.y }) },
       { label: u.kiosk ? `Sell · +${money(refund)}` : `Close store · +${money(refund)}`, onClick: async () => {
@@ -115,7 +116,7 @@ function storeItem(key, def, cost, onPick){
   const have = stores(S.save).filter(u => u.store === key).length;
   const b = h('button', { class: `item ${locked ? 'locked' : afford ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); onPick(); } },
     iconCanvas(() => A.storeIcon(def.icon, 0.5, 0.5, 0.62)),
-    h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
+    h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.attraction ? `${def.w}×${def.h} attraction · tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
     h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(cost)));
   return b;
 }
@@ -223,7 +224,7 @@ async function buyExpansion(e){
   closePanel();
   s.expansions[e.id] = true;
   for (const l of e.lots) s.units.push({ id: s.nextId++, x: l.x, y: l.y, w: l.w, h: l.h, face: l.face, state: 'vacant', store: null, stock: 0 });
-  if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: 2, h: 2, face: 'up', state: 'restroom', store: null, stock: 0 });
+  if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
   for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
   sfx('build'); poof(e.x, 0, e.w, C.MAP_H);
   changed(e.xp);
@@ -424,7 +425,7 @@ export function openStaff(){
     body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, s.level < 3 ? 'You can start hiring at level 3. Until then, it’s all you.' : `${limits}. Wages come out each night.`));
     if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
     for (const m of s.staff){
-      const ownStores = stores(s).filter(u => !s.staff.some(o => o !== m && o.storeId === u.id));
+      const ownStores = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o !== m && o.storeId === u.id));
       const sel = m.role === 'clerk' ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); redraw(); } },
         h('option', { value: '' }, 'No register'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name + (m.dream === u.store ? ' ♥' : '')))) : null;
       body.append(h('div', { class: 'staff-row' }, portrait(m.look, 44),
@@ -439,7 +440,7 @@ export function openStaff(){
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
           h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a), a.role === 'clerk' || a.role === 'janitor' ? null : h('span', { class: 'muted', style: 'font-size:11.5px;display:block' }, C.ROLES[a.role].desc)),
           h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
-            const open = stores(s).filter(u => !s.staff.some(o => o.storeId === u.id));
+            const open = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o.storeId === u.id));
             const free = open.find(u => u.store === a.dream) || open.find(u => !u.kiosk) || open[0];
             s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, skill: a.skill || 2, dream: a.dream || null, dee: !!a.dee });
             if (a.dee) s.flags.hiredDee = true; else s.flags.applicants = s.flags.applicants.filter(x => x !== a);

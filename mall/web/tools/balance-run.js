@@ -98,7 +98,7 @@ function night(){
     }
   }
   if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) hire('janitor');
-  for (const role of ['stocker', 'greeter', 'mascot']) if (has(role) < lim(role) && s.money > 900) hire(role);
+  for (const role of ['stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
   // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
   for (let n = 0; n < 2 && s.money > 500 && s.decor.length < 26; n++){
@@ -124,10 +124,13 @@ function night(){
 }
 // First spot (scanning out from the concourse) where something fits without blocking anything.
 function findSpot(kind, w, h){
-  const rows = [5, 9, 4, 10, 3, 11, 2, 12, 1, 13, 0, 6, 8, 7];
+  const c0 = C.CONCOURSE.y, c1 = C.CONCOURSE.y + C.CONCOURSE.h, rows = [];
+  if (kind === 'unit') for (let k = 0; k < 8; k++) rows.push(c0 - h - k, c1 + k);
+  else rows.push(c0, c1 - 1, c0 + 1, c1 - 2, c0 - 1, c1, c0 - 2, c1 + 1);
   for (const y of rows) for (let x = 0; x <= map.w - w; x++){
+    if (y < 0 || y + h > C.MAP_H) continue;
     if (kind === 'unit'){
-      const face = y + h <= 6 ? 'down' : 'up';
+      const face = y + h <= c0 ? 'down' : 'up';
       if (validatePlacement(S.save, 'unit', x, y, w, h, face).ok) return { x, y, face };
     } else if (validatePlacement(S.save, kind, x, y, w, h, 0).ok) return { x, y, face: 'down' };
   }

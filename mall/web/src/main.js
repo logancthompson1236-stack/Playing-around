@@ -71,16 +71,48 @@ async function newGame(){
   rebuildMap(S.save); invalidate(); UI.resetMoneyDisplay();
   beginDay();
 }
-// Saves from before restrooms with no spare storefront to convert: put a set up on open floor near the concourse.
-function ensureRestroom(s){
-  if (s.units.some(u => u.state === 'restroom')) return;
-  for (const y of [4, 9, 3, 10, 2, 11, 1, 12, 0]) for (let x = 0; x <= map.w - 2; x++){
-    const face = y < 6 ? 'down' : 'up';
-    if (validatePlacement(s, 'unit', x, y, 2, 2, face).ok){ s.units.push({ id: s.nextId++, x, y, w: 2, h: 2, face, state: 'restroom', store: null, stock: 0 }); rebuildMap(s); writeSave(); return; }
+// After a remodel: kiosks go back on the concourse (the pretzel cart to its usual spot), and stores that had no
+// matching storefront get a new one on open floor. Anything that still doesn't fit is refunded.
+function placeLeftovers(s){
+  if (!s.pendingKiosks && !s.pendingStores) return;
+  let refund = 0;
+  const c0 = C.CONCOURSE.y, c1 = c0 + C.CONCOURSE.h;
+  for (const k of s.pendingKiosks || []){
+    const def = C.STORES[k.store], home = C.START_KIOSKS.find(q => q.store === k.store);
+    const spots = home ? [home] : [];
+    for (let y = c0; y < c1; y++) for (let x = 0; x < map.w - 1; x++) spots.push({ x, y });
+    const at = spots.find(p => validatePlacement(s, 'kiosk', p.x, p.y, def.w, def.h, 'down').ok);
+    if (at){ s.units.push({ id: k.id, x: at.x, y: at.y, w: def.w, h: def.h, face: 'down', kiosk: true, state: 'store', store: k.store, stock: k.stock }); rebuildMap(s); }
+    else refund += def.cost;
   }
+  for (const k of s.pendingStores || []){
+    let at = null;
+    for (let d = 0; d < 8 && !at; d++) for (const y of [c0 - k.h - d, c1 + d]) for (let x = 0; x <= map.w - k.w && !at; x++){
+      if (y < 0 || y + k.h > C.MAP_H) continue;
+      const face = y + k.h <= c0 ? 'down' : 'up';
+      if (validatePlacement(s, 'unit', x, y, k.w, k.h, face).ok) at = { x, y, face };
+    }
+    if (at){ s.units.push({ id: k.id, x: at.x, y: at.y, w: k.w, h: k.h, face: at.face, state: 'store', store: k.store, stock: k.stock }); rebuildMap(s); }
+    else refund += C.STORES[k.store].cost + k.w * k.h * C.BUILD_PER_TILE;
+  }
+  for (const m of s.staff) if (m.storeId && !s.units.some(u => u.id === m.storeId)) m.storeId = null;
+  s.money += refund;
+  if (s.flags.remodel) s.flags.remodel.refund = refund;
+  delete s.pendingKiosks; delete s.pendingStores; writeSave();
+}
+function remodelNote(s){
+  const r = s.flags.remodel; if (!r) return;
+  delete s.flags.remodel; writeSave();
+  const bits = [];
+  if (r.decor) bits.push(`your decorations were refunded (${'$' + r.decor.toLocaleString()}) so you can place them again`);
+  if (r.refund) bits.push(`stores with no room left were refunded (${'$' + r.refund.toLocaleString()})`);
+  const m = UI.modal(UI.h('div', {}, UI.h('h2', {}, 'The mall got a remodel'),
+    UI.h('p', { style: 'margin:0 0 10px;line-height:1.45' }, `New floor plan: a wider concourse, storefronts side by side and bigger restrooms. Your stores moved to storefronts of the same size${bits.length ? ', and ' + bits.join('; ') : ''}.`),
+    UI.h('div', { style: 'display:flex;justify-content:flex-end' }, UI.h('button', { class: 'btn primary', onclick: () => m.close() }, 'Let’s see it'))));
 }
 function continueGame(){
-  rebuildMap(S.save); ensureRestroom(S.save); invalidate(); UI.resetMoneyDisplay();
+  rebuildMap(S.save); placeLeftovers(S.save); invalidate(); UI.resetMoneyDisplay();
+  remodelNote(S.save);
   if (S.save.phase === 'night') enterNight(null); else beginDay();
 }
 
@@ -138,7 +170,7 @@ function dayTap(x, y){
   }
   if (!best){
     const id = occAt(Math.floor(x), Math.floor(y)) || occAt(Math.floor(x), Math.floor(y + 0.7));
-    const u = id > 0 && S.save.units.find(v => v.id === id && v.state === 'store');
+    const u = id > 0 && S.save.units.find(v => v.id === id && v.state === 'store' && !C.STORES[v.store].attraction);
     if (u) best = { type: 'register', unitId: u.id };
   }
   if (!best) return;

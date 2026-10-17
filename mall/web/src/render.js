@@ -124,6 +124,17 @@ export function render(t){
   for (const u of s.units){
     const def = unitDef(u);
     if (u.kiosk){ add(u.y + 0.85, () => A.kiosk(u, def, t)); continue; }
+    if (u.state === 'restroom') A.roomState.set(u, roomInfo(u));
+    if (def && def.attraction){
+      // Attractions: no counter. Cinema seat rows are sorted one by one so people sit in them, not on top.
+      add(u.face === 'down' ? u.y + 0.48 : u.y + u.h, () => A.unitBack(u, def, t));
+      if (def.attraction === 'theater') for (const row of [0, 1]){
+        const s0 = A.attractionSpots(u, def).seats.find(q => q.row === row);
+        add(u.face === 'down' ? s0.at.y + 0.2 : s0.at.y - 0.3, () => A.theaterRow(u, def, row));
+      }
+      add(u.face === 'down' ? u.y + u.h + 0.05 : u.y + 0.05, () => A.unitFront(u, def, t));
+      continue;
+    }
     if (u.face === 'down'){
       add(u.y + 0.48, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid')); }
@@ -145,7 +156,7 @@ export function render(t){
     view.doorOpen = Math.max(0, Math.min(1, (view.doorOpen || 0) + (near ? 0.12 : -0.06)));
     A.entranceDoors(C.ENTRANCE.x, C.MAP_H, C.ENTRANCE.w, view.doorOpen);
   });
-  add(-0.5, () => { if (!s.zones.nw) A.pigeon(9.4, 1.6, t); if (!s.zones.ne) A.pigeon(24.2, 2.4, t + 1.7); });
+  add(-0.5, () => { if (!s.zones.nw) A.pigeon(9.4, 1.6, t); if (!s.zones.ne) A.pigeon(27.2, 2.4, t + 1.7); });
   for (const p of sim.people) if (!p.hidden) add(p.y, () => drawPerson(p, t));
   Q.sort((a, b) => a[0] - b[0]);
   for (const [, f] of Q) f();
@@ -174,6 +185,8 @@ function drawPerson(p, t){
   }
   if (p.kind === 'gus') o.mood = 'happy';
   if (L.costume) return A.mascot(p.x, p.y, o);
+  // Bouncing on a trampoline: up and down, arms out.
+  if (p.bouncing){ const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true; if (L.kid) return A.family(p.x, p.y - b, o); return A.person(p.x, p.y - b, o); }
   if (p.faceBack) o.back = true;
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
