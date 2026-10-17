@@ -2,7 +2,7 @@
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
-import { storeSpots, kioskSpots, mulberry } from './art.js';
+import { storeSpots, kioskSpots, mulberry, local } from './art.js';
 
 export const sim = {
   t: 0, phase: 'idle', speed: 1, paused: false, clockFrozen: false, spawning: true,
@@ -10,6 +10,7 @@ export const sim = {
   owner: null, jobs: [], spawnTimes: [], spawnIdx: 0, nextId: 1,
   stats: null, boost: null, gus: null, wishCoin: false, closeT: 0,
   storeState: new Map(),   // unit id -> { queue: [], server: null, serveT: 0, soldOut: false }
+  rooms: new Map(),        // restroom unit id -> { dirt: 0–100, claimed: person id }
 };
 let rand = Math.random;
 export function setRandom(fn){ rand = fn; }
@@ -56,6 +57,18 @@ export function storeInfo(u){
   return st;
 }
 export function spotsFor(u){ return u.kiosk ? kioskSpots(u) : storeSpots(u); }
+export function roomInfo(u){
+  let r = sim.rooms.get(u.id);
+  if (!r){ r = { dirt: 0, claimed: null }; sim.rooms.set(u.id, r); }
+  return r;
+}
+const restrooms = () => S.save.units.filter(u => u.state === 'restroom');
+// What shoppers walk out holding. Food and drinks get finished after a while; bags and boxes go home.
+const HOLD_FROM = {
+  pretzel: 'pretzel', candy: 'lolly', coffee: 'coffee', scoops: 'cone', arcade: 'plush', books: 'book', music: 'record', gadgets: 'gadget',
+  dollar: ['bag', '#ffd23f'], boutique: ['bag', '#ff8fab'], pets: ['bag', '#06a77d'],
+};
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum']);
 function queueSpot(u, i){
   const sp = spotsFor(u);
   if (i < sp.queue.length) return sp.queue[i];
@@ -74,10 +87,10 @@ export function startDay(opts = {}){
   const s = S.save;
   sim.t = 0; sim.phase = 'day'; sim.paused = false; sim.closeT = 0;
   sim.people = []; sim.trash = []; sim.fx = []; sim.events = []; sim.jobs = [];
-  sim.storeState.clear();
+  sim.storeState.clear(); sim.rooms.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0 };
+  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
@@ -111,6 +124,7 @@ function spawnStaff(st){
   p.role = st.role; p.staffId = st.id; p.name = st.name; p.skill = k; p.dream = st.dream || null;
   p.speed = st.role === 'janitor' ? C.JANITOR_SPEED[k] : st.role === 'stocker' ? C.STOCKER_SPEED[k] : st.role === 'mascot' ? 1.0 : C.STAFF_SPEED; p.cleanTime = C.JANITOR_CLEAN[k];
   if (st.role === 'greeter'){ const g = greeterPost(); p.x = g.x; p.y = g.y; }
+  p.workT = nextBreak(k);
   if (st.role === 'clerk'){
     const u = S.save.units.find(v => v.id === st.storeId && v.state === 'store');
     if (u){ const sp = spotsFor(u).staff; p.x = sp.x; p.y = sp.y; p.storeId = u.id; storeInfo(u).server = p.id; p.state = 'register'; }
@@ -126,6 +140,18 @@ export function spawnGus(mode){
   return g;
 }
 
+// Seconds of work until the next phone break (never, for three-star staff).
+function nextBreak(k){ const r = C.BREAK_EVERY[k]; return r ? lerp(r[0], r[1], rand()) : Infinity; }
+function startBreak(p){
+  p.breakMax = p.breakT = C.BREAK_LENGTH[p.skill]; p.slacking = true; p.walking = false;
+  p.target = null; p.carry = false; p.roomTarget = null;
+  for (const r of sim.rooms.values()) if (r.claimed === p.id) r.claimed = null;
+  emit('slack', { name: p.name, role: p.role });
+}
+export function backToWork(p, nudged = false){
+  p.breakT = 0; p.slacking = false; p.workT = nextBreak(p.skill);
+  if (nudged){ sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.4, t: 0, life: 1.1, text: 'Back to work!' }); emit('nudged', { name: p.name }); }
+}
 // The greeter stands just inside the doors, off to the side.
 const greeterPost = () => ({ x: C.ENTRANCE.x - 0.45, y: C.MAP_H - 1.3 });
 
@@ -202,6 +228,8 @@ function updateCustomer(p, dt){
     for (const tr of sim.trash) if (Math.abs(tr.x - p.x) < 2.5 && Math.abs(tr.y - p.y) < 2.5) dirt++;
     p.mood = Math.max(0, Math.min(1, p.mood - Math.min(0.06, dirt * 0.012) + decorNear(p.x, p.y) * 0.004));
   }
+  // Snacks and drinks get finished after a while (the wrapper is what ends up on the floor).
+  if (p.holding && SNACKS.has(p.holding) && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
   switch (p.state){
     case 'arrive':
       if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)){ greet(p); p.state = 'decide'; }
@@ -218,16 +246,22 @@ function updateCustomer(p, dt){
       dropLitter(p, def);
       if (walkTo(p, f.x, f.y, dt)){
         if (u.kiosk){ p.state = 'browse'; p.timer = 0.8 + rand() * 0.8; }
-        else { const sp = spotsFor(u); const b = pick(sp.browse); p.exit = [sp.door, { x: b.x + (rand() - 0.5) * 0.2, y: b.y + (rand() - 0.5) * 0.2 }]; p.state = 'enter'; }
+        else { const sp = spotsFor(u); const b = u.store === 'arcade' ? arcadeSpot(u) : pick(sp.browse); p.exit = [sp.door, { x: b.x + (rand() - 0.5) * 0.2, y: b.y + (rand() - 0.5) * 0.2 }]; p.state = 'enter'; }
       }
       break;
     }
     case 'enter':
-      if (runPath(p, dt)){ p.state = 'browse'; p.timer = 1.6 + rand() * 2.2; }
+      if (runPath(p, dt)){
+        p.state = 'browse'; p.timer = 1.6 + rand() * 2.2;
+        // At the arcade they play a game or two first, back to us, facing the cabinet.
+        const u = S.save.units.find(v => v.id === p.storeId);
+        if (u && u.store === 'arcade'){ p.playing = true; p.faceBack = u.face === 'down'; p.timer = 3 + rand() * 2.5; }
+      }
       break;
     case 'browse': {
       p.walking = false;
       if ((p.timer -= dt) > 0) break;
+      p.playing = false; p.faceBack = false;
       const u = S.save.units.find(v => v.id === p.storeId);
       if (!u || u.state !== 'store'){ leaveStore(p, u); break; }
       if (u.stock <= 0){
@@ -296,6 +330,33 @@ function updateCustomer(p, dt){
       p.walking = false;
       if ((p.timer -= dt) <= 0){ useMachine(p); p.state = 'decide'; }
       break;
+    case 'toRestroom': {
+      const u = S.save.units.find(v => v.id === p.storeId);
+      if (!u || u.state !== 'restroom'){ p.state = 'decide'; break; }
+      const f = spotsFor(u).front;
+      if (walkTo(p, f.x, f.y, dt)){ const sp = spotsFor(u), b = pick(sp.browse); p.exit = [sp.door, b]; p.state = 'enterRestroom'; }
+      break;
+    }
+    case 'enterRestroom':
+      if (runPath(p, dt)){ p.state = 'inRestroom'; p.timer = 2.4 + rand() * 1.6; p.hidden = true; }
+      break;
+    case 'inRestroom': {
+      p.walking = false;
+      if ((p.timer -= dt) > 0) break;
+      const u = S.save.units.find(v => v.id === p.storeId);
+      p.hidden = false;
+      if (u){
+        const r = roomInfo(u);
+        // A grubby restroom ruins the trip; a clean one is a small relief.
+        if (r.dirt >= 60){ p.mood = Math.max(0, p.mood - 0.15); setBubble(p, 'wc', 'wish', 1.8); emit('grossRestroom'); }
+        else p.mood = Math.min(1, p.mood + 0.03);
+        const before = r.dirt;
+        r.dirt = Math.min(100, r.dirt + C.RESTROOM_DIRT);
+        if (before < 50 && r.dirt >= 50) emit('restroomDirty');
+        p.exit = exitPath(u, p); p.state = 'leave';
+      } else p.state = 'decide';
+      break;
+    }
     case 'exit': {
       dropLitter(p, def);
       const ex = C.ENTRANCE.x + 0.5 + (p.id % 2), ey = C.MAP_H - 0.5;
@@ -333,6 +394,15 @@ function decide(p){
     p.usedMachine = true;
     if (m){ p.machine = m.d; p.machineAt = m.at; p.state = 'toMachine'; return; }
   }
+  if (!p.usedRestroom){
+    p.usedRestroom = true;
+    const rooms = restrooms().filter(u => { const a = unitAccess(u); return isWalk(a.x, a.y); });
+    if (rooms.length && rand() < C.RESTROOM_USE * (p.boughtFood ? 1.5 : 1)){
+      let best = rooms[0], bd = Infinity;
+      for (const u of rooms){ const f = spotsFor(u).front, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd){ bd = d; best = u; } }
+      p.storeId = best.id; p.state = 'toRestroom'; return;
+    }
+  }
   if (!p.rested && rand() < 0.3){
     const seat = findSeat(p);
     if (seat){ p.seat = seat.spot; p.seatAccess = seat.access; p.state = 'toSeat'; return; }
@@ -364,19 +434,26 @@ function findMachine(p){
   }
   return best;
 }
+// In front of one of the arcade cabinets along the back wall.
+function arcadeSpot(u){
+  const sw = Math.max(0.6, u.w - 1.25), n = Math.max(1, Math.floor(sw / 0.75)), i = Math.floor(rand() * n);
+  const [x, y] = local(u, 0.1 + i * 0.78 + 0.34, 0.95);
+  return { x, y };
+}
 function useMachine(p){
   const d = p.machine, c = C.DECOR[d.type].coin;
   if (!S.save.decor.includes(d)) return;
   const price = Math.round(lerp(c.price[0], c.price[1], rand()));
   S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price;
   p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
-  if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; }
+  if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; }
+  if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 1.1, text: `+$${price}` });
   emit('sale', { amount: price, store: d.type });
 }
 // The greeter says hi to everyone who walks in: a little happier, a little more patient.
 function greet(p){
-  const g = sim.people.find(q => q.role === 'greeter' && q.state === 'post');
+  const g = sim.people.find(q => q.role === 'greeter' && q.state === 'post' && !q.slacking);
   if (!g) return;
   p.mood = Math.min(1, p.mood + 0.03 + 0.03 * g.skill);
   p.patienceMul = 1 + 0.07 * g.skill;
@@ -429,7 +506,7 @@ function updateStores(dt){
   for (const u of stores(S.save)){
     const st = storeInfo(u);
     const server = st.server && personById(st.server);
-    if (!server || server.atRegisterId !== u.id){ st.serveT = 0; const f = st.queue.length && personById(st.queue[0]); if (f) f.served = false; continue; }
+    if (!server || server.atRegisterId !== u.id || server.slacking){ st.serveT = 0; const f = st.queue.length && personById(st.queue[0]); if (f) f.served = false; continue; }
     const front = st.queue.length && personById(st.queue[0]);
     if (front) front.served = false;
     if (!front || front.state !== 'queue'){ st.serveT = 0; continue; }
@@ -457,6 +534,8 @@ function completeSale(u, st, p){
   p.mood = Math.min(1, p.mood + 0.12 + 0.2 * (p.patience / p.patienceMax));
   if (def.cat === 'Food') p.boughtFood = true;
   p.trashKinds = TRASH_FROM[u.store] || p.trashKinds;
+  const hold = HOLD_FROM[u.store];
+  if (hold){ p.holding = Array.isArray(hold) ? 'bag' : hold; if (Array.isArray(hold)) p.bagColor = hold[1]; p.holdT = 0; }
   st.queue.shift();
   p.bubble = null; p.served = false;
   sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.3, t: 0, life: 1.1, text: `+$${price}` });
@@ -473,7 +552,7 @@ const TRASH_FROM = {
 };
 
 /* ---------- Owner and jobs ---------- */
-export function jobKey(j){ return j.type + ':' + (j.unitId || j.trashId || ''); }
+export function jobKey(j){ return j.type + ':' + (j.unitId || j.trashId || j.staffId || ''); }
 export function addJob(job){
   const k = jobKey(job), i = sim.jobs.findIndex(j => jobKey(j) === k);
   if (i >= 0){ if (i > 0 || !sim.jobs[0].started){ sim.jobs.splice(i, 1); return 'removed'; } return 'busy'; }
@@ -496,6 +575,7 @@ function leaveRegister(p){
 function updateOwner(p, dt){
   p.t += dt;
   if (p.broomT > 0){ p.broomT -= dt; p.walking = false; if (p.broomT <= 0) finishClean(p); return; }
+  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0){ finishMop(p); sim.jobs.shift(); } return; }
   const job = sim.jobs[0];
   if (!job){ p.walking = false; return; }
   if (!job.started){ job.started = true; leaveRegister(p); }
@@ -522,6 +602,21 @@ function updateOwner(p, dt){
     if (!tr){ sim.jobs.shift(); return; }
     if (!walkTo(p, tr.x, tr.y + 0.15, dt)) return;
     p.broomT = C.OWNER_CLEAN; p.cleanTarget = tr.id;
+  } else if (job.type === 'restroom'){
+    const u = S.save.units.find(v => v.id === job.unitId && v.state === 'restroom');
+    if (!u){ sim.jobs.shift(); return; }
+    const a = unitAccess(u);
+    if (!walkTo(p, a.x + 0.5, a.y + 0.5, dt)) return;
+    roomInfo(u).claimed = p.id; p.roomTarget = u.id; p.mopT = C.RESTROOM_MOP;
+  } else if (job.type === 'nudge'){
+    // Walk over and have a word. Clerks get called from their store's door.
+    const st = personById(job.staffId);
+    if (!st || !st.slacking){ sim.jobs.shift(); return; }
+    let goal = { x: st.x, y: st.y + 0.3 };
+    const u = st.role === 'clerk' && S.save.units.find(v => v.id === st.storeId);
+    if (u){ const a = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); goal = { x: a.x + 0.5, y: a.y + 0.5 }; }
+    if (!walkTo(p, goal.x, goal.y, dt) && Math.hypot(p.x - goal.x, p.y - goal.y) > 0.8) return;
+    p.walking = false; sim.jobs.shift(); backToWork(st, true);
   } else if (job.type === 'wish'){
     const spots = fountainSpots();
     const f = spots[0] || { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y + 2 };
@@ -552,9 +647,18 @@ function tossCoin(){
   emit('wish', { text: `Rose's penny: ${text}.` });
 }
 
+function finishMop(p){
+  const u = S.save.units.find(v => v.id === p.roomTarget);
+  if (u){ const r = roomInfo(u); r.dirt = 0; r.claimed = null; sim.fx.push({ kind: 'sparkle', x: u.x + u.w / 2, y: u.y + u.h / 2, t: 0, life: 0.8 }); emit('cleaned', { count: 1, by: p.kind }); }
+  p.roomTarget = null;
+}
+
 /* ---------- Staff ---------- */
 function updateStaff(p, dt){
   p.t += dt;
+  // Phone breaks. Clerks stay put but stop ringing people up; everyone else just stands there.
+  if (p.breakT > 0){ p.breakT -= dt; p.walking = false; if (p.breakT <= 0) backToWork(p); return; }
+  if (sim.phase === 'day' && !(p.broomT > 0 || p.mopT > 0 || p.restockT > 0) && (p.workT -= dt) <= 0){ startBreak(p); return; }
   if (p.role === 'clerk'){
     if (p.storeId){ p.atRegisterId = p.storeId; p.walking = false; }
     return;
@@ -576,6 +680,17 @@ function updateStaff(p, dt){
     }
     return;
   }
+  // Restroom duty comes first once one gets grubby.
+  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0) finishMop(p); return; }
+  let room = p.roomTarget && S.save.units.find(v => v.id === p.roomTarget && v.state === 'restroom');
+  if (!room && !p.target){
+    for (const u of restrooms()){ const r = roomInfo(u); if (r.dirt >= 40 && (!r.claimed || r.claimed === p.id)){ room = u; r.claimed = p.id; p.roomTarget = u.id; break; } }
+  }
+  if (room){
+    const a = unitAccess(room);
+    if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)) p.mopT = C.RESTROOM_MOP * [0, 1.3, 1.0, 0.75][p.skill];
+    return;
+  }
   let tr = p.target && sim.trash.find(t => t.id === p.target);
   if (!tr){
     p.target = null;
@@ -593,7 +708,7 @@ function updateStaff(p, dt){
   // Nothing to clean: patrol. With more than one janitor, each keeps to their own slice of the mall.
   if (!p.wander || (p.wander.wait -= dt) < -6){
     const crew = sim.people.filter(q => q.role === 'janitor'), i = crew.indexOf(p), n = crew.length;
-    const x0 = Math.floor(C.MAP_W * i / n), x1 = Math.floor(C.MAP_W * (i + 1) / n);
+    const x0 = Math.floor(map.w * i / n), x1 = Math.floor(map.w * (i + 1) / n);
     for (let k = 0; k < 40; k++){
       const x = x0 + Math.floor(rand() * (x1 - x0)), y = Math.floor(rand() * C.MAP_H);
       if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
@@ -639,7 +754,7 @@ function updateStocker(p, dt){
 function updateMascot(p, dt){
   if (!p.wander || (p.wander.wait -= dt) < -4){
     for (let k = 0; k < 30; k++){
-      const x = Math.floor(rand() * C.MAP_W), y = Math.floor(rand() * C.MAP_H);
+      const x = Math.floor(rand() * map.w), y = Math.floor(rand() * C.MAP_H);
       if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }
@@ -699,7 +814,11 @@ export function step(realDt){
     sim.t += dt;
     if (sim.spawning) while (sim.spawnIdx < sim.spawnTimes.length && sim.spawnTimes[sim.spawnIdx] <= sim.t){ spawnCustomer(); sim.spawnIdx++; }
     if (sim.wishCoin && clockHour() >= C.OPEN_HOUR + 2) sim.wishCoin = false;
-    if ((sim.stats.sampleT += dt) > 2){ sim.stats.sampleT = 0; sim.stats.dirtSum += sim.trash.length; sim.stats.dirtN++; }
+    if ((sim.stats.sampleT += dt) > 2){
+      sim.stats.sampleT = 0; sim.stats.dirtSum += sim.trash.length; sim.stats.dirtN++;
+      const rooms = restrooms();
+      if (rooms.length){ sim.stats.roomDirtSum += rooms.reduce((a, u) => a + roomInfo(u).dirt, 0) / rooms.length; sim.stats.roomDirtN++; }
+    }
     if (sim.t >= C.DAY_SECONDS) beginClosing();
   }
   if (sim.phase === 'closing'){
@@ -725,7 +844,8 @@ function beginClosing(){
   for (const st of sim.storeState.values()) st.queue = [];
   for (const p of sim.people) if (p.kind === 'customer'){
     p.bubble = null; p.served = false;
-    if (['enter', 'browse', 'queue', 'leave'].includes(p.state)){
+    p.hidden = false; p.playing = false; p.faceBack = false;
+    if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'inRestroom'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);
       if (u && !u.kiosk){ p.exit = exitPath(u, p); p.state = 'leave'; } else p.state = 'exit';
     } else if (p.state === 'sit' || p.state === 'seatIn'){ p.state = 'exit'; p.faceBack = false; }
@@ -750,7 +870,8 @@ export function buildReport(){
   for (const p of sim.people) if (p.kind === 'customer'){ st.moodSum += p.mood; st.moodN++; }
   const open = stores(s);
   const wages = s.staff.reduce((a, m) => a + wageOf(m), 0);
-  const utilities = C.UTILITIES_BASE + C.UTILITIES_PER_STORE * open.length;
+  const wings = C.EXPANSIONS.filter(e => s.expansions && s.expansions[e.id]).length;
+  const utilities = C.UTILITIES_BASE + C.UTILITIES_PER_STORE * open.length + C.EXPANSION_UTILITIES * wings;
   // Restock every store overnight.
   let restockWanted = 0;
   const needs = open.map(u => { const def = C.STORES[u.store], n = def.stock - u.stock, cost = n * (def.price[0] + def.price[1]) / 2 * C.RESTOCK_RATE; restockWanted += cost; return { u, n, cost }; });
@@ -763,7 +884,8 @@ export function buildReport(){
   restock += st.restockDay;   // stockers already paid for theirs during the day
   const walk = Math.max(20, map.walkCount);
   const avgDirt = st.dirtN ? st.dirtSum / st.dirtN : 0;
-  const clean = clamp(5 - avgDirt / (walk / 40) * 1.4 - sim.trash.length * 0.06, 1, 5);
+  const roomDirt = st.roomDirtN ? st.roomDirtSum / st.roomDirtN : 0;
+  const clean = clamp(5 - avgDirt / (walk / 40) * 1.4 - sim.trash.length * 0.06 - roomDirt / 100 * 1.6, 1, 5);
   const total = st.served + st.walkouts;
   const rate = total ? st.served / total : 1;
   const waitF = st.waitN ? st.waitFrac / st.waitN : 0;
@@ -792,7 +914,7 @@ export function buildReport(){
     ratings: { clean, service, variety, ambience }, happy, overall, grade, rating: s.rating,
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
-    restockShort: frac < 1, gusTrash: st.gusTrash, machines: st.machines,
+    restockShort: frac < 1, gusTrash: st.gusTrash, machines: st.machines, roomDirt,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

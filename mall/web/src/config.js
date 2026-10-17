@@ -21,7 +21,8 @@ export const UTILITIES_BASE = 10;
 export const UTILITIES_PER_STORE = 5;
 
 // The old mall: 26×15 tiles inside, plus two rows of sidewalk and parking outside the front doors.
-export const MAP_W = 26;
+export const MAP_W = 26;              // the original building; expansions add wings to the east
+export const MAP_W_MAX = 48;
 export const MAP_H = 15;
 export const OUTSIDE_H = 2;
 export const ENTRANCE = { x: 12, y: 14, w: 2 };   // door tiles on the bottom row
@@ -58,6 +59,30 @@ export const START_UNITS = [
 ];
 export const START_KIOSKS = [{ x: 16, y: 7, store: 'pretzel' }];
 
+// Restrooms: shoppers stop in now and then, and they get dirty with use. Janitors (or you) mop them out.
+export const RESTROOM = { name: 'Restrooms', w: 2, h: 2, color: '#5cc8bf', trim: '#e8f7f5', floor: 'mint', icon: 'wc' };
+export const RESTROOM_SPOT = { x: 18, y: 4 };   // the old 2×2 unit by the pretzel cart
+export const RESTROOM_USE = 0.14;    // chance a shopper stops in on their way out
+export const RESTROOM_DIRT = 6;      // grime added per visit (out of 100)
+export const RESTROOM_MOP = 2.6;     // seconds to mop out (owner); janitors scale with stars
+
+// Big expansions: whole new wings east of the old building, with spaced-out storefronts and room to decorate.
+export const EXPANSIONS = [
+  { id: 'east', name: 'East Wing', cost: 20000, level: 8, x: 26, w: 12, xp: 300,
+    sub: 'Reopen the sealed east wing: 12 more columns of floor, 5 storefronts and a second set of restrooms',
+    lots: [{ x: 27, y: 3, w: 3, h: 3, face: 'down' }, { x: 31, y: 3, w: 2, h: 3, face: 'down' }, { x: 34, y: 4, w: 2, h: 2, face: 'down' },
+           { x: 27, y: 9, w: 2, h: 3, face: 'up' }, { x: 34, y: 9, w: 3, h: 3, face: 'up' }],
+    restroom: { x: 31, y: 9 },
+    decor: [{ type: 'planter', x: 30, y: 12, rot: 1 }, { type: 'plant', x: 36, y: 6 }, { type: 'bench', x: 36, y: 13 }] },
+  { id: 'garden', name: 'Garden Court', cost: 45000, level: 13, x: 38, w: 10, xp: 500,
+    sub: 'A sunny garden court past the east wing: grass, shade trees, 4 storefronts and plenty of room',
+    lots: [{ x: 39, y: 3, w: 3, h: 3, face: 'down' }, { x: 43, y: 3, w: 2, h: 3, face: 'down' },
+           { x: 40, y: 10, w: 2, h: 2, face: 'up' }, { x: 44, y: 9, w: 3, h: 3, face: 'up' }],
+    garden: { x: 38, y: 6, w: 10, h: 3 },
+    decor: [{ type: 'tree', x: 39, y: 6 }, { type: 'tree', x: 42, y: 8 }, { type: 'tree', x: 45, y: 6 }, { type: 'sofa', x: 46, y: 12, rot: 0 }, { type: 'lamp', x: 38, y: 12 }] },
+];
+export const EXPANSION_UTILITIES = 120;   // a bigger building costs more to light and heat, per wing
+
 export const RENOVATE_PER_TILE = 15;   // cost to clean out a boarded-up unit
 export const BUILD_PER_TILE = 45;      // cost to put up a brand-new shell on open floor
 
@@ -87,6 +112,7 @@ export const DECOR = {
   ride:      { name: 'Kiddie ride',     w: 1, h: 1, cost: 400, ambience: 1, level: 12, rot: true, coin: { price: [4, 7], who: ['family'], chance: 0.35, secs: 3.2 }, sub: 'Families pay for a ride' },
   gumball:   { name: 'Gumball machine', w: 1, h: 1, cost: 120, ambience: 1, level: 13, coin: { price: [1, 2], who: ['family', 'teen'], chance: 0.2, secs: 1.0 }, sub: 'Kids and teens love it' },
   directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 13, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
+  tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 13, sub: 'A real tree, right indoors · +ambience' },
 };
 export const BIN_RADIUS = 4;
 
@@ -102,7 +128,7 @@ export const CUSTOMERS = {
 // Relative arrivals per hour, 9:00 through 20:00.
 export const HOURLY = [0.9, 0.8, 1.0, 1.6, 1.4, 0.9, 1.3, 1.3, 1.2, 1.4, 1.1, 0.6];
 
-export const LEVEL_XP = [0, 0, 100, 300, 650, 1150, 1800, 2700, 3800, 5600, 8000, 11000, 14800, 19500, 25000, 31500, 39000, 47500, 57000];   // XP needed to reach level n
+export const LEVEL_XP = [0, 0, 100, 300, 650, 1150, 1800, 2700, 3800, 5600, 8000, 11000, 14800, 19500, 24000, 29500, 35500, 42000, 49000];   // XP needed to reach level n
 export const MAX_LEVEL = 18;
 // Staff roles. Wages are per day, indexed by star rating (1–3).
 export const ROLES = {
@@ -128,6 +154,10 @@ export const JANITOR_SIGHT = 7;                     // tiles; trash farther away
 export const CLERK_SERVE = [0, 1.9, 1.5, 1.2];      // seconds per checkout
 export const DREAM_SERVE = 0.8;                     // a clerk in their dream job checks out faster…
 export const DREAM_SPEND = 1.15;                    // …and talks customers into spending more
+// Breaks: one-star staff wander off to their phones every so often, two-stars now and then, three-stars never.
+// Tap them and you'll go have a word; otherwise they drift back when the break runs out.
+export const BREAK_EVERY = [0, [35, 60], [120, 180], null];   // seconds of work between breaks [min, max]
+export const BREAK_LENGTH = [0, 24, 14, 0];
 export const STOCKER_SPEED = [0, 1.6, 1.9, 2.2];
 export const STOCKER_TIME = [0, 3.0, 2.4, 1.8];     // seconds to restock a store
 export const RESTOCK_AT = 0.35;                      // stockers top up a store below this fraction

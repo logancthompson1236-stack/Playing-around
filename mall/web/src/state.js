@@ -1,5 +1,5 @@
 // The save file and per-device settings. The save is plain JSON so it can later be shared for mall visits.
-import { START_CASH, START_UNITS, START_KIOSKS, STORES, VERSION, LEVEL_XP, MAX_LEVEL, WAGES } from './config.js';
+import { START_CASH, START_UNITS, START_KIOSKS, STORES, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, RESTROOM_SPOT } from './config.js';
 
 const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
@@ -12,14 +12,15 @@ export function newSave(player){
     day: 1, money: START_CASH, xp: 0, level: 1,
     rating: 1, ratingHist: [],
     player,
-    zones: {}, fountain: false,
+    zones: {}, fountain: false, expansions: {},
     units: [], decor: [], staff: [],
     nextId: 1,
     flags: { tutorial: 0, tips: {}, memories: {}, pending: [], tipsToday: 0, applicants: null, appDay: 0 },
     stats: { visitors: 0, served: 0, revenue: 0, lastVisitors: 0 },
   };
   for (const u of START_UNITS){
-    save.units.push({ id: save.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.store ? 'store' : 'derelict', store: u.store || null, stock: u.store ? STORES[u.store].stock : 0 });
+    const restroom = u.x === RESTROOM_SPOT.x && u.y === RESTROOM_SPOT.y;
+    save.units.push({ id: save.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.store ? 'store' : restroom ? 'restroom' : 'derelict', store: u.store || null, stock: u.store ? STORES[u.store].stock : 0 });
   }
   for (const k of START_KIOSKS){
     const d = STORES[k.store];
@@ -36,8 +37,19 @@ export function loadSave(){
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw);
-    return s && s.v === 1 ? s : null;
+    return s && s.v === 1 ? upgradeSave(s) : null;
   } catch { return null; }
+}
+// Older saves predate restrooms and expansions: turn the spare 2×2 storefront into restrooms if there is one.
+function upgradeSave(s){
+  s.expansions = s.expansions || {};
+  if (!s.units.some(u => u.state === 'restroom')){
+    const spare = s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.x === RESTROOM_SPOT.x && u.y === RESTROOM_SPOT.y && u.state !== 'store')
+      || s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.state === 'derelict')
+      || s.units.find(u => !u.kiosk && u.w === 2 && u.h === 2 && u.state === 'vacant');
+    if (spare){ spare.state = 'restroom'; spare.store = null; spare.stock = 0; }
+  }
+  return s;
 }
 export function writeSave(){
   if (!S.save) return;

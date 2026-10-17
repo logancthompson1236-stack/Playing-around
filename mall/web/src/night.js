@@ -57,6 +57,10 @@ function unitCard(u){
     if (!boarded) actions.unshift({ label: 'Remove shell', onClick: async () => { if (await confirmBox('Tear out this shell to free up the floor?', 'Tear it out')){ s.units = s.units.filter(v => v !== u); hideCard(); view.selected = null; poof(u.x, u.y, u.w, u.h); changed(); } } });
     return showCard({ title: boarded ? 'Boarded-up storefront' : 'Empty storefront', text: boarded ? `${u.w}×${u.h}, left over from the old days. Pick a store and it gets fixed up and opened in one go.` : `${u.w}×${u.h}, clean and ready. Pick a store to open here.`, actions });
   }
+  if (u.state === 'restroom'){
+    return showCard({ title: 'Restrooms', text: 'Shoppers stop in now and then, and it gets grubby as the day goes on. During the day, tap it to mop it out, or let your janitors handle it. The night crew leaves it spotless.',
+      actions: [{ label: 'Move', onClick: () => startPlacement({ kind: 'unit', restroom: true, w: u.w, h: u.h, face: u.face, cost: 0, moveId: u.id, x: u.x, y: u.y }) }] });
+  }
   const def = C.STORES[u.store];
   const clerk = s.staff.find(m => m.role === 'clerk' && m.storeId === u.id);
   const refund = Math.round(def.cost * 0.5);
@@ -79,7 +83,7 @@ const fits = (def, u) => def.w === u.w && def.h === u.h;
 function roomFor(key){
   const def = C.STORES[key];
   if (def.kiosk) return [];
-  return S.save.units.filter(u => !u.kiosk && u.state !== 'store' && fits(def, u))
+  return S.save.units.filter(u => !u.kiosk && (u.state === 'vacant' || u.state === 'derelict') && fits(def, u))
     .map(u => ({ u, cost: def.cost + fixCost(u) })).sort((a, b) => a.cost - b.cost);
 }
 function openStore(u, key){
@@ -140,7 +144,7 @@ function rotateInPlace(d){
 }
 // Decor drawn small for the Build list, scaled to fit the icon.
 function decorIcon(key){
-  const def = C.DECOR[key], tall = key === 'lamp', k = 1 / Math.max(def.w, tall ? 2.7 : 1.45);
+  const def = C.DECOR[key], tall = key === 'lamp' || key === 'tree', k = 1 / Math.max(def.w, tall ? 2.7 : 1.45);
   return iconCanvas(() => { A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-def.w / 2, tall ? 0.38 : key === 'ride' ? -0.3 : -0.15); A.decor({ type: key, x: 0, y: 0, rot: 0 }, 0); });
 }
 function fountainCard(){
@@ -194,14 +198,37 @@ export function openBuild(startTab = 0){
         const done = !!s.zones[z.id], locked = s.level < z.level;
         body.append(fixItem(z.name, done ? 'Cleared' : `${z.w}×${z.h} of storage`, done ? 'Done' : locked ? `Level ${z.level}` : money(z.cost), done || locked, () => { closePanel(); panTo(z.x + z.w / 2, z.y + z.h / 2); zoneCard(z); }));
       }
+      body.append(h('div', { class: 'section-label' }, 'Expansions'));
+      C.EXPANSIONS.forEach((e, i) => {
+        const done = !!s.expansions[e.id], prev = C.EXPANSIONS[i - 1], blocked = prev && !s.expansions[prev.id], locked = s.level < e.level;
+        const price = done ? 'Open' : locked ? `Level ${e.level}` : blocked ? `After ${prev.name}` : money(e.cost);
+        body.append(fixItem(e.name, e.sub, price, done || locked || blocked, () => { if (!done && !locked && !blocked) buyExpansion(e); }, 'expand'));
+      });
     }
   } });
 }
-function fixItem(name, sub, price, dim, onClick){
+function fixItem(name, sub, price, dim, onClick, icon = 'broom'){
   return h('button', { class: `item ${dim ? 'locked' : 'can'}`, onclick: () => { sfx('tap'); onClick(); } },
-    iconCanvas(() => { A.storeIcon('broom', 0.5, 0.5, 0.65); }),
+    iconCanvas(() => { if (icon === 'expand') A.storeIcon('sun', 0.5, 0.5, 0.62); else A.storeIcon('broom', 0.5, 0.5, 0.65); }),
     h('span', { class: 'info' }, h('span', { class: 'name' }, name), h('span', { class: 'sub' }, sub)),
     h('span', { class: 'price' }, price));
+}
+
+/* ---------- Expansions ---------- */
+async function buyExpansion(e){
+  const s = S.save;
+  if (s.money < e.cost){ sfx('error'); toast(`Not enough money (need ${money(e.cost)})`); return; }
+  if (!(await confirmBox(`Open the ${e.name}?`, `Build it · ${money(e.cost)}`, 'Not yet', e.sub + '.'))) return;
+  if (!spend(e.cost)) return;
+  closePanel();
+  s.expansions[e.id] = true;
+  for (const l of e.lots) s.units.push({ id: s.nextId++, x: l.x, y: l.y, w: l.w, h: l.h, face: l.face, state: 'vacant', store: null, stock: 0 });
+  if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: 2, h: 2, face: 'up', state: 'restroom', store: null, stock: 0 });
+  for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
+  sfx('build'); poof(e.x, 0, e.w, C.MAP_H);
+  changed(e.xp);
+  view.camTarget = { x: e.x + e.w / 2 - 2, y: 7.5, s: view.minS * 1.4 };
+  toast(`The ${e.name} is open! New storefronts are waiting.`, 3500);
 }
 
 /* ---------- Picking a storefront for a store ---------- */
@@ -269,7 +296,7 @@ function startPlacement(p){
     }
     place.x = best ? best.x : Math.round(c.x - p.w / 2); place.y = best ? best.y : Math.round(c.y - p.h / 2);
   }
-  const name = p.store ? C.STORES[p.store].name : C.DECOR[p.decor].name;
+  const name = p.restroom ? C.RESTROOM.name : p.store ? C.STORES[p.store].name : C.DECOR[p.decor].name;
   place.name = p.moveId ? `Move ${name}` : name;
   const turnable = p.decor && C.DECOR[p.decor].rot;
   place.bar = showPlacementBar({ label: place.name, canFlip: p.kind === 'unit' || turnable, flipLabel: turnable ? 'Rotate' : 'Flip door', onFlip: () => {
@@ -282,7 +309,7 @@ function startPlacement(p){
 // Stores can go into dusty storage: clearing it out is part of the job (and the price).
 function validate(x, y, face){
   const zones = [];
-  if (place.store){
+  if (place.store || place.restroom){
     const tiles = [];
     for (let j = y; j < y + place.h; j++) for (let i = x; i < x + place.w; i++) tiles.push([i, j]);
     const a = accessFor(x, y, face); if (a) tiles.push([a.x, a.y]);
@@ -305,9 +332,9 @@ function refreshGhost(){
   const v = validate(place.x, place.y, place.face);
   place.ok = v.ok;
   const access = accessFor(place.x, place.y, place.face), cost = placeCost(v);
-  const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
+  const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: place.restroom ? 'restroom' : 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
   view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
-    if (place.kind === 'unit'){ const def = C.STORES[place.store]; A.unitBack(temp, def, t); A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
+    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
     else A.decor({ type: place.decor, x: place.x, y: place.y, rot: place.face || 0 }, t);
   } };
@@ -324,7 +351,7 @@ export function moveGhostTo(x, y, force = false){
   if (!place) return;
   const nx = Math.round(x - 0.5), ny = Math.round(y - 0.5);
   if (nx === place.x && ny === place.y && !force) return;
-  place.x = Math.max(0, Math.min(C.MAP_W - place.w, nx)); place.y = Math.max(0, Math.min(C.MAP_H - place.h, ny));
+  place.x = Math.max(0, Math.min(map.w - place.w, nx)); place.y = Math.max(0, Math.min(C.MAP_H - place.h, ny));
   refreshGhost();
 }
 export function grabGhost(wx, wy){
@@ -456,7 +483,7 @@ export function nightTips(report){
   tip('night');
   const open = Object.entries(C.STORES).filter(([, d]) => !d.kiosk && d.level <= s.level).flatMap(([k]) => roomFor(k).map(r => r.cost));
   if (open.length && s.money >= Math.min(...open)) tip('open', () => openBuild(0));
-  if (s.level >= 2 && !s.units.some(u => !u.kiosk && u.state !== 'store')) tip('newshell', () => openBuild(0));
+  if (s.level >= 2 && !s.units.some(u => u.state === 'vacant' || u.state === 'derelict')) tip('newshell', () => openBuild(0));
   if (s.level >= 3){ tip('staff'); if (!s.flags.tips.staff) setToolDot('staff', true); }
   if (s.level >= 4) tip('clerks');
   if (!s.fountain && s.level >= 2 && s.money >= C.FOUNTAIN.cost) tip('fountain', () => { panTo(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1); view.highlight = { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y, w: 2, h: 2 }; setTimeout(() => { view.highlight = null; }, 4000); });

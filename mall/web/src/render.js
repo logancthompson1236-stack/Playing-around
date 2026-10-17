@@ -2,7 +2,7 @@
 import * as A from './art.js';
 import * as C from './config.js';
 import { S } from './state.js';
-import { sim, spotsFor, storeInfo, clockHour } from './sim.js';
+import { sim, spotsFor, storeInfo, clockHour, roomInfo } from './sim.js';
 import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize } from './map.js';
 
 export const view = {
@@ -13,7 +13,9 @@ export const view = {
   cache: null, cacheRev: -1, cachePPT: 0, dirty: true,
   poofs: [],
 };
-const X0 = -1.5, Y0 = -2.2, X1 = C.MAP_W + 1.5, Y1 = GH + 0.6;
+// World bounds the camera can see. The right edge follows the building as wings are added.
+const X0 = -1.5, Y0 = -2.2, Y1 = GH + 0.6;
+const X1 = () => map.w + 1.5;
 let canvas, ctx;
 
 export function initRender(c){ canvas = c; ctx = c.getContext('2d'); resize(); }
@@ -22,28 +24,35 @@ export function resize(){
   view.W = r.width; view.H = r.height;
   view.dpr = Math.min(window.devicePixelRatio || 1, 2.5);
   canvas.width = Math.round(view.W * view.dpr); canvas.height = Math.round(view.H * view.dpr);
-  view.minS = Math.max(18, Math.min(view.W / (X1 - X0), view.H / (Y1 - Y0)));
+  fitZoom();
   view.maxS = Math.max(view.minS * 2, Math.min(130, view.H / 4));
   if (!view.cam.init){ view.cam.s = Math.max(view.minS, Math.min(view.maxS, view.W / 15)); view.cam.init = true; }
   clampCam();
 }
+function fitZoom(){ view.minS = Math.max(18, Math.min(view.W / (X1() - X0), view.H / (Y1 - Y0))); }
 export function clampCam(){
+  fitZoom();
   const c = view.cam;
   c.s = Math.max(view.minS, Math.min(view.maxS, c.s));
   const hw = view.W / 2 / c.s, hh = view.H / 2 / c.s;
-  c.x = (X1 - X0) <= hw * 2 ? (X0 + X1) / 2 : Math.max(X0 + hw, Math.min(X1 - hw, c.x));
+  const x1 = X1();
+  c.x = (x1 - X0) <= hw * 2 ? (X0 + x1) / 2 : Math.max(X0 + hw, Math.min(x1 - hw, c.x));
   c.y = (Y1 - Y0) <= hh * 2 ? (Y0 + Y1) / 2 : Math.max(Y0 + hh, Math.min(Y1 - hh, c.y));
 }
 export const screenToWorld = (sx, sy) => ({ x: (sx - view.W / 2) / view.cam.s + view.cam.x, y: (sy - view.H / 2) / view.cam.s + view.cam.y });
 export const worldToScreen = (wx, wy) => ({ x: (wx - view.cam.x) * view.cam.s + view.W / 2, y: (wy - view.cam.y) * view.cam.s + view.H / 2 });
 export function invalidate(){ view.cacheRev = -1; }
+export const unitDef = u => u.state === 'restroom' ? C.RESTROOM : u.store ? C.STORES[u.store] : null;
 export function poof(x, y, w, h){ view.poofs.push({ x, y, w, h, t: 0 }); }
 
 /* ---------- Cached floor layer ---------- */
 function buildCache(){
   const want = view.dpr * view.cam.s;
-  const ppt = [32, 48, 64, 88, 112].find(b => b >= want * 0.9) || 112;
-  const cw = Math.round((X1 - X0) * ppt), ch = Math.round((Y1 - Y0) * ppt);
+  // Keep the cached floor under ~8 million pixels so a big mall still fits in a phone's memory.
+  const cap = Math.sqrt(8e6 / ((X1() - X0) * (Y1 - Y0)));
+  const sizes = [32, 48, 64, 88, 112].filter(b => b <= cap);
+  const ppt = sizes.find(b => b >= want * 0.9) || sizes[sizes.length - 1] || 32;
+  const cw = Math.round((X1() - X0) * ppt), ch = Math.round((Y1 - Y0) * ppt);
   if (!view.cache || view.cache.width !== cw || view.cache.height !== ch){ view.cache = document.createElement('canvas'); view.cache.width = cw; view.cache.height = ch; }
   const c = view.cache.getContext('2d');
   A.setTarget(c, ppt);
@@ -52,15 +61,15 @@ function buildCache(){
   c.setTransform(ppt, 0, 0, ppt, -X0 * ppt, -Y0 * ppt);
   const s = S.save;
   // Outside: sidewalk and parking lot.
-  A.floor('sidewalk', X0, C.MAP_H, X1 - X0, 1, 3);
-  A.floor('asphalt', X0, C.MAP_H + 1, X1 - X0, Y1 - C.MAP_H - 1, 4);
+  A.floor('sidewalk', X0, C.MAP_H, X1() - X0, 1, 3);
+  A.floor('asphalt', X0, C.MAP_H + 1, X1() - X0, Y1 - C.MAP_H - 1, 4);
   // Inside floors, row runs at a time.
   for (let y = 0; y < C.MAP_H; y++){
     let x = 0;
-    while (x < C.MAP_W){
-      const f = map.floor[idx(x, y)];
-      let x2 = x; while (x2 < C.MAP_W && map.floor[idx(x2, y)] === f) x2++;
-      A.floor(f === FLOOR_DUST ? 'dust' : 'concourse', x, y, x2 - x, 1, 11 + y * 31 + x);
+    while (x < map.w){
+      const f = map.floor[idx(x, y)], gd = map.garden[idx(x, y)];
+      let x2 = x; while (x2 < map.w && map.floor[idx(x2, y)] === f && map.garden[idx(x2, y)] === gd) x2++;
+      A.floor(gd ? 'grass' : f === FLOOR_DUST ? 'dust' : 'concourse', x, y, x2 - x, 1, 11 + y * 31 + x);
       x = x2;
     }
   }
@@ -69,7 +78,7 @@ function buildCache(){
   // Store interiors.
   for (const u of s.units){
     if (u.kiosk) continue;
-    const kind = u.state === 'derelict' ? 'dust' : u.state === 'vacant' ? 'plain' : (C.STORES[u.store].floor || 'plain');
+    const kind = u.state === 'derelict' ? 'dust' : u.state === 'vacant' ? 'plain' : (unitDef(u).floor || 'plain');
     A.floor(kind, u.x, u.y, u.w, u.h, u.id * 17);
     if (u.state === 'store' && !u.kiosk){
       const f = spotsFor(u).front;
@@ -77,16 +86,16 @@ function buildCache(){
     }
   }
   // Clutter and gloom in the storage areas.
-  for (let y = 0; y < C.MAP_H; y++) for (let x = 0; x < C.MAP_W; x++){
+  for (let y = 0; y < C.MAP_H; y++) for (let x = 0; x < map.w; x++){
     if (map.floor[idx(x, y)] !== FLOOR_DUST || map.occ[idx(x, y)]) continue;
     if (((x * 7 + y * 13) % 5) === 0) A.storageJunk(x, y, x * 101 + y);
   }
-  for (let y = 0; y < C.MAP_H; y++) for (let x = 0; x < C.MAP_W; x++){
+  for (let y = 0; y < C.MAP_H; y++) for (let x = 0; x < map.w; x++){
     const i = idx(x, y);
     if (map.floor[i] === FLOOR_DUST && !map.occ[i]){ c.fillStyle = 'rgba(30,22,48,.42)'; c.fillRect(x - 0.002, y - 0.002, 1.004, 1.004); }
     if (map.occ[i] > 0){ const u = s.units.find(v => v.id === map.occ[i]); if (u && u.state === 'derelict'){ c.fillStyle = 'rgba(30,22,48,.28)'; c.fillRect(x - 0.002, y - 0.002, 1.004, 1.004); } }
   }
-  A.mallBackWall(C.MAP_W);
+  A.mallBackWall(map.w);
   view.cacheRev = map.rev; view.cachePPT = ppt;
 }
 
@@ -101,7 +110,7 @@ export function render(t){
   ctx.fillStyle = '#2d2236'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const ox = (view.W / 2 - cam.x * cam.s) * dpr, oy = (view.H / 2 - cam.y * cam.s) * dpr;
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(view.cache, ox + X0 * ppt, oy + Y0 * ppt, (X1 - X0) * ppt, (Y1 - Y0) * ppt);
+  ctx.drawImage(view.cache, ox + X0 * ppt, oy + Y0 * ppt, (X1() - X0) * ppt, (Y1 - Y0) * ppt);
   ctx.setTransform(ppt, 0, 0, ppt, ox, oy);
   A.setTarget(ctx, ppt);
 
@@ -113,29 +122,31 @@ export function render(t){
   const Q = [];
   const add = (y, f) => Q.push([y, f]);
   for (const u of s.units){
-    const def = u.store ? C.STORES[u.store] : null;
+    const def = unitDef(u);
     if (u.kiosk){ add(u.y + 0.85, () => A.kiosk(u, def, t)); continue; }
     if (u.face === 'down'){
       add(u.y + 0.48, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'restroom') add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + u.h + 0.05, () => A.unitFront(u, def, t));
     } else {
       add(u.y + u.h, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'restroom') add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
   for (const d of s.decor) add(decorSortY(d), () => A.decor(d, t));
   add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
-  add(C.MAP_H, () => { A.sideWall(0, 0, C.MAP_H); A.sideWall(C.MAP_W, 0, C.MAP_H); });
+  add(C.MAP_H, () => { A.sideWall(0, 0, C.MAP_H); A.sideWall(map.w, 0, C.MAP_H); });
   add(C.MAP_H + 0.1, () => {
-    A.frontWall(-0.12, C.ENTRANCE.x - 0.1, C.MAP_H); A.frontWall(C.ENTRANCE.x + C.ENTRANCE.w + 0.1, C.MAP_W + 0.12, C.MAP_H);
+    A.frontWall(-0.12, C.ENTRANCE.x - 0.1, C.MAP_H); A.frontWall(C.ENTRANCE.x + C.ENTRANCE.w + 0.1, map.w + 0.12, C.MAP_H);
     const near = sim.people.some(p => Math.abs(p.y - C.MAP_H) < 1.2 && Math.abs(p.x - (C.ENTRANCE.x + 1)) < 1.6);
     view.doorOpen = Math.max(0, Math.min(1, (view.doorOpen || 0) + (near ? 0.12 : -0.06)));
     A.entranceDoors(C.ENTRANCE.x, C.MAP_H, C.ENTRANCE.w, view.doorOpen);
   });
   add(-0.5, () => { if (!s.zones.nw) A.pigeon(9.4, 1.6, t); if (!s.zones.ne) A.pigeon(24.2, 2.4, t + 1.7); });
-  for (const p of sim.people) add(p.y, () => drawPerson(p, t));
+  for (const p of sim.people) if (!p.hidden) add(p.y, () => drawPerson(p, t));
   Q.sort((a, b) => a[0] - b[0]);
   for (const [, f] of Q) f();
 
@@ -165,6 +176,17 @@ function drawPerson(p, t){
   if (L.costume) return A.mascot(p.x, p.y, o);
   if (p.faceBack) o.back = true;
   if (p.carry) o.carry = true;
+  if (p.playing) o.play = true;
+  if (p.slacking) o.phone = true;
+  if (p.mopT > 0) o.mop = p.t * 6;
+  if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; }
+  // On the kiddie ride, the kid hops on and the grown-up waits beside it.
+  if (L.kid && p.state === 'useMachine' && p.machine && p.machine.type === 'ride'){
+    const m = p.machine, bob = Math.sin(t * 5) * 0.04;
+    A.person(p.x, p.y, { ...o, kid: undefined });
+    A.person(m.x + 0.5, m.y + 0.42 + bob, { ...L.kid, t: p.t + 0.3, s: 0.68 });
+    return;
+  }
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;
   A.person(p.x, p.y, o);
 }
@@ -187,7 +209,10 @@ function drawJobRings(t){
     A.ell(pt.x, pt.y, 0.38 + Math.sin(t * 5) * 0.03, 0.17); A.fs(null, 0.05, '#ffd23f');
   });
 }
+export const restroomBubble = u => ({ x: u.x + u.w / 2, y: u.face === 'down' ? u.y - 1.35 : u.y - 1.15 });
 export function jobPoint(j){
+  if (j.type === 'nudge'){ const p = sim.people.find(q => q.id === j.staffId); return p ? { x: p.x, y: p.y } : null; }
+  if (j.type === 'restroom'){ const u = S.save.units.find(v => v.id === j.unitId); return u ? { x: u.x + u.w / 2, y: u.face === 'down' ? u.y + u.h + 0.5 : u.y - 0.5 } : null; }
   if (j.type === 'clean'){ const tr = sim.trash.find(x => x.id === j.trashId); return tr ? { x: tr.x, y: tr.y } : null; }
   if (j.type === 'register'){ const u = S.save.units.find(v => v.id === j.unitId); if (!u) return null; const sp = spotsFor(u).staff; return { x: sp.x, y: sp.y }; }
   if (j.type === 'wish') return { x: C.FOUNTAIN.x + 1, y: C.FOUNTAIN.y + 2.2 };
@@ -266,11 +291,19 @@ function drawOverlays(t){
       A.bubble(p.x, y, b.icon, b.kind === 'info' ? 'info' : b.kind, b.kind === 'want' ? p.patience / p.patienceMax : 1, pulse);
     }
     if (p.kind === 'gus' && p.chatIcon){ A.bubble(p.x, p.y - 1.55, 'chat', 'info'); }
+    if (p.kind === 'staff' && p.slacking){ A.bubble(p.x, p.y - (p.look.costume ? 1.9 : 1.55), 'phone', 'want', Math.max(0, p.breakT / p.breakMax)); }
     if (p.kind === 'gus' && p.say){ speech(p.x, p.y - 1.6, p.say); }
     if ((p.kind === 'owner' || p.kind === 'staff') && p.serving > 0){
       A.ell(p.x, p.y - 1.42, 0.24, 0.07); A.fs('rgba(255,255,255,.9)', 0.03);
       A.rr(p.x - 0.22, p.y - 1.47, 0.44 * Math.min(1, p.serving), 0.1, 0.05); A.fs('#4cc38a', 0);
     }
+  }
+  // Restrooms that need a mop: flies first, then a bubble you can tap.
+  if (view.mode === 'day') for (const u of s.units){
+    if (u.state !== 'restroom') continue;
+    const r = roomInfo(u), p0 = restroomBubble(u);
+    if (r.dirt >= 30) for (let i = 0; i < 3; i++){ const a = t * 3 + i * 2.1; A.circ(p0.x + Math.cos(a) * 0.35, p0.y + 0.55 + Math.sin(a * 1.3) * 0.18, 0.035); A.fs('#3d2b35', 0); }
+    if (r.dirt >= 50) A.bubble(p0.x, p0.y, 'wc', 'want', 1 - r.dirt / 100, r.dirt >= 80 ? Math.abs(Math.sin(t * 8)) : 0);
   }
   if (sim.wishCoin && view.mode === 'day'){
     const bob = Math.sin(t * 3) * 0.06;
@@ -279,7 +312,7 @@ function drawOverlays(t){
   // Numbered pins on queued jobs
   sim.jobs.forEach((j, i) => {
     const pt = jobPoint(j); if (!pt) return;
-    const y = pt.y - (j.type === 'register' ? 1.75 : 0.6);
+    const y = pt.y - (j.type === 'register' ? 1.75 : j.type === 'nudge' ? 2.15 : 0.6);
     A.circ(pt.x, y, 0.2); A.fs('#ffd23f', 0.04);
     A.text(String(i + 1), pt.x, y + 0.01, 0.24, A.OUT, 700);
   });

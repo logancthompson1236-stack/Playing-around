@@ -245,6 +245,18 @@ export function storeIcon(icon, x, y, s, mono = null){
       rr(-0.42, -0.3, 0.84, 0.62, 0.12); fs(c('#118ab2'), 0.08);
       rr(-0.32, -0.21, 0.5, 0.44, 0.08); fs(c('#a8f0e6'), 0.05);
       circ(0.29, -0.1, 0.05); fs('#ffd23f', 0.03); circ(0.29, 0.08, 0.05); fs('#ef476f', 0.03); break;
+    case 'wc':
+      rr(-0.42, -0.36, 0.84, 0.72, 0.14); fs(c('#5cc8bf'), 0.08);
+      for (const [px, dress] of [[-0.18, false], [0.18, true]]){
+        circ(px, -0.17, 0.07); fs('#fff', 0);
+        if (dress){ g.beginPath(); g.moveTo(px - 0.11, 0.2); g.lineTo(px, -0.07); g.lineTo(px + 0.11, 0.2); g.closePath(); fs('#fff', 0); }
+        else rr(px - 0.07, -0.07, 0.14, 0.28, 0.04), fs('#fff', 0);
+      }
+      g.fillStyle = '#fff'; g.fillRect(-0.015, -0.28, 0.03, 0.52); break;
+    case 'phone':
+      rr(-0.2, -0.38, 0.4, 0.76, 0.08); fs(c('#3d405b'), 0.08);
+      rr(-0.14, -0.3, 0.28, 0.5, 0.04); fs(c('#8ecae6'), 0);
+      circ(0, 0.29, 0.04); fs('#fff', 0); break;
     case 'box': box(-0.38, -0.05, 0.76, 0.38, 0.4, '#e8c08a', '#c4925f', 0, 0.03, 0.08); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.05, -0.45, 0.1, 0.38); break;
     case 'sun':
       for (let i = 0; i < 10; i++){ const a = i / 10 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a - 0.2) * 0.3, Math.sin(a - 0.2) * 0.3); g.lineTo(Math.cos(a) * 0.48, Math.sin(a) * 0.48); g.lineTo(Math.cos(a + 0.2) * 0.3, Math.sin(a + 0.2) * 0.3); fs(c('#ff9f43'), 0.05); }
@@ -381,10 +393,19 @@ export function person(x, y, o){
     g.restore();
   }
   for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
+    if (o.play){
+      // Hands up on the controls, jiggling away.
+      const jig = Math.sin(t * 22 + ax * 10) * 0.025;
+      rr(ax - 0.055, -0.62 + jig, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt);
+      circ(ax * 0.85, -0.66 + jig, 0.055); fs(o.skin, 0.035);
+      continue;
+    }
     const swing = o.torch !== undefined && ax > 0 ? 0 : sw * dir * 0.04;
     rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }
+  if (o.hold && !o.back) heldItem(o.hold, 0.235, -0.31, o.bagColor);
+  if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
   if (o.thermos){ rr(-0.31, -0.42, 0.12, 0.22, 0.04); fs('#c0392b', 0.03); rr(-0.3, -0.45, 0.1, 0.05, 0.02); fs('#bbb', 0.025); }
   if (o.bag){ g.beginPath(); g.arc(-0.25, -0.28, 0.06, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.03; g.stroke(); rr(-0.37, -0.27, 0.24, 0.22, 0.04); fs(o.bagColor || '#ff8fab', 0.035); }
@@ -399,8 +420,34 @@ export function person(x, y, o){
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
   } else {
     hairFront(o); face(o);
+    if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
   }
   g.restore();
+}
+// Something a shopper bought, held in the right hand at (hx, hy).
+function heldItem(kind, hx, hy, color){
+  switch (kind){
+    case 'cone':
+      g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
+      circ(hx, hy - 0.11, 0.07); fs('#ff8fc8', 0.025); circ(hx + 0.01, hy - 0.19, 0.05); fs('#7ed6c8', 0.025); break;
+    case 'coffee':
+      rr(hx - 0.05, hy - 0.13, 0.1, 0.15, 0.02); fs('#fff', 0.025); rr(hx - 0.055, hy - 0.16, 0.11, 0.04, 0.015); fs('#8a5a44', 0.02);
+      g.fillStyle = '#c98b55'; g.fillRect(hx - 0.05, hy - 0.08, 0.1, 0.035); break;
+    case 'pretzel': pretzelIcon(hx, hy - 0.06, 0.11); break;
+    case 'lolly':
+      g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx, hy - 0.16); g.strokeStyle = '#fff'; g.lineWidth = 0.025; g.stroke();
+      circ(hx, hy - 0.2, 0.065); fs('#9b5de5', 0.025); circ(hx, hy - 0.2, 0.03); fs('#ffd6f5', 0); break;
+    case 'can': rr(hx - 0.04, hy - 0.12, 0.08, 0.14, 0.02); fs('#118ab2', 0.025); g.fillStyle = '#ffd23f'; g.fillRect(hx - 0.04, hy - 0.07, 0.08, 0.035); break;
+    case 'book': rr(hx - 0.07, hy - 0.12, 0.14, 0.17, 0.015); fs('#e07a5f', 0.025); g.fillStyle = '#f2e6c8'; g.fillRect(hx - 0.07, hy - 0.11, 0.025, 0.15); break;
+    case 'record': rr(hx - 0.09, hy - 0.15, 0.18, 0.18, 0.015); fs('#ffd23f', 0.025); circ(hx + 0.02, hy - 0.06, 0.06); fs('#2b2d42', 0.015); break;
+    case 'gadget': box(hx - 0.1, hy - 0.04, 0.2, 0.08, 0.15, '#c0f0ff', '#118ab2', 0, 0.02, 0.025); rr(hx - 0.06, hy - 0.15, 0.12, 0.07, 0.015); fs('#a8f0e6', 0.015); break;
+    case 'plush':
+      circ(hx - 0.05, hy - 0.17, 0.035); fs('#c98b55', 0.02); circ(hx + 0.05, hy - 0.17, 0.035); fs('#c98b55', 0.02);
+      circ(hx, hy - 0.1, 0.075); fs('#e0a96d', 0.025); circ(hx, hy - 0.08, 0.025); fs('#f2e3cf', 0); break;
+    case 'bag':
+      g.beginPath(); g.arc(hx, hy + 0.02, 0.05, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.025; g.stroke();
+      rr(hx - 0.11, hy + 0.02, 0.22, 0.2, 0.03); fs(color || '#ff8fab', 0.03); break;
+  }
 }
 // A family: parent plus a smaller kid walking beside them.
 export function family(x, y, o){
@@ -444,6 +491,8 @@ export function mallSign(x, y, name){
 export function doorX(u){ return u.x + Math.floor(u.w / 2); }
 
 // Wall color for a unit given its state.
+// Stores and restrooms both have a sign, furniture and lit windows.
+const isOpen = u => u.state === 'store' || u.state === 'restroom';
 function unitWall(u, def){
   if (u.state === 'derelict') return ['#b5a996', '#a2967f'];
   if (u.state === 'vacant') return ['#e9dcf7', '#cdb8e6'];
@@ -456,7 +505,7 @@ export function unitBack(u, def, t){
   if (u.face === 'down'){
     const H = 1.05;
     g.fillStyle = wd; g.fillRect(u.x, u.y - H, u.w, H);
-    if (u.state === 'store'){
+    if (isOpen(u)){
       g.fillStyle = shade(def.color, 0.4); for (let i = 0; i < u.w * 3; i++) if (i % 2) g.fillRect(u.x + i / 3, u.y - H, 1 / 3, H);
     }
     if (u.state === 'derelict'){
@@ -465,7 +514,7 @@ export function unitBack(u, def, t){
     }
     g.beginPath(); g.rect(u.x, u.y - H, u.w, H); fs(null);
     rr(u.x - 0.04, u.y - H - 0.14, u.w + 0.08, 0.14, 0.03); fs(wl);
-    if (u.state === 'store'){
+    if (isOpen(u)){
       rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs('#fffaf3');
       if (def.icon === 'joystick') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, '#ff5fa2', u.w - 0.6);
       else text(def.name, u.x + u.w / 2, u.y - 0.76, 0.27, shade(def.color, -0.3), 700, 'Fredoka', u.w - 0.6);
@@ -475,7 +524,7 @@ export function unitBack(u, def, t){
   } else {
     box(u.x - 0.04, u.y + u.h - 0.1, u.w + 0.08, 0.16, 0.42, wl, wd);
   }
-  if (u.state === 'store') storeFurniture(u, def, t, 'back');
+  if (isOpen(u)) storeFurniture(u, def, t, 'back');
   if (u.state === 'derelict') derelictJunk(u);
 }
 
@@ -608,6 +657,7 @@ export function storeFurniture(u, def, t, layer){
     else shelf(x, y, sw, 0.4, 0.7, 'goods', u.id);
     return;
   }
+  if (ic === 'wc') return restroomFurniture(u, layer);
   if (layer === 'counter'){ counter(u, def); return; }
   // Mid-room pieces
   if (ic === 'dollar' && H >= 3){ const [x, y] = local(u, 0.3, 1.9, Math.max(0.6, W - 1.6), 0.36); shelf(x, y, Math.max(0.6, W - 1.6), 0.36, 0.5, 'goods', u.id + 5); }
@@ -619,6 +669,22 @@ export function storeFurniture(u, def, t, layer){
   if (ic === 'record' && H >= 3){ const [x, y] = local(u, 0.3, 2.0, 0.6, 0.4); box(x, y, 0.6, 0.4, 0.45, '#ffd23f', '#e0b52f'); circ(x + 0.3, y - 0.26, 0.15); fs('#2b2d42', 0.03); circ(x + 0.3, y - 0.26, 0.04); fs('#ef476f', 0); g.beginPath(); g.arc(x + 0.52, y - 0.12, 0.08, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.03; g.stroke(); }
   if (ic === 'tv' && H >= 3){ const [x, y] = local(u, 0.3, 1.9, 1.2, 0.5); box(x, y, 1.2, 0.5, 0.45, '#e9e1d4', '#c9bfb0'); rr(x + 0.12, y - 0.36, 0.26, 0.16, 0.03); fs('#ffd23f', 0.025); rr(x + 0.5, y - 0.38, 0.2, 0.22, 0.03); fs('#a0a8b0', 0.025); rr(x + 0.84, y - 0.36, 0.24, 0.14, 0.04); fs('#ef476f', 0.025); }
   if (ic === 'book' && H >= 3){ const [x, y] = local(u, 0.3, 2.05); box(x - 0.2, y - 0.35, 0.45, 0.35, 0.35, '#e07a5f', '#c0583f'); }
+}
+// Restrooms: a row of stall doors along the back and a sink by the door.
+function restroomFurniture(u, layer){
+  if (layer === 'back'){
+    const n = u.w * 2 - 1, [x, y] = local(u, 0.08, 0.08, u.w - 0.16, 0.42);
+    for (let i = 0; i < n; i++){
+      const sx = x + i * (u.w - 0.16) / n, sw = (u.w - 0.16) / n - 0.05;
+      box(sx, y, sw, 0.42, 0.95, '#d9f0ee', i % 2 ? '#a8ddd8' : '#bfe7e3');
+      circ(sx + sw - 0.08, y + 0.42 - 0.5, 0.025); fs('#7a8a8a', 0);
+    }
+  } else if (layer === 'mid'){
+    const [x, y] = local(u, 0.2, u.h - 0.75, 0.6, 0.32);
+    box(x, y, 0.6, 0.32, 0.45, '#ffffff', '#dfe7e6');
+    ell(x + 0.3, y - 0.36, 0.17, 0.07); fs('#cfe9f2', 0.025);
+    rr(x + 0.27, y - 0.58, 0.06, 0.16, 0.02); fs('#a0a8b0', 0.02);
+  }
 }
 function puppy(x, y, t){
   const hop = Math.max(0, Math.sin(t * 3)) * 0.06;
@@ -644,12 +710,12 @@ export function unitFront(u, def, t){
   const tint = u.state === 'store' && def.icon === 'joystick' ? 'rgba(160,140,230,.75)' : 'rgba(185,228,245,.85)';
   if (dx > u.x) glass(u.x + 0.07, yF, dx - u.x - 0.07, 0.42, tint);
   if (dx + 1 < u.x + u.w) glass(dx + 1, yF, u.x + u.w - dx - 1 - 0.07, 0.42, tint);
-  const post = u.state === 'store' ? def.trim : '#cdb8e6';
+  const post = u.state === 'restroom' ? def.color : u.state === 'store' ? def.trim : '#cdb8e6';
   box(dx - 0.05, yF - 0.02, 0.1, 0.18, 0.75, shade(post, 0.4), post);
   box(dx + 0.95, yF - 0.02, 0.1, 0.18, 0.75, shade(post, 0.4), post);
   if (u.face === 'up'){
     const sx = u.x + u.w / 2, top = yF + 0.14 - 0.95;
-    if (u.state === 'store'){
+    if (isOpen(u)){
       rr(sx - Math.min(1.1, u.w / 2 - 0.05), top - 0.05, Math.min(2.2, u.w - 0.1), 0.4, 0.1); fs(def.color);
       text(def.name, sx, top + 0.15, 0.23, '#fffaf3', 700, 'Fredoka', Math.min(2.0, u.w - 0.3));
     } else if (u.state === 'vacant') forLease(sx, top + 0.15, 0.04, 0.8);
@@ -727,6 +793,7 @@ export function decor(d, t = 0){
     case 'ride': kiddieRide(x, y, r, t); break;
     case 'gumball': gumball(x + 0.5, y + 0.8); break;
     case 'directory': directory(x, y, r); break;
+    case 'tree': shadeTree(x + 0.5, y + 0.85); break;
   }
 }
 function seatPiece(x, y, r, st){
@@ -819,6 +886,15 @@ function kiddieRide(x, y, r, t){
     g.beginPath(); g.moveTo(cx - 0.1, by - 0.18); g.lineTo(cx, by - 0.42); g.lineTo(cx + 0.1, by - 0.18); fs('#ef476f', 0.03);
   }
 }
+// A leafy indoor shade tree in a round planter.
+function shadeTree(x, y){
+  shadow(x, y, 0.42, 0.14);
+  cylinder(x, y - 0.02, 0.36, 0.3, '#b08968', '#c9a27e');
+  ell(x, y - 0.33, 0.3, 0.09); fs('#6b4a3a', 0);
+  rr(x - 0.07, y - 1.5, 0.14, 1.2, 0.05); fs('#8a6040');
+  for (const [dx, dy, r, c] of [[-0.32, -1.55, 0.36, '#4fa85e'], [0.32, -1.6, 0.36, '#4fa85e'], [0, -1.95, 0.42, '#5bbf6a'], [-0.18, -1.75, 0.34, '#66c776'], [0.2, -1.8, 0.32, '#5bbf6a']]){ circ(x + dx, y + dy, r); fs(c); }
+  for (const [dx, dy] of [[-0.1, -2.05], [0.18, -1.7], [-0.3, -1.6]]){ circ(x + dx, y + dy, 0.06); g.fillStyle = 'rgba(255,255,255,.35)'; g.fill(); }
+}
 function gumball(x, y){
   shadow(x, y, 0.22, 0.07);
   rr(x - 0.18, y - 0.12, 0.36, 0.12, 0.04); fs('#c0392b', 0.03);
@@ -863,7 +939,7 @@ export function mascot(x, y, o){
   ell(-0.14, cy - 0.06, 0.045, 0.06); fs(OUT, 0); ell(0.14, cy - 0.06, 0.045, 0.06); fs(OUT, 0);
   g.beginPath(); g.arc(0, cy + 0.04, 0.16, 0.25, Math.PI - 0.25); g.strokeStyle = OUT; g.lineWidth = 0.045; g.stroke();
   for (const cx of [-0.25, 0.25]){ circ(cx, cy + 0.07, 0.065); g.fillStyle = 'rgba(255,110,110,.45)'; g.fill(); }
-  g.save(); g.translate(0.38, cy + 0.12); g.rotate(-1.1 + Math.sin(t * 6) * 0.45);
+  g.save(); g.translate(0.38, cy + 0.12); g.rotate(0.55 + Math.sin(t * 6) * 0.4);   // waving, out to the side
   rr(-0.05, -0.32, 0.1, 0.32, 0.05); fs('#ffd23f'); circ(0, -0.34, 0.075); fs('#fff', 0.03);
   g.restore();
   g.restore();

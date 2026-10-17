@@ -5,7 +5,7 @@ import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnG
 import { litterSpot } from './map.js';
 import { say, hint, clearHint, showTip, tipVisible, dialogOpen } from './ui.js';
 import { view } from './render.js';
-import { DAY1, MEMORIES, DEE_SCENE } from './story.js';
+import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES } from './story.js';
 
 /* ---------- Waiting on game state from async scripts ---------- */
 const waiters = [];
@@ -21,7 +21,7 @@ let shownThisPhase = 0;
 // Tips can go stale while they wait (e.g. you already opened the store). Each is re-checked right before it shows.
 const STILL = {
   open: s => !s.flags.opened && s.units.filter(u => u.state === 'store').length <= 2,
-  newshell: s => !s.units.some(u => !u.kiosk && u.state !== 'store'),
+  newshell: s => !s.units.some(u => u.state === 'vacant' || u.state === 'derelict'),
   fountain: s => !s.fountain,
   staff: s => s.staff.length === 0,
   clerks: s => !s.staff.some(m => m.role === 'clerk'),
@@ -124,4 +124,28 @@ export async function runDeeScene(){
   g.state = 'leave';
   deeRunning = false;
 }
-export const deeSceneRunning = () => deeRunning;
+export const deeSceneRunning = () => deeRunning || expandRunning;
+
+/* ---------- Expansions: Gus brings each one up the first night you can afford it ---------- */
+let expandRunning = false;
+export function expansionToSuggest(){
+  const s = S.save;
+  return C.EXPANSIONS.find((e, i) => !s.expansions[e.id] && (i === 0 || s.expansions[C.EXPANSIONS[i - 1].id]) && s.level >= e.level && s.money >= e.cost && !s.flags.memories['wing_' + e.id]);
+}
+export async function runExpandScene(){
+  const e = expansionToSuggest();
+  if (!e || expandRunning || deeRunning) return;
+  expandRunning = true;
+  const f = S.save.flags, g = spawnGus('night');
+  g.x = C.ENTRANCE.x + 1.4; g.y = C.MAP_H + 1.3;
+  g.state = 'walkTo'; g.goal = { x: C.ENTRANCE.x + 1.6, y: C.MAP_H - 3.4 };
+  view.camTarget = { x: g.goal.x, y: g.goal.y - 1.5 };
+  await until(() => g.state === 'stand');
+  await say(EXPAND_SCENES[e.id]);
+  f.memories['wing_' + e.id] = true; writeSave();
+  const buildBtn = document.querySelector('.night-bar .tool:nth-child(1)');
+  buildBtn && buildBtn.classList.add('pulse');
+  g.state = 'leave';
+  expandRunning = false;
+  until(() => document.querySelector('.panel[aria-label="Build"]') || S.save.phase !== 'night').then(() => buildBtn && buildBtn.classList.remove('pulse'));
+}

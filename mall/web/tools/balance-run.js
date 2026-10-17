@@ -1,7 +1,7 @@
 import * as C from '../src/config.js';
 import { S, newSave, stores, addXp } from '../src/state.js';
-import { rebuildMap, validatePlacement } from '../src/map.js';
-import { sim, step, startDay, buildReport, addJob, setRandom, staffLook } from '../src/sim.js';
+import { rebuildMap, validatePlacement, map } from '../src/map.js';
+import { sim, step, startDay, buildReport, addJob, setRandom, staffLook, roomInfo } from '../src/sim.js';
 const staffLookFor = m => staffLook(m.role, m.id);
 import { mulberry } from '../src/art.js';
 
@@ -31,6 +31,11 @@ for (let d = 1; d <= DAYS; d++){
 function player(){
   if (sim.jobs.length || sim.phase !== 'day') return;
   const o = sim.owner;
+  // An attentive player: nudges staff off their phones, mops a filthy restroom nobody's handling.
+  const slacker = sim.people.find(p => p.slacking && p.breakT < p.breakMax - 4);
+  if (slacker && Math.random() < 0.5){ addJob({ type: 'nudge', staffId: slacker.id }); return; }
+  const gross = S.save.units.find(u => u.state === 'restroom' && roomInfo(u).dirt >= 70 && !roomInfo(u).claimed);
+  if (gross){ addJob({ type: 'restroom', unitId: gross.id }); return; }
   let best = null, bq = 0;
   for (const u of stores(S.save)){
     const st = sim.storeState.get(u.id); if (!st) continue;
@@ -84,7 +89,7 @@ function night(){
     break;
   }
   // Hire help when allowed.
-  const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: 2, ...extra });
+  const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(Math.random() * 4)], ...extra });
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 4){
     for (const u of stores(s).filter((_, i) => i % 2 === 0)){
@@ -107,12 +112,20 @@ function night(){
     s.decor.push({ id: s.nextId++, type, x: spot.x, y: spot.y, rot: 0 }); s.money -= def.cost; gain(5); rebuildMap(s);
   }
   for (const z of C.ZONES) if (!s.zones[z.id] && s.level >= z.level && s.money > z.cost + 800){ s.money -= z.cost; s.zones[z.id] = true; gain(60); }
+  C.EXPANSIONS.forEach((e, i) => {
+    if (s.expansions[e.id] || (i && !s.expansions[C.EXPANSIONS[i - 1].id]) || s.level < e.level || s.money < e.cost + 1500) return;
+    s.money -= e.cost; s.expansions[e.id] = true; gain(e.xp);
+    for (const l of e.lots) s.units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
+    if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: 2, h: 2, face: 'up', state: 'restroom', store: null, stock: 0 });
+    for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
+    console.log(`      (day ${s.day}: opened the ${e.name})`);
+  });
   rebuildMap(s);
 }
 // First spot (scanning out from the concourse) where something fits without blocking anything.
 function findSpot(kind, w, h){
   const rows = [5, 9, 4, 10, 3, 11, 2, 12, 1, 13, 0, 6, 8, 7];
-  for (const y of rows) for (let x = 0; x <= C.MAP_W - w; x++){
+  for (const y of rows) for (let x = 0; x <= map.w - w; x++){
     if (kind === 'unit'){
       const face = y + h <= 6 ? 'down' : 'up';
       if (validatePlacement(S.save, 'unit', x, y, w, h, face).ok) return { x, y, face };

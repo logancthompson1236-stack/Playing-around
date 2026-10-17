@@ -71,6 +71,21 @@ export const MEMORIES = {
   },
 };
 
+// Gus stops by the first night you can afford each expansion.
+export const EXPAND_SCENES = {
+  east: [
+    'Evening, boss. Had to come see it for myself. Full stores, music playing, kids running around.',
+    'You know, when I started here, the east wing was the busiest part of this whole mall. Rose sealed it off in ’09 to save on the heating bill.',
+    'With the kind of money you’re pulling in, you could open her back up. Twenty grand, give or take. Room to breathe, room for more shops.',
+    'Take a look under Build, then Fix up. Rose would’ve cried happy tears.',
+  ],
+  garden: [
+    'That east wing’s humming. Better than I ever saw it.',
+    'Rose had one dream she never got to. A garden court. Real trees, sunlight, somewhere to sit that doesn’t smell like pretzels.',
+    'There’s an empty lot past the east wing. Forty-five grand and it’s yours. Just saying.',
+  ],
+};
+
 // Notebook tips: shown once, when the situation first comes up.
 export const DEE_SCENE = {
   staff: 'Tap Staff, down in the corner. That’s where you hire help.',
@@ -93,4 +108,6 @@ export const TIPS = {
   stockout: { title: 'Empty shelves', text: 'A store ran out today. Shelves restock overnight, so keep a little cash on hand.' },
   register: { title: 'Back to the register', text: 'You can tap any store to go stand at its register. You’ll serve whoever lines up until you leave.' },
   move: { title: 'Rearranging', text: 'Moving things at night is free. Tap a store or decoration, then Move.' },
+  slacker: { title: 'On their phone again', text: 'One-star hires take long phone breaks. Tap the phone bubble and you’ll go have a word. Two-stars slack off now and then; three-stars never do.' },
+  restroom: { title: 'Restrooms', text: 'Folks need the restroom too, and it gets grubby. Tap it to mop it out yourself, or hire janitors: they’ll keep it clean.' },
 };

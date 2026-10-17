@@ -543,6 +543,16 @@ v0.6.0 changes:
 
 v0.6.1: leaving the app (home button, app switcher, screen off, a call) pauses the day and the sound. You come back to the Paused menu.
 
+v0.7.0 changes, from playtest feedback:
+- **Pausing in the background, for real:** the Android app now pauses the web view itself when you leave (Capacitor kept it running), and the game also comes back paused if it notices it was frozen.
+- **Staff stars matter:** one-star staff take phone breaks every 35–60 seconds of work (about 24 seconds each), two-stars every two or three minutes (about 14 seconds), three-stars never. A clerk on break stops ringing people up; a janitor stops sweeping. Tap the phone bubble and the owner walks over and gets them back to work; otherwise the break runs out on its own.
+- **Restrooms:** every mall has a set (the old 2×2 by the pretzel cart in new games; older saves convert a spare 2×2 or get one on open floor). Shoppers stop in, and each visit adds grime: flies at 30%, a tappable bubble at 50%. A grubby restroom upsets the people who use it and drags down Cleanliness. Janitors mop it first once it passes 40%; you can tap it to mop it yourself. The night crew leaves it spotless.
+- **Expansions:** the East Wing ($20,000, level 8) reopens 12 more columns east of the old building with five spaced-out storefronts, a second set of restrooms and a little decor. The Garden Court ($45,000, level 13, after the East Wing) adds 10 more columns with a grass court, shade trees and four storefronts. Each wing adds $120 a day to utilities. Find them under Build → Fix up.
+- **Gus suggests it:** the first night you can afford each wing, Gus stops by to talk about the old east wing (and Rose's garden), and the Build button lights up.
+- **Shoppers show what they did:** they walk out holding what they bought (a cone, coffee, a pretzel, a lollipop, a book, a record, a gadget box, an arcade plush, or a shopping bag), drink the soda they bought, blow gum bubbles, play the arcade cabinets before buying, and kids ride the kiddie ride while the grown-up waits.
+- **New decor:** the Shade tree (level 13).
+- **Economy:** breaks, restrooms, wing utilities and the expansion costs keep late-game money in check. The balance bot now has about $12,000 on day 40 (it had $81,000 in v0.6.0) and reaches level 18 around day 35–41.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

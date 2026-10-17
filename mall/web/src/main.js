@@ -1,13 +1,13 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
 import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores } from './state.js';
-import { rebuildMap, occAt, FOUNTAIN_ID } from './map.js';
+import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus } from './sim.js';
-import { initRender, resize, render, view, invalidate, clampCam } from './render.js';
+import { initRender, resize, render, view, invalidate, clampCam, restroomBubble } from './render.js';
 import { initInput } from './input.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
-import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning } from './guide.js';
+import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene } from './guide.js';
 import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
 import { MEET_GUS, MEMORIES } from './story.js';
 
@@ -26,6 +26,7 @@ function fromBackground(){ setBackground(false); }
 document.addEventListener('visibilitychange', () => { if (document.hidden) toBackground(); else fromBackground(); });
 document.addEventListener('pause', toBackground);
 document.addEventListener('resume', fromBackground);
+window.mallBackground = hidden => hidden ? toBackground() : fromBackground();   // called by the Android app
 
 UI.buildHud({
   speed: () => { sim.speed = sim.speed > 1 ? 1 : 2; },
@@ -70,8 +71,16 @@ async function newGame(){
   rebuildMap(S.save); invalidate(); UI.resetMoneyDisplay();
   beginDay();
 }
+// Saves from before restrooms with no spare storefront to convert: put a set up on open floor near the concourse.
+function ensureRestroom(s){
+  if (s.units.some(u => u.state === 'restroom')) return;
+  for (const y of [4, 9, 3, 10, 2, 11, 1, 12, 0]) for (let x = 0; x <= map.w - 2; x++){
+    const face = y < 6 ? 'down' : 'up';
+    if (validatePlacement(s, 'unit', x, y, 2, 2, face).ok){ s.units.push({ id: s.nextId++, x, y, w: 2, h: 2, face, state: 'restroom', store: null, stock: 0 }); rebuildMap(s); writeSave(); return; }
+  }
+}
 function continueGame(){
-  rebuildMap(S.save); invalidate(); UI.resetMoneyDisplay();
+  rebuildMap(S.save); ensureRestroom(S.save); invalidate(); UI.resetMoneyDisplay();
   if (S.save.phase === 'night') enterNight(null); else beginDay();
 }
 
@@ -99,6 +108,16 @@ function dayTap(x, y){
     if (p.kind === 'customer' && p.bubble && p.bubble.kind === 'want'){
       const d = Math.hypot(p.x - x, p.y - 1.55 - y); if (d < bd){ bd = d; best = { type: 'register', unitId: p.storeId }; }
     }
+  }
+  // Staff on their phones: tap the bubble to go have a word.
+  if (!best) for (const p of sim.people){
+    if (p.kind === 'staff' && p.slacking){ const d = Math.hypot(p.x - x, p.y - (p.look.costume ? 1.9 : 1.55) - y); if (d < bd){ bd = d; best = { type: 'nudge', staffId: p.id }; } }
+  }
+  // A restroom that needs mopping: its bubble, or the restroom itself.
+  if (!best) for (const u of S.save.units){
+    if (u.state !== 'restroom') continue;
+    const b = restroomBubble(u);
+    if (Math.hypot(b.x - x, b.y - y) < 0.55 || (x >= u.x && x < u.x + u.w && y >= u.y - 1 && y < u.y + u.h)) best = { type: 'restroom', unitId: u.id };
   }
   if (!best){
     let td = 0.62;
@@ -139,6 +158,9 @@ function handleEvents(){
       case 'greyWish': if (S.save.day >= 2) tip('wish'); break;
       case 'trash': if (sim.trash.length >= 8) tip('litter'); break;
       case 'stockout': UI.toast(`${e.name} ran out of stock`); tip('stockout'); break;
+      case 'slack': tip('slacker'); break;
+      case 'nudged': sfx('pop'); break;
+      case 'restroomDirty': case 'grossRestroom': tip('restroom'); break;
       case 'wish': sfx('wish'); UI.toast(e.text, 3200); break;
       case 'toast': UI.toast(e.text); break;
       case 'closing': sfx('bell'); UI.toast('Closing time! Last customers are heading out.'); break;
@@ -175,6 +197,7 @@ async function enterNight(report, gusVisited = false){
     if (typeof reward === 'string' && reward) UI.toast(reward, 3800);
   }
   if (s.level >= 3) await runDeeScene();
+  await runExpandScene();
   nightTips(report);
 }
 function openDoors(){
@@ -208,6 +231,8 @@ function settings(inGame, onClose){
 let last = performance.now(), hudT = 0;
 const t0 = performance.now();
 function frame(now){
+  // A long gap between frames means the app was frozen in the background: come back paused.
+  if (now - last > 1500 && phase === 'day' && !sim.paused) pauseMenu();
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = (now - t0) / 1000;
   if (phase === 'day'){

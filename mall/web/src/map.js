@@ -1,8 +1,9 @@
 // The tile grid: floor types, what occupies each tile, walkability, flow-field pathfinding and placement rules.
-import { MAP_W, MAP_H, OUTSIDE_H, START_CLEAN, ZONES, ENTRANCE, FOUNTAIN, STORES, DECOR } from './config.js';
+import { MAP_W, MAP_W_MAX, MAP_H, OUTSIDE_H, START_CLEAN, ZONES, ENTRANCE, FOUNTAIN, STORES, DECOR, EXPANSIONS } from './config.js';
 import { doorX } from './art.js';
 
-export const GW = MAP_W, GH = MAP_H + OUTSIDE_H;
+// The grid is always as wide as the biggest mall; map.w is how much of it the building covers right now.
+export const GW = MAP_W_MAX, GH = MAP_H + OUTSIDE_H;
 export const FLOOR_NONE = 0, FLOOR_CLEAN = 1, FLOOR_DUST = 2, FLOOR_OUT = 3;
 export const FOUNTAIN_ID = -1;
 
@@ -11,6 +12,8 @@ export const map = {
   occ: new Int32Array(GW * GH),
   zone: new Array(GW * GH).fill(null),
   hidden: new Uint8Array(GW * GH),   // 1 where something tall drawn in front would cover the floor
+  garden: new Uint8Array(GW * GH),   // 1 where the floor is the garden court's grass
+  w: MAP_W,
   fields: new Map(),
   walkCount: 0,
   rev: 0,
@@ -18,9 +21,14 @@ export const map = {
 export const idx = (x, y) => y * GW + x;
 export const inBounds = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH;
 
+export const mallWidth = save => MAP_W + EXPANSIONS.filter(e => save.expansions && save.expansions[e.id]).reduce((a, e) => a + e.w, 0);
 export function rebuildMap(save){
-  map.floor.fill(FLOOR_NONE); map.occ.fill(0); map.zone.fill(null); map.fields.clear();
-  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) map.floor[idx(x, y)] = FLOOR_DUST;
+  map.floor.fill(FLOOR_NONE); map.occ.fill(0); map.zone.fill(null); map.fields.clear(); map.garden.fill(0);
+  map.w = mallWidth(save);
+  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < map.w; x++) map.floor[idx(x, y)] = x < MAP_W ? FLOOR_DUST : FLOOR_CLEAN;
+  for (const e of EXPANSIONS) if (save.expansions && save.expansions[e.id] && e.garden){
+    const r = e.garden; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) map.garden[idx(x, y)] = 1;
+  }
   for (const z of ZONES) for (let y = z.y; y < z.y + z.h; y++) for (let x = z.x; x < z.x + z.w; x++){
     map.zone[idx(x, y)] = z.id;
     if (save.zones[z.id]) map.floor[idx(x, y)] = FLOOR_CLEAN;
@@ -43,9 +51,9 @@ function markHidden(save){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
     else row(u.x, u.w, u.y - 1);
   }
-  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory'].includes(d.type)) row(d.x, 1, d.y - 2); }
+  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree'].includes(d.type)) row(d.x, 1, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
-  row(0, MAP_W, MAP_H - 1);
+  row(0, map.w, MAP_H - 1);
 }
 // The nearest open, visible walkway spot to (x, y), snapped toward the middle of its tile.
 export function litterSpot(x, y, rand = Math.random){
@@ -160,7 +168,7 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
   const occ = map.occ.slice();
   if (ignoreId) for (let i = 0; i < occ.length; i++) if (occ[i] === ignoreId) occ[i] = 0;
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++){
-    if (i < 0 || j < 0 || i >= MAP_W || j >= MAP_H) return { ok: false, reason: 'Out of bounds' };
+    if (i < 0 || j < 0 || i >= map.w || j >= MAP_H) return { ok: false, reason: 'Out of bounds' };
     const f = map.floor[idx(i, j)];
     if (f === FLOOR_DUST) return { ok: false, reason: 'Still storage here. Build a store on it to clear it out.' };
     if (f !== FLOOR_CLEAN || occ[idx(i, j)]) return { ok: false, reason: 'Something is in the way' };
@@ -182,7 +190,7 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
     neighbors(cx, cy, occ, (nx, ny) => { const i = idx(nx, ny); if (!seen[i]){ seen[i] = 1; q.push([nx, ny]); } });
   }
   const need = [];
-  for (const u of save.units) if (u.id !== ignoreId) need.push([unitAccess(u), u.state === 'store' ? STORES[u.store].name : 'an empty unit']);
+  for (const u of save.units) if (u.id !== ignoreId) need.push([unitAccess(u), u.state === 'store' ? STORES[u.store].name : u.state === 'restroom' ? 'the restrooms' : 'an empty unit']);
   for (const d of save.decor) if (d.id !== ignoreId && usable(d.type)) need.push([decorAccess(d), `the ${DECOR[d.type].name.toLowerCase()}`]);
   if (access) need.push([access, 'this spot']);
   for (const [a, name] of need){
