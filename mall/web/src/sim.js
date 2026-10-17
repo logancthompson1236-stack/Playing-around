@@ -1,7 +1,7 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
 import { S, stores, addXp } from './state.js';
-import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, benchAccess, fountainSpots, idx, GW } from './map.js';
+import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, benchAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
 import { storeSpots, kioskSpots, mulberry } from './art.js';
 
 export const sim = {
@@ -59,6 +59,9 @@ function queueSpot(u, i){
   return { x: f.x + ((k % 2) ? 0.55 : -0.55) * (1 + Math.floor(k / 2) * 0.4), y: f.y + dir * (0.1 + Math.floor(k / 2) * 0.25) };
 }
 const personById = id => sim.people.find(p => p.id === id);
+const insideUnit = (u, x, y) => x > u.x && x < u.x + u.w && y > u.y && y < u.y + u.h;
+// Out through the door if inside; straight to the front if already waiting outside.
+function exitPath(u, p){ const sp = spotsFor(u); return insideUnit(u, p.x, p.y) ? [sp.door, sp.front] : [sp.front]; }
 
 /* ---------- Day lifecycle ---------- */
 export function startDay(opts = {}){
@@ -231,7 +234,13 @@ function updateCustomer(p, dt){
       if (!u || u.state !== 'store'){ p.bubble = null; leaveStore(p, u); break; }
       const i = st.queue.indexOf(p.id);
       const spot = queueSpot(u, i);
-      moveDirect(p, spot.x, spot.y, dt);
+      // Moving between a spot inside the store and the overflow line outside goes through the door.
+      let goal = spot;
+      if (!u.kiosk && insideUnit(u, p.x, p.y) !== insideUnit(u, spot.x, spot.y)){
+        const door = spotsFor(u).door;
+        if (Math.hypot(door.x - p.x, door.y - p.y) > 0.12) goal = door;
+      }
+      moveDirect(p, goal.x, goal.y, dt);
       p.walking = Math.hypot(spot.x - p.x, spot.y - p.y) > 0.05;
       if (!p.served) p.patience -= dt;
       if (p.patience <= 0){
@@ -305,8 +314,7 @@ function leaveStore(p, u){
   p.bubble = p.bubble && p.bubble.kind === 'want' ? null : p.bubble;
   p.served = false;
   if (!u || u.kiosk){ p.state = 'decide'; return; }
-  const sp = spotsFor(u);
-  p.exit = [sp.door, sp.front]; p.state = 'leave';
+  p.exit = exitPath(u, p); p.state = 'leave';
 }
 function decorNear(x, y){
   let n = 0;
@@ -333,9 +341,9 @@ function dropLitter(p, def){
     emit('binned');
     return;
   }
-  const x = p.x + (rand() - 0.5) * 0.4, y = p.y + (rand() - 0.5) * 0.3;
-  if (!isWalk(Math.floor(x), Math.floor(y))) return;
-  sim.trash.push({ id: sim.nextId++, x, y, kind, t: 0 });
+  const spot = litterSpot(p.x, p.y, rand);
+  if (!spot || sim.trash.some(t => Math.hypot(t.x - spot.x, t.y - spot.y) < 0.45)) return;
+  sim.trash.push({ id: sim.nextId++, x: spot.x, y: spot.y, kind, t: 0 });
   emit('trash');
 }
 export function addTrash(x, y, kind = 'bag'){
@@ -405,7 +413,7 @@ function leaveRegister(p){
   p.atRegisterId = null;
   if (u){
     if (u.kiosk){ const a = kioskStaffAccess(u); p.exit = [{ x: a.x + 0.5, y: a.y + 0.5 }]; }
-    else { const sp = spotsFor(u); p.exit = [sp.door, sp.front]; }
+    else { const sp = spotsFor(u); p.exit = [...sp.staffPath].reverse().slice(1).concat([sp.front]); }
   }
   return false;
 }
@@ -426,7 +434,7 @@ function updateOwner(p, dt){
       const a = u.kiosk ? kioskStaffAccess(u) : unitAccess(u);
       if (!walkTo(p, a.x + 0.5, a.y + 0.5, dt)) return;
       const sp = spotsFor(u);
-      p.exit = u.kiosk ? [sp.staff] : [sp.door, sp.staff];
+      p.exit = u.kiosk ? [sp.staff] : [...sp.staffPath];
       job.inside = true;
       return;
     }
@@ -581,7 +589,7 @@ function beginClosing(){
     p.bubble = null; p.served = false;
     if (['enter', 'browse', 'queue', 'leave'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);
-      if (u && !u.kiosk){ const sp = spotsFor(u); p.exit = [sp.door, sp.front]; p.state = 'leave'; } else p.state = 'exit';
+      if (u && !u.kiosk){ p.exit = exitPath(u, p); p.state = 'leave'; } else p.state = 'exit';
     } else if (p.state === 'sit' || p.state === 'seatIn'){ p.state = 'exit'; }
     else if (p.state !== 'out') p.state = 'exit';
   }

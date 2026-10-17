@@ -2,6 +2,7 @@
 import * as C from './config.js';
 import { S, writeSave } from './state.js';
 import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnGus } from './sim.js';
+import { litterSpot } from './map.js';
 import { say, hint, clearHint, showTip, tipVisible, dialogOpen } from './ui.js';
 import { view } from './render.js';
 import { DAY1, MEMORIES, DEE_SCENE } from './story.js';
@@ -17,14 +18,27 @@ const wait = secs => { const end = performance.now() + secs * 1000; return until
 /* ---------- Tips ---------- */
 const queue = [];
 let shownThisPhase = 0;
-export function resetTipBudget(){ shownThisPhase = 0; }
-export function tip(key, showMe = null){
+// Tips can go stale while they wait (e.g. you already opened the store). Each is re-checked right before it shows.
+const STILL = {
+  renovate: s => s.units.some(u => u.state === 'derelict'),
+  vacant: s => s.units.some(u => u.state === 'vacant'),
+  fountain: s => !s.fountain,
+  zone: s => C.ZONES.some(z => !s.zones[z.id] && s.level >= z.level),
+  staff: s => s.staff.length === 0,
+  clerks: s => !s.staff.some(m => m.role === 'clerk'),
+  litter: s => !s.decor.some(d => d.type === 'bin'),
+  speed: s => s.staff.length > 0,
+};
+// New day or new night: drop anything still waiting from the other half.
+export function resetTipBudget(){ shownThisPhase = 0; queue.length = 0; }
+export function tip(key, showMe = null, now = false){
   const f = S.save.flags;
   if (!S.settings.tips || !f.memories.night1 || f.tips[key] || queue.some(q => q.key === key)) return;
-  queue.push({ key, showMe });
+  if (now) queue.unshift({ key, showMe, now }); else queue.push({ key, showMe });
 }
 export function updateTips(busy){
-  if (!queue.length || tipVisible() || dialogOpen || busy || shownThisPhase >= 2) return;
+  while (queue.length && STILL[queue[0].key] && !STILL[queue[0].key](S.save)) queue.shift();
+  if (!queue.length || tipVisible() || dialogOpen || busy || (shownThisPhase >= 2 && !queue[0].now)) return;
   const next = queue.shift();
   S.save.flags.tips[next.key] = true; shownThisPhase++;
   writeSave();
@@ -50,7 +64,7 @@ export async function runDay1(onDone){
   await until(() => sim.stats.served > 0 || c.state !== 'queue');
   hint(DAY1.served);
   await wait(1.6);
-  const spot = { x: kiosk.x + 2.6, y: kiosk.y + 1.55 };
+  const spot = litterSpot(kiosk.x + 2.5, kiosk.y + 0.5) || { x: kiosk.x + 2.5, y: kiosk.y + 0.5 };
   const tr = addTrash(spot.x, spot.y, 'wrapper');
   hint(DAY1.trash);
   view.highlight = { x: spot.x, y: spot.y };

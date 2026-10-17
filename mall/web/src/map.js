@@ -10,6 +10,7 @@ export const map = {
   floor: new Uint8Array(GW * GH),
   occ: new Int32Array(GW * GH),
   zone: new Array(GW * GH).fill(null),
+  hidden: new Uint8Array(GW * GH),   // 1 where something tall drawn in front would cover the floor
   fields: new Map(),
   walkCount: 0,
   rev: 0,
@@ -31,7 +32,32 @@ export function rebuildMap(save){
   fill(FOUNTAIN.x, FOUNTAIN.y, FOUNTAIN.w, FOUNTAIN.h, FOUNTAIN_ID);
   map.walkCount = 0;
   for (let i = 0; i < GW * MAP_H; i++) if (map.floor[i] === FLOOR_CLEAN && !map.occ[i]) map.walkCount++;
+  markHidden(save);
   map.rev++;
+}
+// In the 3/4 view, tall things cover the row (or two) behind them. Litter never lands there.
+function markHidden(save){
+  map.hidden.fill(0);
+  const row = (x0, w, y) => { for (let x = x0; x < x0 + w; x++) if (inBounds(x, y)) map.hidden[idx(x, y)] = 1; };
+  for (const u of save.units){
+    if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
+    else row(u.x, u.w, u.y - 1);
+  }
+  for (const d of save.decor){ const def = DECOR[d.type]; row(d.x, def.w, d.y - 1); if (d.type === 'plant') row(d.x, 1, d.y - 2); }
+  row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
+  row(0, MAP_W, MAP_H - 1);
+}
+// The nearest open, visible walkway spot to (x, y), snapped toward the middle of its tile.
+export function litterSpot(x, y, rand = Math.random){
+  const cx = Math.floor(x), cy = Math.floor(y);
+  let best = null, bd = Infinity;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++){
+    const tx = cx + dx, ty = cy + dy;
+    if (ty >= MAP_H || !isWalk(tx, ty) || map.hidden[idx(tx, ty)]) continue;
+    const d = Math.hypot(tx + 0.5 - x, ty + 0.5 - y);
+    if (d < bd){ bd = d; best = { x: tx + 0.5 + (rand() - 0.5) * 0.3, y: ty + 0.5 + (rand() - 0.5) * 0.25 }; }
+  }
+  return best;
 }
 function fill(x, y, w, h, id){
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (inBounds(i, j)) map.occ[idx(i, j)] = id;

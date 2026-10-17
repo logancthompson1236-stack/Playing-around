@@ -472,7 +472,10 @@ export function storeSpots(u){
   const dx = doorX(u) + 0.5;
   const door = { x: dx, y: u.face === 'down' ? u.y + u.h - 0.25 : u.y + 0.25 };
   const front = { x: dx, y: u.face === 'down' ? u.y + u.h + 0.5 : u.y - 0.5 };
-  return { counter, staff, queue, browse, door, front };
+  // Door to register goes around the left end of the counter, never through it.
+  const side = W - 1.2;
+  const staffPath = [door, at(side, Math.min(1.7, H - 0.3)), at(side, 0.66), staff];
+  return { counter, staff, queue, browse, door, front, staffPath };
 }
 export function kioskSpots(k){
   const cx = k.x + 1;

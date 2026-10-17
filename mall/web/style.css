@@ -95,7 +95,7 @@ input[type=text]{font:600 15px var(--body);color:var(--ink);background:#fff;bord
 .place-hint{position:absolute;top:calc(56px + var(--st));left:50%;transform:translateX(-50%);max-width:80vw;text-align:center}
 
 /* Gus dialog, tips, toasts */
-.dialog{position:absolute;left:calc(10px + var(--sl));right:calc(10px + var(--sr));bottom:calc(10px + var(--sb));margin:0 auto;max-width:620px;display:flex;align-items:flex-end;gap:10px;animation:pop2 .18s ease-out}
+.dialog{position:absolute;left:calc(10px + var(--sl));right:calc(10px + var(--sr));bottom:calc(72px + var(--sb));margin:0 auto;max-width:620px;display:flex;align-items:flex-end;gap:10px;animation:pop2 .18s ease-out}
 @keyframes pop2{from{transform:translateY(12px);opacity:0}}
 .dialog .face{width:76px;height:76px;flex:none;border-radius:50%;background:#bfe7f7;border:2px solid var(--ink);overflow:hidden}
 .dialog .face canvas{width:100%;height:100%}

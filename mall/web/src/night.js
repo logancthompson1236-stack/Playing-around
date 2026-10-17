@@ -79,7 +79,7 @@ function renovate(u){
   if (!spend(renoCost(u))) return;
   u.state = 'vacant'; sfx('build'); poof(u.x, u.y, u.w, u.h);
   changed(25);
-  tip('vacant');
+  tip('vacant', null, true);
   unitCard(u);
 }
 function openInUnit(u){
@@ -257,18 +257,21 @@ export function endPlacement(){ place = null; view.ghost = null; hidePlacementBa
 /* ---------- Staff ---------- */
 function applicants(){
   const s = S.save, f = s.flags;
-  if (f.appDay !== s.day || !f.applicants){
+  // New applicants each day, and right away when a level unlocks a new role.
+  const key = `${s.day}:${s.level}`;
+  if (f.appDay !== key || !f.applicants){
     const roles = [];
+    if (s.level >= 4) roles.push('clerk', 'clerk', 'clerk');
     if (s.level >= 3) roles.push('janitor');
-    if (s.level >= 4) roles.push('clerk');
-    const list = [];
-    for (let i = 0; i < 3 && roles.length; i++){
-      const seed = s.day * 31 + i * 7 + s.nextId;
+    const list = [], used = new Set(['Dee', ...s.staff.map(m => m.name)]);
+    roles.forEach((role, i) => {
+      const seed = s.day * 31 + i * 7 + s.level * 101 + s.nextId;
       const R = A.mulberry(seed);
-      list.push({ seed, role: roles[Math.floor(R() * roles.length)], name: C.FIRST_NAMES[Math.floor(R() * C.FIRST_NAMES.length)] });
-    }
-    if (s.level >= 4 && !list.some(a => a.role === 'clerk')) list[list.length - 1].role = 'clerk';
-    f.applicants = list; f.appDay = s.day;
+      let name; do { name = C.FIRST_NAMES[Math.floor(R() * C.FIRST_NAMES.length)]; } while (used.has(name) && used.size < C.FIRST_NAMES.length);
+      used.add(name);
+      list.push({ seed, role, name });
+    });
+    f.applicants = list; f.appDay = key;
   }
   const out = [...f.applicants];
   if (s.level >= 3 && !f.hiredDee) out.unshift({ seed: 2004, role: 'janitor', name: 'Dee', dee: true });
@@ -277,8 +280,9 @@ function applicants(){
 export function openStaff(){
   hideCard(); view.selected = null; setToolDot('staff', false);
   openPanel({ title: 'Staff', render: (body, tab, redraw) => {
-    const s = S.save, max = C.STAFF_MAX[s.level];
-    body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, s.level < 3 ? 'You can start hiring at level 3. Until then, it’s all you.' : `Your team: ${s.staff.length} of ${max}. Wages come out each night.`));
+    const s = S.save, L = C.STAFF_LIMITS, count = role => s.staff.filter(m => m.role === role).length;
+    const limits = `Janitors ${count('janitor')}/${L.janitor[s.level]}` + (s.level >= 4 ? ` · Clerks ${count('clerk')}/${L.clerk[s.level]}` : ' · Clerks unlock at level 4');
+    body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, s.level < 3 ? 'You can start hiring at level 3. Until then, it’s all you.' : `${limits}. Wages come out each night.`));
     if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
     for (const m of s.staff){
       const ownStores = stores(s).filter(u => !s.staff.some(o => o !== m && o.storeId === u.id));
@@ -293,7 +297,7 @@ export function openStaff(){
       body.append(h('div', { class: 'section-label' }, 'Looking for work'));
       for (const a of applicants()){
         const look = staffLook(a.role, a.seed);
-        const full = s.staff.length >= max;
+        const full = count(a.role) >= L[a.role][s.level];
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
           h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px' }, `${a.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${money(C.WAGES[a.role])}/day${a.dee ? ' · Gus recommends her: works faster' : ''}`)),
           h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {

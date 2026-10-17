@@ -72,15 +72,15 @@ function night(){
     break;
   }
   // Hire help when allowed.
-  const max = C.STAFF_MAX[s.level];
-  if (s.level >= 3 && !s.staff.some(m => m.role === 'janitor') && s.staff.length < max) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
+  const lim = role => C.STAFF_LIMITS[role][s.level], has = role => s.staff.filter(m => m.role === role).length;
+  if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 4){
     for (const u of stores(s).filter((_, i) => i % 2 === 0)){
-      if (s.staff.length >= max || s.money < 600) break;
+      if (has('clerk') >= lim('clerk') || s.money < 600) break;
       if (!s.staff.some(m => m.storeId === u.id)) s.staff.push({ id: s.nextId++, role: 'clerk', name: 'C', look: {}, storeId: u.id });
     }
   }
-  if (s.level >= 5 && s.staff.filter(m => m.role === 'janitor').length < 2 && s.staff.length < max && s.money > 600) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'J', look: {} });
+  if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'J', look: {} });
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
   if (s.money > 400 && s.decor.length < 10){
     const spots = [[3, 6], [9, 8], [21, 6], [5, 8], [18, 8], [24, 7], [7, 6], [20, 8], [1, 8], [10, 6]];

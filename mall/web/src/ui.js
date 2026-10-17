@@ -452,8 +452,8 @@ export function unlockList(levels){
     if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = 'New store. Open it in an empty unit or from Build.'; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'Can be cleared now. Tap it at night.'; }
     else if (u.hire === 'janitor'){ paint = () => A.trashCan(0.5, 0.85); title = 'Hire a janitor'; where = 'Tap Staff at night.'; }
-    else if (u.hire === 'clerk'){ paint = () => A.storeIcon('dollar', 0.5, 0.5, 0.6); title = 'Hire clerks'; where = 'They run a register for you. Tap Staff at night.'; }
-    else if (u.staffSlots){ paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = `Staff limit: ${C.STAFF_MAX[lv]}`; where = 'Room for more help.'; }
+    else if (u.hire === 'clerk'){ paint = () => A.storeIcon('dollar', 0.5, 0.5, 0.6); title = `Hire up to ${C.STAFF_LIMITS.clerk[lv]} clerks`; where = 'They run a register for you. Tap Staff at night.'; }
+    else if (u.staffSlots){ paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = 'Room for more staff'; where = `Up to ${C.STAFF_LIMITS.clerk[lv]} clerks and ${C.STAFF_LIMITS.janitor[lv]} janitor${C.STAFF_LIMITS.janitor[lv] > 1 ? 's' : ''}.`; }
     else if (u.done){ paint = () => A.sparkle(0.5, 0.5, 1.3, 1, '#ffd23f'); title = 'Top level for this test version'; where = 'Thanks for playing!'; }
     rows.push(h('div', { class: 'unlock' }, iconCanvas(paint, 36), h('div', {}, h('b', {}, title), h('span', {}, where))));
   }

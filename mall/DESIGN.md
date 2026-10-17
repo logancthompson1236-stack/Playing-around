@@ -391,7 +391,7 @@ The tips are written in Gus's voice, so they read like advice from a friend, not
 | Role | Unlock | What they do | Upgrades |
 |---|---|---|---|
 | Janitor | Lv3 (Dee, recommended by Gus) | Cleans an assigned zone or patrols the mall | Speed, zone size, mop for spills |
-| Clerk | Lv4 | Staffs one of your stores' registers | Checkout speed, upselling |
+| Clerk | Lv4 (two at first, more as you level) | Staffs one of your stores' registers | Checkout speed, upselling |
 | Stocker | Lv12 | Restocks your stores during the day | Carry capacity |
 | Security Guard | Lv15 | Catches shoplifters and settles rowdy teens | Patrol radius |
 | Handyman | Lv18 | Fixes breakdowns | Speed |
@@ -508,6 +508,16 @@ v0.2.0 changes, from playtest feedback:
 - **Level ups:** they show exactly what you unlocked, at the top of the report card or in a popup at night.
 - **Hiring:** the first night you can hire, Gus stops by, recommends Dee and walks you through the Staff screen.
 - **Reset save:** on the pause screen, with a warning.
+
+v0.3.0 changes, from playtest feedback:
+- **Pacing:** days are 2½ minutes, with shoppers scaled down to match so each day earns about the same.
+- **Routing:** clerks and the owner walk in through the store door and around the counter instead of cutting through walls.
+- **Litter:** trash only lands in the open lanes, never on tiles hidden behind storefronts, kiosks, plants or signs.
+- **Tips:** a queued tip is dropped if it no longer applies (no more "Open a store" after you've opened one).
+- **Gus's dialog** sits higher, clear of the HUD buttons.
+- **Hiring:** staff unlocked by a level up at night can be hired right away. Clerks unlock at level 4 with room for two, then one more per level (up to 6 at level 8). Janitors go 1 → 2 → 3 at levels 3, 5 and 7.
+
+Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues
 - Janitor and clerk hiring
