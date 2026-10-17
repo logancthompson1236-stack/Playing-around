@@ -267,6 +267,7 @@ Proposed: **days only advance while you play**, with no real-time timers or ener
 - Janitor and clerk hiring
 - Day/night cycle and the report card
 - Levels 1–8, local save, placeholder art
+- The test build pipeline: an HTML link plus an APK for every version
 
 **Milestone 2: content and feel.**
 - About 15 store types, decor, all customer types, wishes
@@ -277,21 +278,47 @@ Proposed: **days only advance while you play**, with no real-time timers or ener
 **Milestone 3: shippable 1.0.**
 - 30 levels, land expansion, food court, second floor
 - Events and a balance pass
-- Settings, an Android APK and web build, and store page assets
+- Settings, Capacitor builds for Android and iOS, TestFlight, and store page assets
 
 **Later:** friend visits and leaderboards, seasonal events, a third floor, and a prestige mode (open a second mall in a new town).
 
-## 19. Tech approach (proposed)
+## 19. Platforms and test builds
 
-- **Pipeline:** the same one Shardfall uses. JavaScript, three.js and esbuild produce a single-file web build, wrapped in the Android WebView APK.
+**Target:** a mobile game for **Android and iPhone**, shipped to Google Play and the App Store.
+
+### Every playable version ships two test builds
+
+| Build | For | How it's delivered |
+|---|---|---|
+| **HTML link** | iPhone and Android (any phone browser) | A hosted copy of the single-file web build at a stable URL (GitHub Pages, since the repo is public). On iPhone: Safari → Share → **Add to Home Screen** for a full-screen, app-like icon |
+| **APK** | Android | Attached in the chat, plus a download link on the repo's GitHub Releases page |
+
+- **Version number:** every build gets one (for example *v0.1.0*), shown on the title screen so it's always clear which build is being tested.
+- **One signing key:** every APK is signed with the same dedicated test key. A new build then installs over the old one without uninstalling first, which would wipe your save. Shardfall currently uses a per-machine debug key, which causes exactly that problem.
+- **iPhone can't install APKs.** Until there's an Apple Developer account ($99/yr, needed anyway for the App Store), the HTML link is how the game gets tested on iPhone. After that, iOS builds can go out through **TestFlight**.
+
+### Wrapping for both app stores
+
+Shardfall uses a hand-built Android-only WebView shell. This game should use **[Capacitor](https://capacitorjs.com)** instead. It wraps the same web build as a native Android app *and* a native iOS app, and its plugins cover haptics, saving and in-app purchases on both platforms. Android builds run on Linux (here or in GitHub Actions). iOS builds need macOS and Xcode, which a GitHub Actions macOS runner can provide.
+
+### What this means for the game
+
+- **Touch-first controls:** tap, drag to pan, pinch to zoom. No hover states. Respect the safe-area insets around notches and the home bar.
+- **Make the web build a proper home-screen web app:** a manifest, icons, full-screen mode, no rubber-band scrolling or double-tap zoom.
+- **iOS Safari quirks:** sound only starts after the first tap. The browser has no vibration support, so haptics come from the Capacitor plugin in the real app. Safari can clear saved data for a site that hasn't been opened in a while, so web test builds should offer a save export/import code.
+- **Performance:** aim for 60 fps on a mid-range Android phone and an older iPhone. Draw crowds with instancing and cap the number of on-screen characters.
+
+## 20. Tech approach (proposed)
+
+- **Pipeline:** JavaScript, three.js and esbuild produce a single-file web build (the HTML test link). Capacitor wraps that build as the Android and iOS apps.
 - **Rendering:** an orthographic camera, procedural low-poly toon models, and instanced meshes so crowds of customers stay cheap. Audio (muzak and sound effects) is synthesized with WebAudio, so there are no asset files.
 - **Simulation:** runs on a fixed tick, separate from rendering. Customers find their way with grid pathfinding, using a cached flow field toward each store entrance.
 - **Save:** JSON in local storage.
 
-## 20. Open questions
+## 21. Open questions
 
 1. **Art and camera:** 3/4 isometric or true top-down? Procedural low-poly 3D, or 2D sprites?
-2. **Platform and orientation:** Android first, like Shardfall? Portrait (one-handed, like Tiny Tower) or landscape (more mall on screen)?
+2. **Orientation:** portrait (one-handed, like Tiny Tower) or landscape (more mall on screen)? The platforms are decided: Android and iPhone.
 3. **Layout freedom:** free-form grid building, or renovating fixed units plus free-form expansion?
 4. **Owner control:** tap-to-task or a joystick?
 5. **Leasing:** keep the owner-operated vs. leased split, or have the owner run every store?
