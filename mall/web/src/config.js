@@ -1,7 +1,10 @@
 // Tuning, content and layout data. Everything the designer would tweak lives here.
 export const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev';
 
-export const DAY_SECONDS = 240;        // real seconds for 9:00–21:00 at 1x speed
+export const DAY_SECONDS = 180;        // real seconds for 9:00–21:00 at 1x speed
+export const VISITOR_SCALE = 0.8;      // keeps shoppers per minute about the same as the old 4-minute days
+export const LITTER_SCALE = 0.25;      // overall litter rate (each store and shopper type has its own weight)
+export const BIN_USE = 0.9;            // chance a shopper near a trash can uses it instead of the floor
 export const OPEN_HOUR = 9;
 export const CLOSE_HOUR = 21;
 export const LAST_ENTRY = 0.95;        // fraction of the day after which nobody new arrives
@@ -61,22 +64,22 @@ export const RENOVATE_PER_TILE = 15;   // cost to clean out a boarded-up unit
 export const BUILD_PER_TILE = 45;      // cost to put up a brand-new shell on open floor
 
 export const STORES = {
-  pretzel:  { name: 'Pretzel Pals',  w: 2, h: 1, kiosk: true, cat: 'Food',    level: 1, cost: 250,  price: [6, 9],   stock: 50, icon: 'pretzel', litter: 0.25, color: '#e63946', trim: '#ffd23f' },
-  dollar:   { name: 'Dollar Dreams', w: 3, h: 3, cat: 'Home',    level: 1, cost: 450,  price: [5, 14],  stock: 60, icon: 'dollar',  litter: 0.05, color: '#ffd23f', trim: '#2f7a4e', floor: 'mint' },
-  candy:    { name: 'Sweet Tooth',   w: 2, h: 2, cat: 'Food',    level: 1, cost: 250,  price: [6, 11],  stock: 50, icon: 'candy',   litter: 0.3,  color: '#ff8fab', trim: '#e8577e', floor: 'candy' },
-  arcade:   { name: 'Pixel Palace',  w: 3, h: 3, cat: 'Fun',     level: 3, cost: 700,  price: [9, 15],  stock: 80, icon: 'joystick', litter: 0.2, color: '#7b2cbf', trim: '#ff5fa2', floor: 'carpet' },
-  boutique: { name: 'Threads',       w: 2, h: 3, cat: 'Fashion', level: 4, cost: 900, price: [24, 42], stock: 35, icon: 'shirt',   litter: 0.04, color: '#5a8dee', trim: '#ffd6e0', floor: 'wood' },
-  pets:     { name: 'Paws & Claws',  w: 3, h: 3, cat: 'Pets',    level: 5, cost: 1100, price: [26, 55], stock: 35, icon: 'paw',     litter: 0.08, color: '#06a77d', trim: '#ffe8a3', floor: 'grass' },
-  coffee:   { name: 'Bean There',    w: 2, h: 2, cat: 'Food',    level: 2, cost: 450,  price: [6, 10],  stock: 60, icon: 'cup',     litter: 0.3,  color: '#8a5a44', trim: '#ffe8c2', floor: 'cafe' },
-  books:    { name: 'Page Turners',  w: 2, h: 3, cat: 'Home',    level: 6, cost: 1000, price: [14, 28], stock: 40, icon: 'book',    litter: 0.03, color: '#3d5a80', trim: '#f2e6c8', floor: 'wood2' },
+  pretzel:  { name: 'Pretzel Pals',  w: 2, h: 1, kiosk: true, cat: 'Food',    level: 1, cost: 250,  price: [8, 12],  stock: 50, icon: 'pretzel', litter: 0.25, color: '#e63946', trim: '#ffd23f' },
+  dollar:   { name: 'Dollar Dreams', w: 3, h: 3, cat: 'Home',    level: 1, cost: 450,  price: [7, 19],  stock: 60, icon: 'dollar',  litter: 0.05, color: '#ffd23f', trim: '#2f7a4e', floor: 'mint' },
+  candy:    { name: 'Sweet Tooth',   w: 2, h: 2, cat: 'Food',    level: 1, cost: 250,  price: [8, 15],  stock: 50, icon: 'candy',   litter: 0.3,  color: '#ff8fab', trim: '#e8577e', floor: 'candy' },
+  arcade:   { name: 'Pixel Palace',  w: 3, h: 3, cat: 'Fun',     level: 3, cost: 700,  price: [12, 20], stock: 80, icon: 'joystick', litter: 0.2, color: '#7b2cbf', trim: '#ff5fa2', floor: 'carpet' },
+  boutique: { name: 'Threads',       w: 2, h: 3, cat: 'Fashion', level: 4, cost: 900, price: [32, 56], stock: 35, icon: 'shirt',   litter: 0.04, color: '#5a8dee', trim: '#ffd6e0', floor: 'wood' },
+  pets:     { name: 'Paws & Claws',  w: 3, h: 3, cat: 'Pets',    level: 5, cost: 1100, price: [35, 74], stock: 35, icon: 'paw',     litter: 0.08, color: '#06a77d', trim: '#ffe8a3', floor: 'grass' },
+  coffee:   { name: 'Bean There',    w: 2, h: 2, cat: 'Food',    level: 2, cost: 450,  price: [8, 13],  stock: 60, icon: 'cup',     litter: 0.3,  color: '#8a5a44', trim: '#ffe8c2', floor: 'cafe' },
+  books:    { name: 'Page Turners',  w: 2, h: 3, cat: 'Home',    level: 6, cost: 1000, price: [19, 38], stock: 40, icon: 'book',    litter: 0.03, color: '#3d5a80', trim: '#f2e6c8', floor: 'wood2' },
 };
 
 export const DECOR = {
+  bin:   { name: 'Trash can',   w: 1, h: 1, cost: 50, ambience: 0, level: 1, bin: true },
   plant: { name: 'Potted palm', w: 1, h: 1, cost: 40, ambience: 2, level: 1 },
   bench: { name: 'Bench',       w: 2, h: 1, cost: 70, ambience: 2, level: 1, seat: true },
-  bin:   { name: 'Trash can',   w: 1, h: 1, cost: 50, ambience: 0, level: 1, bin: true },
 };
-export const BIN_RADIUS = 3.2;
+export const BIN_RADIUS = 4;
 
 // Who shops here. `wants` weights which stores they wish for; hours are when they mostly show up.
 export const CUSTOMERS = {
@@ -94,14 +97,15 @@ export const LEVEL_XP = [0, 0, 100, 300, 650, 1150, 1800, 2700, 3800];   // XP n
 export const MAX_LEVEL = 8;
 export const STAFF_MAX = [0, 0, 0, 1, 2, 3, 4, 5, 6];
 export const WAGES = { janitor: 35, clerk: 45 };
-export const LEVEL_PERKS = {
-  2: ['Bean There Coffee', 'West storage can be cleared'],
-  3: ['Pixel Palace Arcade', 'Your first janitor', 'East storage can be cleared'],
-  4: ['Threads Boutique', 'Clerks to run your registers', 'Southwest storage can be cleared'],
-  5: ['Paws & Claws Pet Shop', 'Southeast storage can be cleared', 'Room for more staff'],
-  6: ['Page Turners Books', 'Room for more staff'],
-  7: ['Room for more staff'],
-  8: ["That's everything in this test version"],
+// What each level unlocks. The report card and the level-up screen are built from this.
+export const LEVEL_UNLOCKS = {
+  2: [{ store: 'coffee' }, { zone: 'nw' }],
+  3: [{ store: 'arcade' }, { hire: 'janitor' }, { zone: 'ne' }],
+  4: [{ store: 'boutique' }, { hire: 'clerk' }, { zone: 'sw' }],
+  5: [{ store: 'pets' }, { zone: 'se' }, { staffSlots: true }],
+  6: [{ store: 'books' }, { staffSlots: true }],
+  7: [{ staffSlots: true }],
+  8: [{ done: true }],
 };
 
 export const LOOKS = {

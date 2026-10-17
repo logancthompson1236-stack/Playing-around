@@ -68,11 +68,11 @@ export function startDay(opts = {}){
   sim.storeState.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0 };
+  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, binned: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
-  let V = (12 + 8 * open.length + ambience) * (0.6 + 0.22 * rating) * (0.9 + rand() * 0.2);
+  let V = (12 + 8 * open.length + ambience) * (0.6 + 0.22 * rating) * (0.9 + rand() * 0.2) * C.VISITOR_SCALE;
   if (opts.tutorial) V *= 0.8;
   V = Math.round(V);
   const weights = C.HOURLY, total = weights.reduce((a, b) => a + b, 0), times = [];
@@ -315,23 +315,31 @@ function decorNear(x, y){
   return n;
 }
 function binNear(x, y){
-  for (const d of S.save.decor) if (d.type === 'bin' && Math.hypot(d.x + 0.5 - x, d.y + 0.5 - y) < C.BIN_RADIUS) return true;
-  return false;
+  let best = null, bd = C.BIN_RADIUS;
+  for (const d of S.save.decor) if (d.type === 'bin'){ const dd = Math.hypot(d.x + 0.5 - x, d.y + 0.5 - y); if (dd < bd){ bd = dd; best = d; } }
+  return best;
 }
 function dropLitter(p, def){
   if (p.litterAcc < 3) return;
   p.litterAcc = 0;
   if (sim.trash.length >= C.MAX_TRASH || sim.phase !== 'day' || sim.clockFrozen) return;
-  let chance = def.litter * (p.boughtFood ? 2.2 : 1) * (sim.boost === 'clean' ? 0.6 : 1);
-  if (binNear(p.x, p.y)) chance *= 0.3;
+  const chance = def.litter * C.LITTER_SCALE * (p.boughtFood ? 2.2 : 1) * (sim.boost === 'clean' ? 0.6 : 1);
   if (rand() >= chance) return;
+  const kind = pick(p.trashKinds || ['paper', 'can', 'banana']);
+  // A trash can nearby? Most people use it, and you can see them toss it in.
+  const bin = binNear(p.x, p.y);
+  if (bin && rand() < C.BIN_USE){
+    sim.stats.binned++;
+    sim.fx.push({ kind: 'toss', x: p.x, y: p.y - 0.5, tx: bin.x + 0.5, ty: bin.y + 0.3, trash: kind, t: 0, life: 0.55 });
+    emit('binned');
+    return;
+  }
   const x = p.x + (rand() - 0.5) * 0.4, y = p.y + (rand() - 0.5) * 0.3;
   if (!isWalk(Math.floor(x), Math.floor(y))) return;
-  const kind = p.boughtFood ? pick(['wrapper', 'cup', 'spill', 'wrapper']) : pick(['wrapper', 'gum']);
   sim.trash.push({ id: sim.nextId++, x, y, kind, t: 0 });
   emit('trash');
 }
-export function addTrash(x, y, kind = 'wrapper'){
+export function addTrash(x, y, kind = 'bag'){
   const tr = { id: sim.nextId++, x, y, kind, t: 0 };
   sim.trash.push(tr); return tr;
 }
@@ -366,6 +374,7 @@ function completeSale(u, st, p){
   u.stock = Math.max(0, u.stock - 1);
   p.mood = Math.min(1, p.mood + 0.12 + 0.2 * (p.patience / p.patienceMax));
   if (def.cat === 'Food') p.boughtFood = true;
+  p.trashKinds = TRASH_FROM[u.store] || p.trashKinds;
   st.queue.shift();
   p.bubble = null; p.served = false;
   sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.3, t: 0, life: 1.1, text: `+$${price}` });
@@ -373,6 +382,12 @@ function completeSale(u, st, p){
   emit('sale', { amount: price, store: u.store, tutorial: !!p.tutorial });
   leaveStore(p, u);
 }
+
+// What people leave behind after shopping at each store.
+const TRASH_FROM = {
+  pretzel: ['bag', 'wrapper'], candy: ['wrapper', 'lolly'], coffee: ['cup'], arcade: ['can', 'popcorn'],
+  dollar: ['paper', 'bag'], boutique: ['paper'], pets: ['paper', 'bag'], books: ['paper', 'cup'],
+};
 
 /* ---------- Owner and jobs ---------- */
 export function jobKey(j){ return j.type + ':' + (j.unitId || j.trashId || ''); }
@@ -523,6 +538,13 @@ function updateGus(p, dt){
   if (p.state === 'walkTo'){ if (walkTo(p, p.goal.x, p.goal.y, dt)){ p.state = 'stand'; p.walking = false; } }
 }
 
+// At night only Gus moves (when he drops by after closing).
+export function stepGus(dt){
+  const g = sim.gus; if (!g) return;
+  updateGus(g, Math.min(0.05, dt));
+  if (g.gone){ sim.people = sim.people.filter(p => p !== g); sim.gus = null; }
+}
+
 /* ---------- Main step ---------- */
 export function step(realDt){
   if (sim.phase !== 'day' && sim.phase !== 'closing') return;
@@ -624,7 +646,7 @@ export function buildReport(){
     ratings: { clean, service, variety, ambience }, happy, overall, grade, rating: s.rating,
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
-    restockShort: frac < 1, gusTrash: st.gusTrash,
+    restockShort: frac < 1, gusTrash: st.gusTrash, binned: st.binned,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

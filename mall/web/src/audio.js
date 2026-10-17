@@ -42,6 +42,7 @@ export function sfx(name){
     case 'coin': tone(1046, t, 0.09, { type: 'square', vol: 0.08 }); tone(1568, t + 0.07, 0.22, { type: 'square', vol: 0.08 }); break;
     case 'sweep': noise(t, 0.22, { vol: 0.25, f0: 3500, f1: 900 }); break;
     case 'tap': tone(880, t, 0.05, { type: 'triangle', vol: 0.12 }); break;
+    case 'plop': tone(420, t, 0.09, { vol: 0.12, to: 220 }); tone(900, t + 0.06, 0.08, { type: 'triangle', vol: 0.05 }); break;
     case 'pop': tone(620, t, 0.12, { vol: 0.2, to: 320 }); break;
     case 'walkout': tone(240, t, 0.3, { type: 'sawtooth', vol: 0.06, to: 150 }); break;
     case 'error': tone(160, t, 0.18, { type: 'square', vol: 0.06 }); tone(150, t + 0.12, 0.18, { type: 'square', vol: 0.06 }); break;

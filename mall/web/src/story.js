@@ -43,11 +43,12 @@ export const MEMORIES = {
   dee: {
     title: 'A good word',
     lines: [
+      'Evening! Saw the lights on, figured I’d stop in.',
       'Place is getting busy. You need a real janitor, and my knees aren’t what they were.',
       'There’s a gal named Dee. I trained her back in ’04. Best mop hand I ever saw.',
-      'Tell her Gus sent you.',
+      'Let me show you where to find her.',
     ],
-    reward: 'Dee is waiting in the Staff list. She works a little faster than most.',
+    reward: '',
   },
   fountain: {
     title: 'One more good day',
@@ -71,13 +72,20 @@ export const MEMORIES = {
 };
 
 // Notebook tips: shown once, when the situation first comes up.
+export const DEE_SCENE = {
+  staff: 'Tap Staff, down in the corner. That’s where you hire help.',
+  hire: 'There’s Dee, right at the top. Tap Hire.',
+  hired: ['That’s her. She’ll be here when you open tomorrow.', 'Wages come out each night. When things get busier, come back here and hire more help.'],
+  skipped: ['No rush. Dee’s name will be on that list whenever you’re ready.'],
+};
+
 export const TIPS = {
   night: { title: 'Nights are for building', text: 'Nothing’s on the clock till you hit Open Doors. Tap things in the mall to see what you can do.' },
   renovate: { title: 'Fix up a unit', text: 'That old unit could be a shop again. Tap a boarded-up store to fix it up.' },
   vacant: { title: 'Open a store', text: 'Fixed up! Tap the empty unit to open a store inside it.' },
   walkout: { title: 'Folks don’t wait forever', text: 'Watch the ring around their bubble. When it runs out, they leave grumpy.' },
   wish: { title: 'Grey bubbles', text: 'Grey means we don’t have what they want. The report card keeps a list of what folks wished for.' },
-  litter: { title: 'Trash cans', text: 'Trash cans cut down on litter nearby. You’ll find them under Build, then Decor.' },
+  litter: { title: 'Trash cans', text: 'Put a trash can out and most folks nearby will toss their trash in it instead of on the floor. Build, then Decor.' },
   staff: { title: 'Hiring help', text: 'You can hire staff now. Open Staff at night. Janitors sweep, clerks run a register for you.' },
   clerks: { title: 'Clerks', text: 'Clerks can run a register for you now. Hire one under Staff and pick their store.' },
   speed: { title: 'Speed things up', text: 'Got help now? Tap the fast-forward button to speed up the day.' },

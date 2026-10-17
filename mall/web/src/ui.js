@@ -156,10 +156,10 @@ export function say(lines, { who = 'Gus', look = GUS_LOOK } = {}){
 }
 // A short line that doesn't block play (used during Day 1 while the player acts).
 let hintEl = null;
-export function hint(text){
+export function hint(text, top = false){
   clearHint();
   if (!text) return;
-  hintEl = h('div', { class: 'dialog', style: 'pointer-events:none' }, h('div', { class: 'face' }, portrait(GUS_LOOK, 76)), h('div', { class: 'box' }, h('div', { class: 'who' }, 'Gus'), h('p', { class: 'line' }, text)));
+  hintEl = h('div', { class: `dialog${top ? ' top' : ''}`, style: 'pointer-events:none' }, h('div', { class: 'face' }, portrait(GUS_LOOK, 76)), h('div', { class: 'box' }, h('div', { class: 'who' }, 'Gus'), h('p', { class: 'line' }, text)));
   root.append(hintEl);
 }
 export function clearHint(){ if (hintEl){ hintEl.remove(); hintEl = null; } }
@@ -244,9 +244,9 @@ export function modal(content, { onBackdrop } = {}){
   root.append(el);
   return { el, close: () => el.remove() };
 }
-export function confirmBox(text, yes = 'Yes', no = 'Cancel'){
+export function confirmBox(text, yes = 'Yes', no = 'Cancel', detail = ''){
   return new Promise(resolve => {
-    const m = modal(h('div', {}, h('h2', {}, text), h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px' },
+    const m = modal(h('div', {}, h('h2', {}, text), detail ? h('p', { style: 'margin:0;line-height:1.45' }, detail) : null, h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:12px' },
       h('button', { class: 'btn', onclick: () => { m.close(); resolve(false); } }, no),
       h('button', { class: 'btn primary', onclick: () => { m.close(); resolve(true); } }, yes))));
   });
@@ -413,12 +413,13 @@ export function showReport(r, firstDay){
       h('div', { class: 'xp' }, `XP +${r.xpGain}`, h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(prog * 100)}%` })), `Lv ${r.levelAfter}`),
       r.wishes.length ? h('div', {}, h('b', {}, 'Wished for: '), r.wishes.map(w => `${w.n}× ${w.name}`).join(' · ')) : null,
       r.top ? h('div', {}, h('b', {}, 'Top store: '), `${r.top.name} (${money(r.top.amount)})`) : null,
+      r.binned ? h('div', { class: 'muted' }, `Your trash cans caught ${r.binned} piece${r.binned > 1 ? 's' : ''} of litter.`) : null,
       r.gusTrash ? h('div', { class: 'muted' }, `Gus picked up ${r.gusTrash} piece${r.gusTrash > 1 ? 's' : ''} of trash on his laps.`) : null,
       r.restockShort ? h('div', { class: 'muted' }, 'Money was tight, so some shelves were only partly restocked.') : null,
-      r.gained.length ? h('div', { class: 'levelup' }, h('b', {}, `Level ${r.levelAfter}! `), 'New: ', r.gained.flatMap(l => C.LEVEL_PERKS[l] || []).join(', ')) : null,
     );
     const sheet = h('div', { class: 'report' },
       h('h2', {}, h('span', {}, `Day ${r.day} · ${S.save.player.mall}`), h('div', { class: 'grade', style: `background:${GRADE_COLORS[r.grade]}`, 'aria-label': `Grade ${r.grade}` }, r.grade)),
+      r.gained.length ? h('div', { class: 'levelup' }, h('div', { class: 'lv-title' }, `★ Level ${r.levelAfter}! Here’s what you unlocked:`), unlockList(r.gained)) : null,
       h('div', { class: 'cols' }, left, right),
       foot,
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => { m.close(); resolve(); } }, 'Continue')));
@@ -439,6 +440,36 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
     h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px' },
       h('span', { class: 'muted' }, `Mall Revival v${C.VERSION}`),
       h('div', { style: 'display:flex;gap:8px' },
-        inGame ? h('button', { class: 'btn small', onclick: async () => { if (await confirmBox('Start over from day 1?', 'Start over')){ m.close(); onRestart(); } } }, 'Start over') : null,
+        inGame ? h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save') : null,
         h('button', { class: 'btn primary small', onclick: () => { m.close(); onClose && onClose(); } }, 'Done')))), { onBackdrop: () => { m.close(); onClose && onClose(); } });
+}
+
+/* ---------- Level ups ---------- */
+// One row per unlock, with an icon and where to find it.
+export function unlockList(levels){
+  const rows = [];
+  for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
+    let paint, title, where;
+    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = 'New store. Open it in an empty unit or from Build.'; }
+    else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'Can be cleared now. Tap it at night.'; }
+    else if (u.hire === 'janitor'){ paint = () => A.trashCan(0.5, 0.85); title = 'Hire a janitor'; where = 'Tap Staff at night.'; }
+    else if (u.hire === 'clerk'){ paint = () => A.storeIcon('dollar', 0.5, 0.5, 0.6); title = 'Hire clerks'; where = 'They run a register for you. Tap Staff at night.'; }
+    else if (u.staffSlots){ paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = `Staff limit: ${C.STAFF_MAX[lv]}`; where = 'Room for more help.'; }
+    else if (u.done){ paint = () => A.sparkle(0.5, 0.5, 1.3, 1, '#ffd23f'); title = 'Top level for this test version'; where = 'Thanks for playing!'; }
+    rows.push(h('div', { class: 'unlock' }, iconCanvas(paint, 36), h('div', {}, h('b', {}, title), h('span', {}, where))));
+  }
+  return h('div', { class: 'unlocks' }, rows);
+}
+export function showLevelUp(levels){
+  return new Promise(resolve => {
+    sfx('level');
+    const m = modal(h('div', { class: 'report' },
+      h('h2', {}, h('span', {}, `★ Level ${levels[levels.length - 1]}!`)),
+      h('p', { style: 'margin:0 0 6px' }, 'Here\u2019s what you unlocked:'),
+      unlockList(levels),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => { m.close(); resolve(); } }, 'Nice!'))));
+  });
+}
+export function confirmResetSave(){
+  return confirmBox('Reset your save?', 'Reset save', 'Keep playing', 'This deletes your mall and every day you\u2019ve played, then starts over from the intro. It can\u2019t be undone.');
 }

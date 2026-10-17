@@ -1,10 +1,10 @@
 // Gus's Day 1 walkthrough, the notebook tip queue, and his memories.
 import * as C from './config.js';
 import { S, writeSave } from './state.js';
-import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor } from './sim.js';
+import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnGus } from './sim.js';
 import { say, hint, clearHint, showTip, tipVisible, dialogOpen } from './ui.js';
 import { view } from './render.js';
-import { DAY1, MEMORIES } from './story.js';
+import { DAY1, MEMORIES, DEE_SCENE } from './story.js';
 
 /* ---------- Waiting on game state from async scripts ---------- */
 const waiters = [];
@@ -73,6 +73,7 @@ export function addMemory(key){
 }
 export async function maybeMemory(gusVisited){
   const f = S.save.flags;
+  f.pending = f.pending.filter(k => k !== 'dee');   // Dee has her own scene now (older saves queued it as a memory)
   if (!gusVisited || !f.pending.length) return false;
   const key = f.pending.shift(), m = MEMORIES[key];
   f.memories[key] = true;
@@ -80,4 +81,33 @@ export async function maybeMemory(gusVisited){
   await say(m.lines);
   return m.reward || true;
 }
-export const gusWantsToVisit = () => S.save.flags.pending.length > 0;
+export const gusWantsToVisit = () => S.save.flags.pending.some(k => k !== 'dee');
+
+/* ---------- Hiring help: Gus brings up Dee the first night you can hire ---------- */
+let deeRunning = false;
+const staffPanel = () => document.querySelector('.panel[aria-label="Staff"]');
+export async function runDeeScene(){
+  const f = S.save.flags;
+  if (deeRunning || f.memories.dee || f.hiredDee || S.save.level < 3) return;
+  deeRunning = true;
+  const g = spawnGus('night');
+  g.x = C.ENTRANCE.x + 1.4; g.y = C.MAP_H + 1.3;
+  g.state = 'walkTo'; g.goal = { x: C.ENTRANCE.x + 1.6, y: C.MAP_H - 3.4 };
+  view.camTarget = { x: g.goal.x, y: g.goal.y - 1.5 };
+  await until(() => g.state === 'stand');
+  await say(MEMORIES.dee.lines);
+  f.memories.dee = true; f.tips.staff = true; writeSave();
+  const staffBtn = document.querySelector('.night-bar .tool:nth-child(2)');
+  hint(DEE_SCENE.staff, true);
+  staffBtn && staffBtn.classList.add('pulse');
+  await until(() => staffPanel());
+  staffBtn && staffBtn.classList.remove('pulse');
+  hint(DEE_SCENE.hire, true);
+  await until(() => { const btn = document.querySelector('[data-dee]'); if (btn) btn.classList.add('pulse'); return f.hiredDee || !staffPanel(); });
+  clearHint();
+  await wait(0.3);
+  await say(f.hiredDee ? DEE_SCENE.hired : DEE_SCENE.skipped);
+  g.state = 'leave';
+  deeRunning = false;
+}
+export const deeSceneRunning = () => deeRunning;

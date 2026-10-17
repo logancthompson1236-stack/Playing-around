@@ -500,6 +500,14 @@ v0.1.0 notes:
 - **Gus:** his visits, the first memories and the scrapbook text are already in, ahead of Milestone 2.
 - **Not yet:** leasing and tenants.
 - **Tuning:** the live numbers are in `mall/web/src/config.js`. The catalog table above is the long-term plan.
+
+v0.2.0 changes, from playtest feedback:
+- **Pacing:** days are 3 minutes, and prices are up about 35% while shoppers per minute stay about the same.
+- **Litter:** a quarter of the old rate. Trash is drawn bigger, with a different item for each store (cups, bags, wrappers, cans, popcorn, banana peels), and flies show up on trash that's been sitting a while.
+- **Trash cans:** most shoppers inside a can's range visibly toss their trash in. The report card counts what the cans caught.
+- **Level ups:** they show exactly what you unlocked, at the top of the report card or in a popup at night.
+- **Hiring:** the first night you can hire, Gus stops by, recommends Dee and walks you through the Staff screen.
+- **Reset save:** on the pause screen, with a warning.
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues
 - Janitor and clerk hiring

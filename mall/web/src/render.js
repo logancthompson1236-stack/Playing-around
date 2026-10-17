@@ -106,7 +106,8 @@ export function render(t){
   A.setTarget(ctx, ppt);
 
   // Floor-level things.
-  for (const tr of sim.trash) A.trash(tr.x, tr.y, tr.kind);
+  for (const tr of sim.trash) A.trash(tr.x, tr.y, tr.kind, tr.t);
+  drawBinRange();
   drawJobRings(t);
 
   const Q = [];
@@ -162,6 +163,18 @@ function drawPerson(p, t){
   A.person(p.x, p.y, o);
 }
 
+// Show how far a trash can reaches while placing or selecting one.
+function drawBinRange(){
+  const bins = [];
+  if (view.ghost && view.ghost.bin) bins.push({ x: view.ghost.x, y: view.ghost.y });
+  const sel = view.selected;
+  if (sel && sel.bin) bins.push({ x: sel.x, y: sel.y });
+  for (const b of bins){
+    A.circ(b.x + 0.5, b.y + 0.5, C.BIN_RADIUS);
+    ctx.fillStyle = 'rgba(92,184,138,.12)'; ctx.fill();
+    ctx.setLineDash([0.2, 0.14]); ctx.strokeStyle = 'rgba(47,158,106,.8)'; ctx.lineWidth = 0.05; ctx.stroke(); ctx.setLineDash([]);
+  }
+}
 function drawJobRings(t){
   sim.jobs.forEach((j, i) => {
     const pt = jobPoint(j); if (!pt) return;
@@ -250,6 +263,12 @@ function drawOverlays(t){
     if (f.kind === 'coin'){ ctx.save(); ctx.globalAlpha = 1 - k * k; A.text(f.text, f.x, f.y - k * 0.6, 0.3, '#2f9e6a', 700); ctx.restore(); }
     else if (f.kind === 'heart'){ ctx.save(); ctx.globalAlpha = 1 - k; A.heartPath(f.x, f.y - k * 0.7, 0.26); A.fs('#ef476f', 0.04); ctx.restore(); }
     else if (f.kind === 'storm') A.stormCloud(f.x, f.y - k * 0.2, 1 - k * k);
+    else if (f.kind === 'toss'){
+      // Litter arcing into a trash can, then a little sparkle.
+      const x = f.x + (f.tx - f.x) * k, y = f.y + (f.ty - f.y) * k - Math.sin(k * Math.PI) * 0.9;
+      if (k < 0.85) A.trash(x, y, f.trash, 1, 0.55);
+      else A.sparkle(f.tx, f.ty - 0.5, 0.5, 1 - (k - 0.85) / 0.15);
+    }
     else if (f.kind === 'sparkle'){ for (let i = 0; i < 4; i++){ const a = i * 1.57 + k * 2; A.sparkle(f.x + Math.cos(a) * k * 0.5, f.y + Math.sin(a) * k * 0.35, 0.6 * (1 - k) + 0.2, 1 - k); } }
   }
   // Restoration poofs

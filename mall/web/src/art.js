@@ -691,18 +691,85 @@ export function fountain(cx, cy, t, working){
     }
   } else cobweb(cx - 0.38, cy - h - 0.6, 0.25, 1);
 }
-export function trash(x, y, kind){
-  if (kind === 'spill'){
-    g.beginPath(); g.ellipse(x, y, 0.28, 0.15, 0.2, 0, Math.PI * 2); g.ellipse(x + 0.18, y + 0.07, 0.1, 0.07, 0, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(176,112,64,.7)'; g.fill();
-    ell(x - 0.07, y - 0.04, 0.09, 0.035); g.fillStyle = 'rgba(255,255,255,.5)'; g.fill();
-    g.save(); g.translate(x - 0.26, y - 0.04); g.rotate(-1.3); rr(-0.07, -0.11, 0.14, 0.22, 0.03); fs('#fff', 0.03); g.fillStyle = '#e63946'; g.fillRect(-0.065, -0.025, 0.13, 0.05); g.restore();
-  } else if (kind === 'cup'){
-    g.save(); g.translate(x, y - 0.05); g.rotate(1.4); rr(-0.07, -0.11, 0.14, 0.22, 0.03); fs('#fff', 0.03); g.fillStyle = '#5a8dee'; g.fillRect(-0.065, -0.025, 0.13, 0.05); g.restore();
-  } else {
-    g.beginPath(); const pts = [[-0.12, 0], [-0.06, -0.09], [0.04, -0.11], [0.13, -0.03], [0.1, 0.05], [-0.02, 0.07]];
-    pts.forEach(([a, b], i) => i ? g.lineTo(x + a, y + b) : g.moveTo(x + a, y + b)); g.closePath(); fs('#fff', 0.03);
-    g.beginPath(); g.moveTo(x - 0.03, y - 0.1); g.lineTo(x + 0.03, y + 0.06); g.strokeStyle = kind === 'gum' ? '#ff8fab' : '#e63946'; g.lineWidth = 0.04; g.stroke();
+// Litter on the floor. Big, outlined and recognizable so it's easy to spot and tap on a phone.
+export function trash(x, y, kind, t = 0, scale = 1){
+  const drop = t < 0.25 ? (1 - t / 0.25) * 0.35 : 0;
+  shadow(x, y + 0.04, 0.27 * scale, 0.08 * scale, 0.22);
+  g.save(); g.translate(x, y - drop); g.scale(scale, scale);
+  const lw = 0.035;
+  switch (kind){
+    case 'cup': {
+      ell(0.14, 0.04, 0.2, 0.08); g.fillStyle = 'rgba(176,112,64,.6)'; g.fill();
+      g.save(); g.rotate(-0.25);
+      g.beginPath(); g.moveTo(-0.26, -0.13); g.lineTo(0.14, -0.1); g.lineTo(0.14, 0.06); g.lineTo(-0.26, 0.09); g.closePath(); fs('#ef476f', lw);
+      g.fillStyle = '#fff'; g.fillRect(-0.16, -0.12, 0.08, 0.2);
+      rr(0.12, -0.12, 0.07, 0.2, 0.03); fs('#f6f6f6', lw);
+      g.beginPath(); g.moveTo(0.18, -0.02); g.lineTo(0.32, -0.04); g.lineTo(0.36, -0.16); g.strokeStyle = OUT; g.lineWidth = 0.06; g.stroke();
+      g.beginPath(); g.moveTo(0.18, -0.02); g.lineTo(0.32, -0.04); g.lineTo(0.36, -0.16); g.strokeStyle = '#5cc8bf'; g.lineWidth = 0.032; g.stroke();
+      g.restore(); break;
+    }
+    case 'bag': {
+      g.beginPath(); g.moveTo(-0.22, 0.04); g.lineTo(-0.19, -0.2); g.lineTo(-0.12, -0.26); g.lineTo(-0.02, -0.21); g.lineTo(0.06, -0.28); g.lineTo(0.17, -0.22); g.lineTo(0.22, 0.03); g.quadraticCurveTo(0, 0.09, -0.22, 0.04); fs('#d9a066', lw);
+      g.strokeStyle = 'rgba(61,43,53,.4)'; g.lineWidth = 0.022; g.beginPath(); g.moveTo(-0.12, -0.18); g.lineTo(-0.06, -0.02); g.moveTo(0.08, -0.2); g.lineTo(0.03, -0.04); g.stroke();
+      ell(0.08, -0.07, 0.05, 0.035); g.fillStyle = 'rgba(140,80,30,.35)'; g.fill();
+      break;
+    }
+    case 'wrapper': {
+      for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(sx * 0.1, -0.05); g.lineTo(sx * 0.27, -0.14); g.lineTo(sx * 0.24, 0.0); g.lineTo(sx * 0.28, 0.08); g.lineTo(sx * 0.1, 0.03); g.closePath(); fs('#ffd23f', lw); }
+      ell(0, -0.01, 0.13, 0.09); fs('#ff5fa2', lw);
+      g.strokeStyle = '#fff'; g.lineWidth = 0.025; g.beginPath(); g.moveTo(-0.06, -0.05); g.lineTo(0.05, 0.03); g.stroke();
+      break;
+    }
+    case 'can': {
+      g.save(); g.rotate(0.2);
+      rr(-0.22, -0.11, 0.42, 0.19, 0.05); fs('#118ab2', lw);
+      g.fillStyle = '#ffd23f'; g.fillRect(-0.1, -0.1, 0.12, 0.17);
+      ell(0.2, -0.015, 0.04, 0.095); fs('#c9c9d1', lw);
+      g.beginPath(); g.moveTo(-0.02, -0.11); g.lineTo(0.02, -0.06); g.lineTo(-0.01, -0.01); g.strokeStyle = 'rgba(61,43,53,.5)'; g.lineWidth = 0.02; g.stroke();
+      g.restore(); break;
+    }
+    case 'popcorn': {
+      for (const [a, b] of [[0.2, 0.02], [0.28, -0.05], [0.12, 0.06], [-0.24, 0.04]]){ circ(a, b, 0.045); fs('#fff6c9', 0.02); }
+      g.save(); g.rotate(-0.5);
+      g.beginPath(); g.moveTo(-0.15, -0.22); g.lineTo(0.15, -0.22); g.lineTo(0.1, 0.08); g.lineTo(-0.1, 0.08); g.closePath();
+      g.save(); g.clip(); g.fillStyle = '#fff'; g.fillRect(-0.2, -0.25, 0.4, 0.4); g.fillStyle = '#ef476f'; for (const sx of [-0.12, 0.0, 0.12]) g.fillRect(sx - 0.03, -0.25, 0.06, 0.4); g.restore();
+      fs(null, lw);
+      for (const [a, b] of [[-0.08, -0.26], [0.02, -0.29], [0.1, -0.25]]){ circ(a, b, 0.05); fs('#fff6c9', 0.02); }
+      g.restore(); break;
+    }
+    case 'banana': {
+      for (const a of [-2.6, -0.5, 1.4]){
+        g.save(); g.rotate(a);
+        g.beginPath(); g.moveTo(0, -0.04); g.quadraticCurveTo(0.12, -0.1, 0.24, -0.02); g.quadraticCurveTo(0.14, 0.05, 0, 0.04); g.closePath(); fs('#ffd23f', lw);
+        circ(0.22, -0.02, 0.025); fs('#7a5a2a', 0);
+        g.restore();
+      }
+      circ(0, 0, 0.06); fs('#f4c430', lw);
+      break;
+    }
+    case 'lolly': {
+      g.beginPath(); g.moveTo(-0.22, 0.06); g.lineTo(0.05, -0.04); g.strokeStyle = OUT; g.lineWidth = 0.05; g.stroke();
+      g.beginPath(); g.moveTo(-0.22, 0.06); g.lineTo(0.05, -0.04); g.strokeStyle = '#fff'; g.lineWidth = 0.025; g.stroke();
+      g.beginPath(); g.arc(0.13, -0.07, 0.11, 0.6, Math.PI * 1.9); fs('#9b5de5', lw);
+      g.beginPath(); for (let a = 0; a < 9; a += 0.4){ const r = 0.012 * a; g.lineTo(0.13 + Math.cos(a) * r, -0.07 + Math.sin(a) * r); } g.strokeStyle = '#fff'; g.lineWidth = 0.022; g.stroke();
+      break;
+    }
+    default: { // crumpled paper
+      g.beginPath();
+      const pts = [[-0.16, 0.0], [-0.12, -0.14], [0.0, -0.19], [0.13, -0.13], [0.17, 0.0], [0.08, 0.07], [-0.08, 0.07]];
+      pts.forEach(([a, b], i) => i ? g.lineTo(a, b) : g.moveTo(a, b)); g.closePath(); fs('#fdfcf7', lw);
+      g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.02; g.beginPath(); g.moveTo(-0.1, -0.08); g.lineTo(0.0, -0.02); g.lineTo(0.1, -0.1); g.moveTo(0.0, -0.02); g.lineTo(0.02, 0.06); g.stroke();
+    }
+  }
+  g.restore();
+  // Trash that's been sitting a while draws flies.
+  if (t > 12){
+    for (let i = 0; i < 2; i++){
+      const a = t * 6 + i * Math.PI;
+      const fx = x + Math.cos(a) * 0.18, fy = y - 0.38 + Math.sin(a * 1.3) * 0.08;
+      ell(fx - 0.02, fy - 0.025, 0.025, 0.014); g.fillStyle = 'rgba(255,255,255,.75)'; g.fill();
+      circ(fx, fy, 0.022); fs(OUT, 0);
+    }
   }
 }
 export function pigeon(x, y, t){

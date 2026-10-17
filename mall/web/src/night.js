@@ -109,8 +109,8 @@ function storeItem(key, def, cost, onPick){
 }
 function decorCard(d){
   const def = C.DECOR[d.type];
-  view.selected = { x: d.x, y: d.y, w: def.w, h: def.h };
-  showCard({ title: def.name, text: def.bin ? 'Cuts down on litter nearby.' : def.seat ? 'A place to sit. Folks like a break.' : 'Makes the place feel nicer.', actions: [
+  view.selected = { x: d.x, y: d.y, w: def.w, h: def.h, bin: !!def.bin };
+  showCard({ title: def.name, text: def.bin ? 'Most shoppers inside the green circle toss their trash in here instead of on the floor.' : def.seat ? 'A place to sit. Folks like a break.' : 'Makes the place feel nicer.', actions: [
     { label: 'Move', onClick: () => startPlacement({ kind: d.type, decor: d.type, w: def.w, h: def.h, cost: 0, moveId: d.id, x: d.x, y: d.y }) },
     { label: `Sell · +${money(def.cost / 2)}`, onClick: () => { S.save.decor = S.save.decor.filter(v => v !== d); S.save.money += Math.round(def.cost / 2); hideCard(); view.selected = null; sfx('coin'); changed(); } }] });
 }
@@ -137,9 +137,9 @@ function zoneCard(z){
 }
 
 /* ---------- Build panel ---------- */
-export function openBuild(){
+export function openBuild(startTab = 0){
   hideCard(); view.selected = null;
-  openPanel({ title: 'Build', tabs: ['Stores', 'Decor', 'Fix up'], render: (body, tab) => {
+  openPanel({ title: 'Build', tabs: ['Stores', 'Decor', 'Fix up'], tab: startTab, render: (body, tab) => {
     const s = S.save;
     if (tab === 0){
       body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, 'New stores come with their own shell. It’s cheaper to open one inside an empty unit.'));
@@ -151,7 +151,7 @@ export function openBuild(){
       for (const [key, def] of Object.entries(C.DECOR)){
         const b = h('button', { class: `item ${s.money >= def.cost ? 'can' : ''}`, onclick: () => { sfx('tap'); closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, cost: def.cost }); } },
           iconCanvas(() => { if (key === 'plant') A.palm(0.5, 0.92); else if (key === 'bin') A.trashCan(0.5, 0.85); else { A.g.scale(0.5, 0.5); A.bench(0.1, 1.1, 1.8); } }),
-          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name), h('span', { class: 'sub' }, def.bin ? 'Cuts litter nearby' : def.seat ? 'Somewhere to sit · +ambience' : '+ambience')),
+          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name), h('span', { class: 'sub' }, def.bin ? 'Shoppers nearby toss trash in it' : def.seat ? 'Somewhere to sit · +ambience' : '+ambience')),
           h('span', { class: 'price' }, money(def.cost)));
         body.append(b);
       }
@@ -204,7 +204,7 @@ function refreshGhost(){
   if (place.kind === 'unit'){ const dx = place.x + Math.floor(place.w / 2); access = place.face === 'down' ? { x: dx, y: place.y + place.h } : { x: dx, y: place.y - 1 }; }
   else if (place.kind === 'kiosk') access = { x: place.x + 1, y: place.y + 1 };
   const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
-  view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, preview: t => {
+  view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', preview: t => {
     if (place.kind === 'unit'){ const def = C.STORES[place.store]; A.unitBack(temp, def, t); A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
     else if (place.decor === 'plant') A.palm(place.x + 0.5, place.y + 0.85);
@@ -296,7 +296,7 @@ export function openStaff(){
         const full = s.staff.length >= max;
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
           h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px' }, `${a.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${money(C.WAGES[a.role])}/day${a.dee ? ' · Gus recommends her: works faster' : ''}`)),
-          h('button', { class: 'btn small primary', disabled: full, onclick: () => {
+          h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
             const free = stores(s).find(u => !s.staff.some(o => o.storeId === u.id) && !u.kiosk) || stores(s).find(u => !s.staff.some(o => o.storeId === u.id));
             s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, fast: !!a.dee, dee: !!a.dee });
             if (a.dee) s.flags.hiredDee = true; else s.flags.applicants = s.flags.applicants.filter(x => x !== a);
@@ -335,6 +335,6 @@ export function nightTips(report){
   if (!s.fountain && s.level >= 2 && s.money >= C.FOUNTAIN.cost) tip('fountain', () => { panTo(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1); view.highlight = { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y, w: 2, h: 2 }; setTimeout(() => { view.highlight = null; }, 4000); });
   const z = C.ZONES.find(q => !s.zones[q.id] && s.level >= q.level && s.money >= q.cost);
   if (z) tip('zone', () => { panTo(z.x + z.w / 2, z.y + z.h / 2); view.highlight = { x: z.x, y: z.y, w: z.w, h: z.h }; setTimeout(() => { view.highlight = null; }, 4000); });
-  if (report && report.ratings.clean < 3) tip('litter');
+  if (report && s.day >= 2 && !s.decor.some(d => d.type === 'bin')) tip('litter', () => openBuild(1));
 }
 export function closeNightUi(){ hideCard(); closePanel(); endPlacement(); view.selected = null; }

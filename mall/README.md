@@ -9,9 +9,11 @@ A cozy 2D mall sim for Android and iPhone. You inherit your grandma's dead mall 
 
 Both are built automatically by `.github/workflows/mall-build.yml` on every push that changes `mall/`.
 
-## How to play (v0.1)
+## How to play (v0.2)
 
-- **Day:** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
+- **Day (about 3 minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
+- **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
+- **Pause → Reset save** starts over from the intro.
 - **Night:** tap anything in the mall to see what you can do with it: renovate boarded-up units, open stores, clear storage rooms, fix the fountain. **Build** adds new stores and decorations anywhere there's clean floor. **Staff** hires janitors (level 3) and clerks (level 4).
 - Drag to look around, pinch (or scroll) to zoom.
 

@@ -2,12 +2,12 @@
 import * as C from './config.js';
 import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores } from './state.js';
 import { rebuildMap, occAt, FOUNTAIN_ID } from './map.js';
-import { sim, step, startDay, buildReport, addJob, GUS_LINES } from './sim.js';
+import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam } from './render.js';
 import { initInput } from './input.js';
 import { unlockAudio, sfx, setMusicMode, applySettings } from './audio.js';
 import * as UI from './ui.js';
-import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, addMemory } from './guide.js';
+import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning } from './guide.js';
 import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
 import { MEET_GUS, MEMORIES } from './story.js';
 
@@ -29,10 +29,9 @@ UI.buildHud({
   settings: () => settings(true),
   open: () => openDoors(),
 });
-setLevelUpHandler(levels => {
-  sfx('level');
-  UI.toast(`Level ${levels[levels.length - 1]}! New: ${levels.flatMap(l => C.LEVEL_PERKS[l] || []).join(', ')}`, 3500);
-  if (levels.includes(3)) addMemory('dee');
+setLevelUpHandler(async levels => {
+  await UI.showLevelUp(levels);
+  if (phase === 'night' && S.save.level >= 3) runDeeScene();
 });
 
 initInput(canvas, {
@@ -95,7 +94,7 @@ function dayTap(x, y){
     }
   }
   if (!best){
-    let td = 0.45;
+    let td = 0.62;
     for (const tr of sim.trash){ const d = Math.hypot(tr.x - x, tr.y - y); if (d < td){ td = d; best = { type: 'clean', trashId: tr.id }; } }
   }
   if (!best && sim.wishCoin && Math.hypot(C.FOUNTAIN.x + 1 - x, C.FOUNTAIN.y - 0.5 - y) < 0.6) best = { type: 'wish' };
@@ -128,6 +127,7 @@ function handleEvents(){
     switch (e.type){
       case 'sale': sfx('coin'); break;
       case 'cleaned': sfx('sweep'); break;
+      case 'binned': sfx('plop'); break;
       case 'walkout': sfx('walkout'); if (S.save.flags.tutorial) tip('walkout'); break;
       case 'greyWish': if (S.save.day >= 2) tip('wish'); break;
       case 'trash': if (sim.trash.length >= 8) tip('litter'); break;
@@ -148,7 +148,6 @@ async function endDay(){
   writeSave();
   setMusicMode('night');
   await UI.showReport(report, firstDay);
-  if (report.gained.includes(3)) addMemory('dee');
   enterNight(report, gusToday);
 }
 async function enterNight(report, gusVisited = false){
@@ -168,10 +167,11 @@ async function enterNight(report, gusVisited = false){
     const reward = await maybeMemory(gusVisited);
     if (typeof reward === 'string' && reward) UI.toast(reward, 3800);
   }
+  if (s.level >= 3) await runDeeScene();
   nightTips(report);
 }
 function openDoors(){
-  if (placing()) return;
+  if (placing() || UI.dialogOpen || deeSceneRunning()) return;
   const s = S.save;
   s.day++; s.flags.tipsToday = 0; s.phase = 'day';
   writeSave();
@@ -184,6 +184,7 @@ function pauseMenu(){
   const m = UI.modal(UI.h('div', {}, UI.h('h2', {}, 'Paused'),
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
     UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
+      UI.h('button', { class: 'btn danger', onclick: async () => { m.close(); if (await UI.confirmResetSave()){ clearSave(); location.reload(); } else pauseMenu(); } }, 'Reset save'),
       UI.h('button', { class: 'btn', onclick: () => { m.close(); settings(true, pauseMenu); } }, 'Settings'),
       UI.h('button', { class: 'btn primary', onclick: () => { m.close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { m.close(); sim.paused = false; } });
 }
@@ -206,7 +207,7 @@ function frame(now){
     if (sim.phase === 'done') endDay();
   } else {
     pumpWaiters();
-    if (phase === 'night') updateTips(UI.panelOpen() || placing());
+    if (phase === 'night'){ stepGus(dt); updateTips(UI.panelOpen() || placing() || deeSceneRunning()); }
   }
   if (view.camTarget){
     const c = view.cam, k = Math.min(1, dt * 4);
