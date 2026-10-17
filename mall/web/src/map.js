@@ -28,7 +28,7 @@ export function rebuildMap(save){
   for (const r of START_CLEAN) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++){ map.floor[idx(x, y)] = FLOOR_CLEAN; map.zone[idx(x, y)] = null; }
   for (let y = MAP_H; y < GH; y++) for (let x = 0; x < GW; x++) map.floor[idx(x, y)] = FLOOR_OUT;
   for (const u of save.units) fill(u.x, u.y, u.w, u.h, u.id);
-  for (const d of save.decor){ const def = DECOR[d.type]; fill(d.x, d.y, def.w, def.h, d.id); }
+  for (const d of save.decor){ const z = decorSize(d); fill(d.x, d.y, z.w, z.h, d.id); }
   fill(FOUNTAIN.x, FOUNTAIN.y, FOUNTAIN.w, FOUNTAIN.h, FOUNTAIN_ID);
   map.walkCount = 0;
   for (let i = 0; i < GW * MAP_H; i++) if (map.floor[i] === FLOOR_CLEAN && !map.occ[i]) map.walkCount++;
@@ -43,7 +43,7 @@ function markHidden(save){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
     else row(u.x, u.w, u.y - 1);
   }
-  for (const d of save.decor){ const def = DECOR[d.type]; row(d.x, def.w, d.y - 1); if (d.type === 'plant') row(d.x, 1, d.y - 2); }
+  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory'].includes(d.type)) row(d.x, 1, d.y - 2); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
   row(0, MAP_W, MAP_H - 1);
 }
@@ -132,7 +132,14 @@ export function kioskStaffAccess(u){
   for (const [x, y] of [[u.x + 1, u.y - 1], [u.x, u.y - 1], [u.x + 2, u.y], [u.x - 1, u.y]]) if (isWalk(x, y)) return { x, y };
   return { x: u.x + 1, y: u.y + 1 };
 }
-export function benchAccess(d){ return { x: d.x, y: d.y + 1 }; }
+// Decor turned sideways (rot 1 or 3) swaps its width and depth.
+export function decorSize(d){ const def = DECOR[d.type], side = (d.rot || 0) % 2 === 1; return side ? { w: def.h, h: def.w } : { w: def.w, h: def.h }; }
+// The tile a shopper stands on to use a seat or a machine: the one it faces.
+export function decorAccess(d){
+  const r = d.rot || 0, z = decorSize(d);
+  return r === 0 ? { x: d.x, y: d.y + z.h } : r === 1 ? { x: d.x - 1, y: d.y } : r === 2 ? { x: d.x, y: d.y - 1 } : { x: d.x + z.w, y: d.y };
+}
+const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin);
 export function fountainSpots(){
   const out = [];
   for (const [x, y] of [[FOUNTAIN.x, FOUNTAIN.y + 2], [FOUNTAIN.x + 1, FOUNTAIN.y + 2], [FOUNTAIN.x - 1, FOUNTAIN.y + 1], [FOUNTAIN.x + 2, FOUNTAIN.y + 1], [FOUNTAIN.x, FOUNTAIN.y - 1], [FOUNTAIN.x + 1, FOUNTAIN.y - 1]]) if (isWalk(x, y)) out.push({ x, y });
@@ -141,7 +148,7 @@ export function fountainSpots(){
 export const ENTRY_TILE = { x: ENTRANCE.x, y: MAP_H - 1 };
 
 /* ---------- Placement ---------- */
-// kind: 'unit' (new store shell), 'kiosk', or a decor type. Returns { ok, reason }.
+// kind: 'unit' (new store shell), 'kiosk', or a decor type. face: 'down'/'up' for units, rot 0–3 for decor. Returns { ok, reason }.
 // clearZones: storage rooms to treat as already cleared (building there clears them out).
 export function validatePlacement(save, kind, x, y, w, h, face, ignoreId = 0, clearZones = []){
   if (!clearZones.length) return checkPlacement(save, kind, x, y, w, h, face, ignoreId);
@@ -164,7 +171,7 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
     const dx = x + Math.floor(w / 2);
     access = face === 'down' ? { x: dx, y: y + h } : { x: dx, y: y - 1 };
   } else if (kind === 'kiosk') access = { x: x + 1, y: y + 1 };
-  else if (kind === 'bench') access = { x, y: y + 1 };
+  else if (usable(kind)) access = decorAccess({ type: kind, x, y, rot: face || 0 });
   if (access && !isWalkWith(access.x, access.y, occ, x, y, w, h)) return { ok: false, reason: kind === 'unit' ? 'The door needs open walkway in front' : 'Needs open walkway in front' };
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) occ[idx(i, j)] = 99999;
   // Everything that needs visiting must still be reachable from the doors.
@@ -176,7 +183,7 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
   }
   const need = [];
   for (const u of save.units) if (u.id !== ignoreId) need.push([unitAccess(u), u.state === 'store' ? STORES[u.store].name : 'an empty unit']);
-  for (const d of save.decor) if (d.id !== ignoreId && d.type === 'bench') need.push([benchAccess(d), 'a bench']);
+  for (const d of save.decor) if (d.id !== ignoreId && usable(d.type)) need.push([decorAccess(d), `the ${DECOR[d.type].name.toLowerCase()}`]);
   if (access) need.push([access, 'this spot']);
   for (const [a, name] of need){
     if (!inBounds(a.x, a.y) || !seen[idx(a.x, a.y)]) return { ok: false, reason: `That would block the way to ${name}` };

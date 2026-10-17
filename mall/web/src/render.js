@@ -3,7 +3,7 @@ import * as A from './art.js';
 import * as C from './config.js';
 import { S } from './state.js';
 import { sim, spotsFor, storeInfo, clockHour } from './sim.js';
-import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID } from './map.js';
+import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize } from './map.js';
 
 export const view = {
   W: 0, H: 0, dpr: 1,
@@ -125,11 +125,7 @@ export function render(t){
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
-  for (const d of s.decor){
-    if (d.type === 'plant') add(d.y + 0.85, () => A.palm(d.x + 0.5, d.y + 0.85));
-    else if (d.type === 'bin') add(d.y + 0.8, () => A.trashCan(d.x + 0.5, d.y + 0.8));
-    else if (d.type === 'bench') add(d.y + 0.6, () => A.bench(d.x + 0.1, d.y + 0.15, 1.8));
-  }
+  for (const d of s.decor) add(decorSortY(d), () => A.decor(d, t));
   add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
   add(C.MAP_H, () => { A.sideWall(0, 0, C.MAP_H); A.sideWall(C.MAP_W, 0, C.MAP_H); });
   add(C.MAP_H + 0.1, () => {
@@ -149,6 +145,13 @@ export function render(t){
   drawOverlays(t);
 }
 
+// Where decor sits in the back-to-front order. Seats are split so sitters look right on them.
+export function decorSortY(d){
+  const r = d.rot || 0, z = decorSize(d);
+  if (d.type === 'bench' || d.type === 'sofa') return r === 0 ? d.y + 0.6 : r === 2 ? d.y + 0.9 : d.y + 0.3;
+  if (d.type === 'planter') return d.y + z.h - 0.12;
+  return d.y + 0.8;
+}
 function drawPerson(p, t){
   const L = p.look;
   const o = { ...L, t: p.t, walk: p.walking, flip: p.flip };
@@ -159,6 +162,9 @@ function drawPerson(p, t){
     if (L.kid) return A.family(p.x, p.y, o);
   }
   if (p.kind === 'gus') o.mood = 'happy';
+  if (L.costume) return A.mascot(p.x, p.y, o);
+  if (p.faceBack) o.back = true;
+  if (p.carry) o.carry = true;
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;
   A.person(p.x, p.y, o);
 }
@@ -197,6 +203,19 @@ function drawLighting(t){
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = `rgba(${tint},${a})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
+  // Lamp posts glow once the light starts to go.
+  const lamps = S.save.decor.filter(d => d.type === 'lamp');
+  if (lamps.length && (view.mode === 'night' || h > 18.5)){
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const k = view.mode === 'night' ? 1 : Math.min(1, (h - 18.5) / 1.5);
+    for (const d of lamps){
+      const cx = d.x + 0.5, cy = d.y - 1.4;
+      const gr = ctx.createRadialGradient(cx, cy, 0.1, cx, cy, 2.2);
+      gr.addColorStop(0, `rgba(255,226,150,${0.35 * k})`); gr.addColorStop(1, 'rgba(255,226,150,0)');
+      ctx.fillStyle = gr; ctx.fillRect(cx - 2.5, cy - 2.5, 5, 5);
+    }
+    ctx.restore();
+  }
   if (view.mode === 'night'){
     // Warm light spilling from open stores.
     ctx.save(); ctx.globalCompositeOperation = 'lighter';

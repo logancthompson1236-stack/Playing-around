@@ -233,6 +233,23 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'book':
       rr(-0.4, -0.3, 0.38, 0.6, 0.04); fs(c('#3d5a80'), 0.08); rr(0.02, -0.3, 0.38, 0.6, 0.04); fs(c('#e07a5f'), 0.08); break;
     case 'heart': heartPath(0, 0.05, 0.9); fs(c('#ef476f'), 0.08); break;
+    case 'cone':
+      g.beginPath(); g.moveTo(-0.2, -0.05); g.lineTo(0.2, -0.05); g.lineTo(0, 0.48); g.closePath(); fs(c('#e0a96d'), 0.08);
+      circ(-0.1, -0.12, 0.18); fs(c('#ff8fc8'), 0.08); circ(0.1, -0.16, 0.18); fs(c('#7ed6c8'), 0.08); circ(0, -0.34, 0.16); fs(c('#fff3d6'), 0.08); break;
+    case 'record':
+      circ(0, 0, 0.42); fs(c('#2b2d42'), 0.08);
+      g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 0.03; g.beginPath(); g.arc(0, 0, 0.3, -2.4, -1.2); g.stroke();
+      circ(0, 0, 0.15); fs(c('#ffd23f'), 0.05); circ(0, 0, 0.035); fs(OUT, 0); break;
+    case 'tv':
+      g.strokeStyle = OUT; g.lineWidth = 0.06; g.beginPath(); g.moveTo(-0.05, -0.28); g.lineTo(-0.22, -0.5); g.moveTo(0.05, -0.28); g.lineTo(0.22, -0.5); g.stroke();
+      rr(-0.42, -0.3, 0.84, 0.62, 0.12); fs(c('#118ab2'), 0.08);
+      rr(-0.32, -0.21, 0.5, 0.44, 0.08); fs(c('#a8f0e6'), 0.05);
+      circ(0.29, -0.1, 0.05); fs('#ffd23f', 0.03); circ(0.29, 0.08, 0.05); fs('#ef476f', 0.03); break;
+    case 'box': box(-0.38, -0.05, 0.76, 0.38, 0.4, '#e8c08a', '#c4925f', 0, 0.03, 0.08); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.05, -0.45, 0.1, 0.38); break;
+    case 'sun':
+      for (let i = 0; i < 10; i++){ const a = i / 10 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a - 0.2) * 0.3, Math.sin(a - 0.2) * 0.3); g.lineTo(Math.cos(a) * 0.48, Math.sin(a) * 0.48); g.lineTo(Math.cos(a + 0.2) * 0.3, Math.sin(a + 0.2) * 0.3); fs(c('#ff9f43'), 0.05); }
+      circ(0, 0, 0.32); fs(c('#ffd23f'), 0.08); circ(-0.1, -0.05, 0.035); fs(OUT, 0); circ(0.1, -0.05, 0.035); fs(OUT, 0);
+      g.beginPath(); g.arc(0, 0.03, 0.12, 0.3, Math.PI - 0.3); g.strokeStyle = OUT; g.lineWidth = 0.04; g.stroke(); break;
     case 'empty':
       box(-0.35, -0.05, 0.7, 0.35, 0.35, '#dcb07e', '#c4925f', 0, 0.03, 0.08); text('0', 0, 0.12, 0.35, OUT, 700); break;
     case 'coin': circ(0, 0, 0.35); fs('#ffd23f', 0.08); text('¢', 0, 0.03, 0.5, '#b8860b', 700); break;
@@ -368,6 +385,7 @@ export function person(x, y, o){
     rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }
+  if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
   if (o.thermos){ rr(-0.31, -0.42, 0.12, 0.22, 0.04); fs('#c0392b', 0.03); rr(-0.3, -0.45, 0.1, 0.05, 0.02); fs('#bbb', 0.025); }
   if (o.bag){ g.beginPath(); g.arc(-0.25, -0.28, 0.06, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.03; g.stroke(); rr(-0.37, -0.27, 0.24, 0.22, 0.04); fs(o.bagColor || '#ff8fab', 0.035); }
   if (o.balloon){
@@ -569,6 +587,23 @@ export function storeFurniture(u, def, t, layer){
     else if (ic === 'book') shelf(x, y, sw, 0.4, 0.95, 'books', u.id);
     else if (ic === 'paw') shelf(x, y, sw, 0.4, 0.7, 'tanks', u.id);
     else if (ic === 'shirt') shelf(x, y, sw, 0.36, 0.85, 'rack', u.id);
+    else if (ic === 'record'){
+      // Record crates along the back, with a couple of posters above.
+      box(x, y, sw, 0.4, 0.55, '#3d405b', '#2b2d42');
+      const R = mulberry(u.id * 7);
+      for (let px = x + 0.08; px < x + sw - 0.2; px += 0.2){ rr(px, y + 0.4 - 0.55 - 0.24, 0.17, 0.26, 0.02); fs(JAR[Math.floor(R() * JAR.length)], 0.02); circ(px + 0.085, y + 0.4 - 0.55 - 0.12, 0.05); fs('#2b2d42', 0); }
+      rr(x + 0.1, y - 1.05, 0.38, 0.42, 0.03); fs('#ffd23f', 0.03); circ(x + 0.29, y - 0.84, 0.12); fs('#2b2d42', 0.02);
+      if (sw > 0.9){ rr(x + 0.6, y - 1.0, 0.34, 0.36, 0.03); fs('#ef476f', 0.03); text('♪', x + 0.77, y - 0.82, 0.26, '#fff', 700); }
+    }
+    else if (ic === 'tv'){
+      // A wall of TVs, all showing the same flickering channel.
+      const n = Math.max(1, Math.floor(sw / 0.62));
+      for (let i = 0; i < n; i++) for (let row = 0; row < 2; row++){
+        const cx = x + 0.04 + i * (sw - 0.08) / n, bw = (sw - 0.08) / n - 0.06, by = y + 0.4 - row * 0.45;
+        box(cx, by - 0.4, bw, 0.4, 0.42, '#4a5058', '#2f343a');
+        rr(cx + 0.06, by - 0.4 - 0.36, bw - 0.12, 0.28, 0.05); fs(`hsl(${(t * 40 + i * 30 + row * 60) % 360},70%,${62 + Math.sin(t * 9 + i) * 6}%)`, 0.025);
+      }
+    }
     else if (ic === 'cup'){ box(x, y, sw, 0.36, 0.6, '#6b4a3a', '#8a5a44'); for (let i = 0; i < 3; i++){ rr(x + 0.08 + i * 0.18, y + 0.36 - 0.6 - 0.2, 0.12, 0.18, 0.03); fs('#ffe8c2', 0.02); } }
     else shelf(x, y, sw, 0.4, 0.7, 'goods', u.id);
     return;
@@ -581,6 +616,8 @@ export function storeFurniture(u, def, t, layer){
   if (ic === 'shirt' && H >= 3){ const [x, y] = local(u, 0.35, 2.0); shadow(x, y, 0.18, 0.06); rr(x - 0.03, y - 0.35, 0.06, 0.35, 0.02); fs('#a89a8a', 0.025); rr(x - 0.16, y - 0.82, 0.32, 0.45, 0.12); fs('#ff8fab'); circ(x, y - 0.98, 0.14); fs('#efe4d6'); }
   if (ic === 'paw' && H >= 3){ const [x, y] = local(u, 0.25, 1.55, 1.1, 0.9); rr(x, y, 1.1, 0.9, 0.06); fs('rgba(255,248,220,.9)', 0.035); g.strokeStyle = '#b08968'; g.lineWidth = 0.04; g.beginPath(); for (let i = 0; i <= 5; i++){ g.moveTo(x + i * 0.22, y + 0.9); g.lineTo(x + i * 0.22, y + 0.9 - 0.3); } g.moveTo(x, y + 0.6); g.lineTo(x + 1.1, y + 0.6); g.stroke(); puppy(x + 0.55, y + 0.55, t); }
   if (ic === 'cup'){ const [x, y] = local(u, 0.45, 1.5); shadow(x, y + 0.02, 0.22, 0.07); rr(x - 0.03, y - 0.38, 0.06, 0.38, 0.02); fs('#6b4a3a', 0.025); ell(x, y - 0.42, 0.22, 0.12); fs('#f2e3cf'); rr(x - 0.05, y - 0.55, 0.1, 0.1, 0.02); fs('#fff', 0.02); }
+  if (ic === 'record' && H >= 3){ const [x, y] = local(u, 0.3, 2.0, 0.6, 0.4); box(x, y, 0.6, 0.4, 0.45, '#ffd23f', '#e0b52f'); circ(x + 0.3, y - 0.26, 0.15); fs('#2b2d42', 0.03); circ(x + 0.3, y - 0.26, 0.04); fs('#ef476f', 0); g.beginPath(); g.arc(x + 0.52, y - 0.12, 0.08, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.03; g.stroke(); }
+  if (ic === 'tv' && H >= 3){ const [x, y] = local(u, 0.3, 1.9, 1.2, 0.5); box(x, y, 1.2, 0.5, 0.45, '#e9e1d4', '#c9bfb0'); rr(x + 0.12, y - 0.36, 0.26, 0.16, 0.03); fs('#ffd23f', 0.025); rr(x + 0.5, y - 0.38, 0.2, 0.22, 0.03); fs('#a0a8b0', 0.025); rr(x + 0.84, y - 0.36, 0.24, 0.14, 0.04); fs('#ef476f', 0.025); }
   if (ic === 'book' && H >= 3){ const [x, y] = local(u, 0.3, 2.05); box(x - 0.2, y - 0.35, 0.45, 0.35, 0.35, '#e07a5f', '#c0583f'); }
 }
 function puppy(x, y, t){
@@ -631,7 +668,11 @@ export function kiosk(k, def, t){
   rr(x + 0.06, y - 0.03, 1.28, 0.12, 0.04); fs(def.trim, 0.03);
   storeIcon(def.icon, x + 0.7, y - 0.16, 0.28);
   for (const wx of [x + 0.22, x + 1.18]){ circ(wx, y + 0.45, 0.09); fs('#5a4a5a', 0.04); circ(wx, y + 0.45, 0.03); fs('#ccc', 0); }
-  for (const px of [x + 0.35, x + 0.7, x + 1.05]) pretzelIcon(px, y - 0.36, 0.17);
+  if (def.icon === 'cone'){
+    // Tubs of ice cream under a glass sneeze guard.
+    rr(x + 0.12, y - 0.55, 1.16, 0.22, 0.05); fs('rgba(220,245,255,.85)', 0.03);
+    ['#ff8fc8', '#7ed6c8', '#fff3d6', '#8a5a44'].forEach((c, i) => { ell(x + 0.3 + i * 0.27, y - 0.42, 0.11, 0.06); fs(c, 0.025); });
+  } else for (const px of [x + 0.35, x + 0.7, x + 1.05]) pretzelIcon(px, y - 0.36, 0.17);
   const top = y - 1.6, x0 = x - 0.12, x1 = x + 1.52;
   g.save(); g.beginPath(); g.moveTo(x0, top + 0.3); g.lineTo(x + 0.15, top); g.lineTo(x + 1.25, top); g.lineTo(x1, top + 0.3); g.closePath(); g.clip();
   g.fillStyle = def.color; g.fillRect(x0, top, x1 - x0, 0.3); g.fillStyle = '#fff3e0';
@@ -669,6 +710,163 @@ export function trashCan(x, y, full = 0){
   rr(x - 0.18, y - 0.46, 0.36, 0.46, 0.06); fs('#5cb88a');
   g.strokeStyle = 'rgba(61,43,53,.3)'; g.lineWidth = 0.02; for (const dx of [-0.07, 0.07]){ g.beginPath(); g.moveTo(x + dx, y - 0.4); g.lineTo(x + dx, y - 0.06); g.stroke(); }
   rr(x - 0.22, y - 0.55, 0.44, 0.13, 0.06); fs('#3f9a72');
+}
+/* ---------- Decor with a facing: rot 0 faces the camera, 1 faces left, 2 faces away, 3 faces right ---------- */
+const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs: '#7a5a44', backH: 0.72, seatH: 0.32 };
+const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'] };
+export function decor(d, t = 0){
+  const r = d.rot || 0, x = d.x, y = d.y;
+  switch (d.type){
+    case 'plant': palm(x + 0.5, y + 0.85); break;
+    case 'bin': trashCan(x + 0.5, y + 0.8); break;
+    case 'bench': seatPiece(x, y, r, BENCH); break;
+    case 'sofa': seatPiece(x, y, r, SOFA); break;
+    case 'planter': planter(x, y, r); break;
+    case 'lamp': lampPost(x + 0.5, y + 0.8); break;
+    case 'vending': vending(x, y, r); break;
+    case 'ride': kiddieRide(x, y, r, t); break;
+    case 'gumball': gumball(x + 0.5, y + 0.8); break;
+    case 'directory': directory(x, y, r); break;
+  }
+}
+function seatPiece(x, y, r, st){
+  const legs = (pts) => { for (const [lx, ly] of pts){ rr(lx, ly, 0.1, 0.1, 0.02); fs(st.legs, 0.03); } };
+  if (r === 0 || r === 2){
+    shadow(x + 1, y + 0.62, 1.0, 0.12, 0.15);
+    const backY = r === 0 ? y + 0.15 : y + 0.56, seatY = r === 0 ? y + 0.27 : y + 0.2;
+    if (r === 0) box(x + 0.1, backY, 1.8, 0.12, st.backH, st.back[0], st.back[1]);
+    box(x + 0.1, seatY, 1.8, 0.36, st.seatH, st.seat[0], st.seat[1]);
+    if (st.arms) for (const ax of [x + 0.02, x + 1.84]) box(ax, y + 0.18, 0.14, 0.5, st.seatH + 0.16, st.arms[0], st.arms[1]);
+    if (r === 2) box(x + 0.1, backY, 1.8, 0.12, st.backH, st.back[0], st.back[1]);
+    legs([[x + 0.2, y + 0.6], [x + 1.7, y + 0.6]]);
+  } else {
+    shadow(x + 0.5, y + 1.92, 0.32, 0.1, 0.15);
+    const backX = r === 1 ? x + 0.64 : x + 0.24, seatX = r === 1 ? x + 0.22 : x + 0.36;
+    if (st.arms) box(x + 0.22, y + 0.02, 0.56, 0.14, st.seatH + 0.16, st.arms[0], st.arms[1]);
+    if (r === 3) box(backX, y + 0.1, 0.12, 1.8, st.backH, st.back[0], st.back[1]);
+    box(seatX, y + 0.1, 0.42, 1.8, st.seatH, st.seat[0], st.seat[1]);
+    if (r === 1) box(backX, y + 0.1, 0.12, 1.8, st.backH, st.back[0], st.back[1]);
+    if (st.arms) box(x + 0.22, y + 1.84, 0.56, 0.14, st.seatH + 0.16, st.arms[0], st.arms[1]);
+    legs([[seatX + 0.05, y + 1.86], [seatX + 0.27, y + 1.86]]);
+  }
+}
+function planter(x, y, r){
+  const flat = r === 0 || r === 2;
+  const [bx, by, bw, bd] = flat ? [x + 0.08, y + 0.32, 1.84, 0.55] : [x + 0.22, y + 0.08, 0.56, 1.84];
+  shadow(bx + bw / 2, by + bd, bw * 0.55, 0.1, 0.15);
+  box(bx, by, bw, bd, 0.42, '#6b4a3a', '#e07a5f');
+  rr(bx - 0.03, by - 0.47, bw + 0.06, 0.1, 0.04); fs('#f09a7f', 0.03);
+  const n = flat ? 7 : 7, cols = ['#ff6b8b', '#ffd23f', '#fff', '#9b7bff'];
+  for (let i = 0; i < n; i++){
+    const fx = flat ? bx + 0.15 + i * (bw - 0.3) / (n - 1) : bx + bw / 2 + (i % 2 ? 0.12 : -0.12);
+    const fy = flat ? by - 0.32 + (i % 2) * 0.12 : by - 0.25 + i * (bd - 0.3) / (n - 1);
+    g.strokeStyle = '#3f9a52'; g.lineWidth = 0.03; g.beginPath(); g.moveTo(fx, fy + 0.05); g.lineTo(fx, fy - 0.12); g.stroke();
+    ell(fx - 0.06, fy - 0.02, 0.06, 0.03, -0.5); fs('#5bbf6a', 0.015);
+    for (let k = 0; k < 5; k++){ const a = k / 5 * Math.PI * 2; circ(fx + Math.cos(a) * 0.05, fy - 0.15 + Math.sin(a) * 0.04, 0.035); fs(cols[i % cols.length], 0.012); }
+    circ(fx, fy - 0.15, 0.025); fs('#ffb703', 0);
+  }
+}
+export function lampPost(x, y){
+  shadow(x, y, 0.2, 0.07);
+  rr(x - 0.14, y - 0.12, 0.28, 0.12, 0.04); fs('#3d405b', 0.035);
+  rr(x - 0.04, y - 1.95, 0.08, 1.85, 0.03); fs('#4a4f6a', 0.035);
+  rr(x - 0.15, y - 2.28, 0.3, 0.34, 0.08); fs('#fff3b0', 0.035);
+  g.beginPath(); g.moveTo(x - 0.2, y - 2.26); g.lineTo(x, y - 2.42); g.lineTo(x + 0.2, y - 2.26); g.closePath(); fs('#3d405b', 0.035);
+}
+function vending(x, y, r){
+  const bx = x + 0.12, by = y + 0.3, bw = 0.76, bd = 0.5, H = 1.3;
+  shadow(x + 0.5, y + 0.82, 0.42, 0.1);
+  box(bx, by, bw, bd, H, '#c23e63', r === 2 ? '#b8355a' : '#ef476f');
+  const top = by + bd - H;
+  if (r === 0){
+    rr(bx + 0.06, top + 0.1, 0.44, 0.92, 0.04); fs('rgba(200,235,250,.95)', 0.03);
+    for (let row = 0; row < 4; row++) for (let i = 0; i < 3; i++){ rr(bx + 0.1 + i * 0.13, top + 0.16 + row * 0.22, 0.09, 0.16, 0.03); fs(['#118ab2', '#ffd23f', '#06d6a0', '#ff9f43'][(row + i) % 4], 0.015); }
+    for (let i = 0; i < 4; i++){ rr(bx + 0.56, top + 0.16 + i * 0.13, 0.14, 0.08, 0.02); fs('#fff6ea', 0.015); }
+    rr(bx + 0.58, top + 0.75, 0.1, 0.16, 0.02); fs('#3d2b35', 0);
+    rr(bx + 0.1, top + 1.08, 0.4, 0.12, 0.03); fs('#3d2b35', 0.02);
+  } else if (r === 2){
+    g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.025;
+    for (let i = 0; i < 5; i++){ g.beginPath(); g.moveTo(bx + 0.15, top + 0.2 + i * 0.08); g.lineTo(bx + bw - 0.15, top + 0.2 + i * 0.08); g.stroke(); }
+  } else {
+    // Side on: a white swoosh, and the edge of the glass front on the side it faces.
+    g.save(); rr(bx, top, bw, H, 0.05); g.clip();
+    g.beginPath(); g.moveTo(bx, top + 0.9); g.quadraticCurveTo(bx + bw / 2, top + 0.55, bx + bw, top + 0.75); g.lineTo(bx + bw, top + 0.85); g.quadraticCurveTo(bx + bw / 2, top + 0.65, bx, top + 1.0); g.closePath(); g.fillStyle = '#fff6ea'; g.fill();
+    g.restore();
+    const ex = r === 1 ? bx : bx + bw - 0.08;
+    rr(ex, top + 0.08, 0.08, 1.0, 0.02); fs('rgba(200,235,250,.95)', 0.02);
+  }
+}
+function kiddieRide(x, y, r, t){
+  const cx = x + 0.5, cy = y + 0.78, bob = Math.sin(t * 2.2) * 0.02;
+  shadow(cx, cy, 0.42, 0.12);
+  cylinder(cx, cy - 0.02, 0.38, 0.14, '#e0b52f', '#ffd23f');
+  rr(cx - 0.03, cy - 0.4, 0.06, 0.26, 0.02); fs('#a0a8b0', 0.025);
+  const by = cy - 0.62 + bob;
+  if (r === 1 || r === 3){
+    // Drawn nose-right; turned to face left it's mirrored.
+    g.save(); g.translate(cx, by); if (r === 1) g.scale(-1, 1);
+    g.beginPath(); g.moveTo(0.22, -0.02); g.lineTo(0.42, 0.1); g.lineTo(0.22, 0.2); g.closePath(); fs('#ef476f', 0.03);
+    ell(0, 0.0, 0.36, 0.2); fs('#5a8dee');
+    g.beginPath(); g.moveTo(-0.36, 0); g.quadraticCurveTo(-0.5, -0.02, -0.56, 0.0); g.quadraticCurveTo(-0.5, 0.04, -0.36, 0.02); fs('#ef476f', 0.03);
+    circ(-0.1, -0.03, 0.08); fs('#bfe7f7', 0.03);
+    g.beginPath(); g.moveTo(0.12, -0.16); g.lineTo(0.28, -0.32); g.lineTo(0.3, -0.12); g.closePath(); fs('#ef476f', 0.03);
+    g.restore();
+  } else {
+    for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(cx + sx * 0.16, by - 0.05); g.lineTo(cx + sx * 0.34, by + 0.12); g.lineTo(cx + sx * 0.18, by + 0.16); g.closePath(); fs('#ef476f', 0.03); }
+    circ(cx, by, 0.22); fs('#5a8dee');
+    if (r === 0){ circ(cx, by - 0.02, 0.1); fs('#bfe7f7', 0.03); circ(cx - 0.03, by - 0.05, 0.03); g.fillStyle = 'rgba(255,255,255,.8)'; g.fill(); }
+    else { circ(cx, by + 0.02, 0.1); fs('#3d405b', 0.03); circ(cx, by + 0.02, 0.05); fs('#ff9f43', 0); }
+    g.beginPath(); g.moveTo(cx - 0.1, by - 0.18); g.lineTo(cx, by - 0.42); g.lineTo(cx + 0.1, by - 0.18); fs('#ef476f', 0.03);
+  }
+}
+function gumball(x, y){
+  shadow(x, y, 0.22, 0.07);
+  rr(x - 0.18, y - 0.12, 0.36, 0.12, 0.04); fs('#c0392b', 0.03);
+  rr(x - 0.1, y - 0.5, 0.2, 0.4, 0.05); fs('#e63946', 0.035);
+  rr(x - 0.05, y - 0.38, 0.1, 0.08, 0.02); fs('#e9e1d4', 0.02);
+  circ(x, y - 0.72, 0.24); fs('rgba(232,248,255,.9)', 0.035);
+  const cols = ['#ff6b8b', '#ffd23f', '#5cc8bf', '#9b7bff', '#ff9f43', '#7bd389'];
+  for (let i = 0; i < 9; i++){ const a = i * 2.4, rr2 = 0.05 + (i % 3) * 0.05; circ(x + Math.cos(a) * rr2, y - 0.68 + Math.sin(a) * rr2 * 0.8, 0.045); fs(cols[i % cols.length], 0.012); }
+  rr(x - 0.08, y - 0.99, 0.16, 0.07, 0.03); fs('#e63946', 0.03);
+}
+function directory(x, y, r){
+  shadow(x + 0.5, y + 0.82, 0.38, 0.08);
+  if (r === 1 || r === 3){
+    rr(x + 0.45, y + 0.82 - 1.0, 0.1, 1.0, 0.03); fs('#4a4f6a', 0.03);
+    rr(x + 0.42, y + 0.82 - 1.45, 0.16, 0.78, 0.04); fs('#7b6fd6', 0.035);
+    return;
+  }
+  for (const px of [x + 0.18, x + 0.74]){ rr(px, y + 0.82 - 0.75, 0.08, 0.75, 0.03); fs('#4a4f6a', 0.03); }
+  rr(x + 0.08, y + 0.82 - 1.5, 0.84, 0.8, 0.06); fs('#7b6fd6', 0.04);
+  if (r === 0){
+    rr(x + 0.14, y + 0.82 - 1.36, 0.72, 0.6, 0.04); fs('#fffaf3', 0.025);
+    const cols = ['#ff8fab', '#ffd23f', '#5a8dee', '#06a77d', '#ff9f43', '#9b7bff'];
+    for (let i = 0; i < 6; i++){ rr(x + 0.18 + (i % 3) * 0.22, y + 0.82 - 1.3 + Math.floor(i / 3) * 0.33, 0.18, 0.13, 0.02); fs(cols[i], 0.012); }
+    circ(x + 0.5, y + 0.82 - 0.98, 0.05); fs('#ef476f', 0.02);
+    text('MAP', x + 0.5, y + 0.82 - 1.43, 0.1, '#fff', 700);
+  }
+}
+// Sunny, the mall mascot: a big walking sun that waves at everyone.
+export function mascot(x, y, o){
+  const t = o.t || 0, s = o.s || 1, walking = !!o.walk;
+  g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s);
+  shadow(0, 0, 0.34, 0.1);
+  const sw = walking ? Math.sin(t * 9) : 0;
+  for (const [lx, d] of [[-0.15, 1], [0.04, -1]]){ const lift = Math.max(0, sw * d) * 0.06; rr(lx, -0.32 - lift, 0.11, 0.3, 0.05); fs('#ff9f43'); ell(lx + 0.055, -0.035 - lift, 0.09, 0.045); fs('#e76f51', 0.03); }
+  const cy = -0.86, R = 0.42;
+  for (let i = 0; i < 12; i++){
+    const a = i / 12 * Math.PI * 2 + Math.sin(t * 1.5) * 0.08;
+    g.beginPath(); g.moveTo(Math.cos(a - 0.17) * R, cy + Math.sin(a - 0.17) * R); g.lineTo(Math.cos(a) * (R + 0.17), cy + Math.sin(a) * (R + 0.17)); g.lineTo(Math.cos(a + 0.17) * R, cy + Math.sin(a + 0.17) * R); g.closePath(); fs('#ff9f43', 0.03);
+  }
+  rr(-0.47, cy + 0.08, 0.1, 0.3, 0.05); fs('#ffd23f'); circ(-0.42, cy + 0.4, 0.07); fs('#fff', 0.03);
+  circ(0, cy, R); fs('#ffd23f');
+  ell(-0.14, cy - 0.06, 0.045, 0.06); fs(OUT, 0); ell(0.14, cy - 0.06, 0.045, 0.06); fs(OUT, 0);
+  g.beginPath(); g.arc(0, cy + 0.04, 0.16, 0.25, Math.PI - 0.25); g.strokeStyle = OUT; g.lineWidth = 0.045; g.stroke();
+  for (const cx of [-0.25, 0.25]){ circ(cx, cy + 0.07, 0.065); g.fillStyle = 'rgba(255,110,110,.45)'; g.fill(); }
+  g.save(); g.translate(0.38, cy + 0.12); g.rotate(-1.1 + Math.sin(t * 6) * 0.45);
+  rr(-0.05, -0.32, 0.1, 0.32, 0.05); fs('#ffd23f'); circ(0, -0.34, 0.075); fs('#fff', 0.03);
+  g.restore();
+  g.restore();
 }
 export function cylinder(cx, cy, r, h, side, top, z = 0){
   g.beginPath(); g.arc(cx, cy - z, r, 0, Math.PI); g.lineTo(cx - r, cy - z - h); g.arc(cx, cy - z - h, r, Math.PI, 0, true); g.closePath(); fs(side);
@@ -757,6 +955,14 @@ export function trash(x, y, kind, t = 0, scale = 1){
       }
       circ(0, 0, 0.06); fs('#f4c430', lw);
       break;
+    }
+    case 'cone': {
+      ell(0.1, 0.02, 0.2, 0.09); fs('#ff8fc8', lw);
+      ell(0.05, -0.01, 0.07, 0.04); g.fillStyle = 'rgba(255,255,255,.5)'; g.fill();
+      g.save(); g.rotate(-0.6);
+      g.beginPath(); g.moveTo(-0.08, -0.06); g.lineTo(-0.08, 0.06); g.lineTo(-0.34, 0.0); g.closePath(); fs('#e0a96d', lw);
+      g.strokeStyle = 'rgba(122,74,40,.5)'; g.lineWidth = 0.015; g.beginPath(); g.moveTo(-0.14, -0.04); g.lineTo(-0.22, 0.03); g.moveTo(-0.2, -0.03); g.lineTo(-0.12, 0.04); g.stroke();
+      g.restore(); break;
     }
     case 'lolly': {
       g.beginPath(); g.moveTo(-0.22, 0.06); g.lineTo(0.05, -0.04); g.strokeStyle = OUT; g.lineWidth = 0.05; g.stroke();

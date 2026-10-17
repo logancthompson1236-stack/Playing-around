@@ -53,8 +53,9 @@ function player(){
 
 function night(){
   const s = S.save, gain = n => addXp(n);
+  const lim = role => C.STAFF_LIMITS[role][s.level], has = role => s.staff.filter(m => m.role === role).length;
   for (let tries = 0; tries < 4; tries++){
-    // Open a new store type in a vacant unit if possible.
+    // Open a new store type in an empty unit of the right size if possible.
     const owned = new Set(stores(s).map(u => u.store));
     const vacant = s.units.filter(u => u.state === 'vacant');
     const choices = Object.entries(C.STORES).filter(([k, d]) => !d.kiosk && d.level <= s.level).sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || b[1].level - a[1].level);
@@ -72,25 +73,50 @@ function night(){
       if (u && s.money >= fix + d.cost + 150){ s.money -= fix + d.cost; u.state = 'store'; u.store = k; u.stock = d.stock; gain(65); opened = true; break; }
     }
     if (opened) continue;
+    // No shell left for a store we don't have yet (or a kiosk): put up a new one on clean floor.
+    const all = Object.entries(C.STORES).filter(([k, d]) => d.level <= s.level);
+    const want = all.find(([k]) => !owned.has(k)) || (stores(s).length < 24 && s.money > 6000 ? all.sort((a, b) => b[1].price[1] - a[1].price[1])[0] : null);
+    if (want){
+      const [k, d] = want, cost = d.cost + (d.kiosk ? 0 : d.w * d.h * C.BUILD_PER_TILE);
+      const spot = s.money >= cost + 300 && findSpot(d.kiosk ? 'kiosk' : 'unit', d.w, d.h);
+      if (spot){ s.money -= cost; s.units.push({ id: s.nextId++, x: spot.x, y: spot.y, w: d.w, h: d.h, face: spot.face, kiosk: d.kiosk || undefined, state: 'store', store: k, stock: d.stock }); gain(50); rebuildMap(s); continue; }
+    }
     break;
   }
   // Hire help when allowed.
-  const lim = role => C.STAFF_LIMITS[role][s.level], has = role => s.staff.filter(m => m.role === role).length;
+  const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: 2, ...extra });
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 4){
     for (const u of stores(s).filter((_, i) => i % 2 === 0)){
       if (has('clerk') >= lim('clerk') || s.money < 600) break;
-      if (!s.staff.some(m => m.storeId === u.id)) s.staff.push({ id: s.nextId++, role: 'clerk', name: 'C', look: {}, storeId: u.id });
+      if (!s.staff.some(m => m.storeId === u.id)) hire('clerk', { storeId: u.id });
     }
   }
-  if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'J', look: {} });
+  if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) hire('janitor');
+  for (const role of ['stocker', 'greeter', 'mascot']) if (has(role) < lim(role) && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
-  if (s.money > 400 && s.decor.length < 10){
-    const spots = [[3, 6], [9, 8], [21, 6], [5, 8], [18, 8], [24, 7], [7, 6], [20, 8], [1, 8], [10, 6]];
-    const [x, y] = spots[s.decor.length];
-    const type = s.decor.filter(d => d.type === 'bin').length < 4 ? 'bin' : 'plant';
-    if (validatePlacement(s, type, x, y, 1, 1, 'down').ok){ s.decor.push({ id: s.nextId++, type, x, y }); s.money -= C.DECOR[type].cost; gain(5); }
+  // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
+  for (let n = 0; n < 2 && s.money > 500 && s.decor.length < 26; n++){
+    const bins = s.decor.filter(d => d.type === 'bin').length;
+    const pool = Object.entries(C.DECOR).filter(([k, d]) => d.level <= s.level && k !== 'bin').map(([k]) => k);
+    const type = bins < 4 ? 'bin' : pool[(s.decor.length * 7) % pool.length];
+    const def = C.DECOR[type];
+    if (s.money < def.cost + 400) break;
+    const spot = findSpot(type, def.w, def.h);
+    if (!spot) break;
+    s.decor.push({ id: s.nextId++, type, x: spot.x, y: spot.y, rot: 0 }); s.money -= def.cost; gain(5); rebuildMap(s);
   }
   for (const z of C.ZONES) if (!s.zones[z.id] && s.level >= z.level && s.money > z.cost + 800){ s.money -= z.cost; s.zones[z.id] = true; gain(60); }
   rebuildMap(s);
+}
+// First spot (scanning out from the concourse) where something fits without blocking anything.
+function findSpot(kind, w, h){
+  const rows = [5, 9, 4, 10, 3, 11, 2, 12, 1, 13, 0, 6, 8, 7];
+  for (const y of rows) for (let x = 0; x <= C.MAP_W - w; x++){
+    if (kind === 'unit'){
+      const face = y + h <= 6 ? 'down' : 'up';
+      if (validatePlacement(S.save, 'unit', x, y, w, h, face).ok) return { x, y, face };
+    } else if (validatePlacement(S.save, kind, x, y, w, h, 0).ok) return { x, y, face: 'down' };
+  }
+  return null;
 }

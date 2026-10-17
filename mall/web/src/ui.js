@@ -44,7 +44,7 @@ export function portrait(look, size = 76, full = false){
   const span = full ? 1.5 : 0.95, ppt = c.width / span;
   A.setTarget(x, ppt);
   x.setTransform(ppt, 0, 0, ppt, c.width / 2, full ? c.height * 0.93 : c.height * 1.12);
-  A.person(0, full ? 0 : 0.18, { ...look, t: 0 });
+  if (look.costume) A.mascot(0, full ? 0 : 0.42, { t: 0, s: 0.82 }); else A.person(0, full ? 0 : 0.18, { ...look, t: 0 });
   return c;
 }
 export function iconCanvas(paint, size = 44){
@@ -221,13 +221,13 @@ export const cardOpen = () => !!cardEl;
 
 /* ---------- Placement bar ---------- */
 let placeEls = null;
-export function showPlacementBar({ label, canFlip, onFlip, onCancel, onConfirm, confirmLabel = 'Place', extra }){
+export function showPlacementBar({ label, canFlip, flipLabel = 'Flip door', onFlip, onCancel, onConfirm, confirmLabel = 'Place', extra }){
   hidePlacementBar();
   const info = h('div', { class: 'chip place-hint' }, label);
   const confirm = h('button', { class: 'btn go' }, confirmLabel);
   confirm.addEventListener('click', () => { onConfirm(); });
   const bar = h('div', { class: 'card', style: 'width:auto;flex-direction:row;align-items:center;gap:8px' },
-    canFlip ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); onFlip(); } }, 'Flip door') : null,
+    canFlip ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); onFlip(); } }, flipLabel) : null,
     h('button', { class: 'btn small', onclick: () => { sfx('tap'); onCancel(); } }, 'Cancel'),
     extra ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); extra.onClick(); } }, extra.label) : null,
     confirm);
@@ -398,7 +398,8 @@ export function showReport(r, firstDay){
       h('table', {},
         row('Visitors', `${r.visitors}${r.visitorsDelta ? ` (${r.visitorsDelta > 0 ? '+' : ''}${r.visitorsDelta})` : ''}`),
         row('Served', `${r.served}${r.walkouts ? ` · ${r.walkouts} walked out` : ''}`),
-        row('Sales', money(r.revenue)),
+        row('Sales', money(r.revenue - (r.machines || 0))),
+        r.machines ? row('Machines', money(r.machines)) : null,
         r.wages ? row('Wages', money(-r.wages)) : null,
         row('Utilities', money(-r.utilities)),
         row('Restocking', money(-r.restock)),
@@ -453,11 +454,19 @@ export function unlockList(levels){
   const rows = [];
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
-    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = 'New store. Tap Build to open one.'; }
+    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
-    else if (u.hire === 'janitor'){ paint = () => A.trashCan(0.5, 0.85); title = 'Hire a janitor'; where = 'Tap Staff at night.'; }
-    else if (u.hire === 'clerk'){ paint = () => A.storeIcon('dollar', 0.5, 0.5, 0.6); title = `Hire up to ${C.STAFF_LIMITS.clerk[lv]} clerks`; where = 'They run a register for you. Tap Staff at night.'; }
-    else if (u.staffSlots){ paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = 'Room for more staff'; where = `Up to ${C.STAFF_LIMITS.clerk[lv]} clerks and ${C.STAFF_LIMITS.janitor[lv]} janitor${C.STAFF_LIMITS.janitor[lv] > 1 ? 's' : ''}.`; }
+    else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => { const k = 1 / Math.max(d.w, u.decor === 'lamp' ? 2.7 : 1.45); A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-d.w / 2, u.decor === 'lamp' ? 0.38 : u.decor === 'ride' ? -0.3 : -0.15); A.decor({ type: u.decor, x: 0, y: 0, rot: 0 }, 0); }; title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
+    else if (u.hire){
+      const r = C.ROLES[u.hire], n = C.STAFF_LIMITS[u.hire][lv];
+      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), stocker: () => A.storeIcon('box', 0.5, 0.55, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62) }[u.hire];
+      title = n > 1 ? `Hire up to ${n} ${r.plural.toLowerCase()}` : `Hire a ${r.name.toLowerCase()}`; where = `${r.desc} Tap Staff at night.`;
+    }
+    else if (u.staffSlots){
+      paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = 'Room for more staff';
+      const more = Object.entries(C.STAFF_LIMITS).map(([role, L]) => [role, L[lv] - L[lv - 1]]).filter(([, d]) => d > 0);
+      where = more.length ? `${more.map(([role, d]) => `${d} more ${(d > 1 ? C.ROLES[role].plural : C.ROLES[role].name).toLowerCase()}`).join(', ')}.` : 'More hands on deck.';
+    }
     else if (u.done){ paint = () => A.sparkle(0.5, 0.5, 1.3, 1, '#ffd23f'); title = 'Top level for this test version'; where = 'Thanks for playing!'; }
     rows.push(h('div', { class: 'unlock' }, iconCanvas(paint, 36), h('div', {}, h('b', {}, title), h('span', {}, where))));
   }

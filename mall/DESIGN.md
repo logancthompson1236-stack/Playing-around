@@ -392,10 +392,12 @@ The tips are written in Gus's voice, so they read like advice from a friend, not
 |---|---|---|---|
 | Janitor | Lv3 (Dee, recommended by Gus) | Cleans an assigned zone or patrols the mall | Speed, zone size, mop for spills |
 | Clerk | Lv4 (two at first, more as you level) | Staffs one of your stores' registers; faster and better at selling in their dream store | Checkout speed, upselling |
-| Stocker | Lv12 | Restocks your stores during the day | Carry capacity |
-| Security Guard | Lv15 | Catches shoplifters and settles rowdy teens | Patrol radius |
-| Handyman | Lv18 | Fixes breakdowns | Speed |
-| Mall Manager | Lv25 | Handles nightly restocking and lease renewals automatically | |
+| Stocker | Lv10 | Carries boxes out to any store running low and restocks it during the day | Speed |
+| Greeter | Lv12 | Says hi at the door: shoppers start a little happier and wait longer in line | Warmth |
+| Mascot | Lv15 | Sunny, a walking sun costume: draws more visitors and cheers up anyone nearby | Pep |
+| Security Guard | Later | Catches shoplifters and settles rowdy teens | Patrol radius |
+| Handyman | Later | Fixes breakdowns | Speed |
+| Mall Manager | Later | Handles nightly restocking and lease renewals automatically | |
 
 - You hire at night from a small pool of applicants that refreshes every day.
 - Every applicant is a named character with their own look and a **dream job** (another nod to Tiny Tower). Putting someone in their dream job makes them faster and happier.
@@ -530,6 +532,14 @@ v0.5.0 changes, from playtest feedback:
 - **Dream jobs:** each clerk has a dream store, shown before you hire them. Working it, they check out 20% faster and customers spend 15% more. Hiring puts them there if it's free, and the register picker marks it with ♥.
 - **Janitors:** slower, and they only notice trash within about 7 tiles. With two or more, each patrols their own slice of the mall, so a second janitor pays off in a busy mall. Dee is a 3-star janitor.
 - **Story fixes:** Gus holds a real flashlight in the intro and sweeps it around, and on Day 1 he stands off to the side so the first customer walks past him, not through him.
+
+v0.6.0 changes:
+- **Levels 9–18:** the XP needed grows each level (5,600 for level 9, up to 57,000 for level 18). The balance bot gets there around day 37–40, a new level every two or three days.
+- **Three new stores:** Scoops (ice cream kiosk, level 9), Mixtape Music (2×3 record store, level 11, teens love it) and Gadget Galaxy (3×3 electronics, level 14, the priciest goods in the mall).
+- **Three new staff roles:** Stocker (level 10), Greeter (level 12) and Mascot (level 15), each rated 1–3 stars like the others. Janitor and clerk limits keep growing to 6 and 12.
+- **Seven new decorations:** Flower planter and Lamp post (level 9, the lamp glows in the evening), Soda machine (10), Comfy sofa (11), Kiddie ride (12), Gumball machine and Mall directory (13). The machines earn a little money from shoppers (shown as "Machines" on the report card), and the directory gives shoppers more stores to visit.
+- **Rotating decor:** benches, sofas, planters, machines and the directory can face four ways. Use Rotate while placing, or tap a placed piece and Rotate to turn it where it stands. Seats are sat on facing the right way.
+- **Bigger malls:** each store past the tenth adds a bit less traffic than the first ten.
 
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types

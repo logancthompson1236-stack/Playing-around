@@ -9,12 +9,13 @@ A cozy 2D mall sim for Android and iPhone. You inherit your grandma's dead mall 
 
 Both are built automatically by `.github/workflows/mall-build.yml` on every push that changes `mall/`.
 
-## How to play (v0.5)
+## How to play (v0.6)
 
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
 - **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
+- **Decor** unlocks as you level (planters, lamps, sofas, soda and gumball machines, a kiddie ride, a mall directory). Tap **Rotate** while placing, or tap a placed piece, to turn it. Machines earn a little from shoppers.
 - **Pause → Reset save** starts over from the intro.
-- **Night:** tap **Build** and pick a store. Every storefront of its size lights up with its price (fixing up a boarded-up one is included). Tap one, then **Open**. **Build new** puts up a brand-new storefront anywhere instead; building on dusty storage clears that room out as part of the price. Tap things in the mall to move, close or sell them, or to fix the fountain. **Staff** hires janitors (level 3) and clerks (level 4, two at first; more at higher levels). Applicants are rated 1–3 stars (better is faster and costs more), and clerks sell more in their dream store (♥). New hires are available the same night you unlock them.
+- **Night:** tap **Build** and pick a store. Every storefront of its size lights up with its price (fixing up a boarded-up one is included). Tap one, then **Open**. **Build new** puts up a brand-new storefront anywhere instead; building on dusty storage clears that room out as part of the price. Tap things in the mall to move, close or sell them, or to fix the fountain. **Staff** hires janitors (level 3), clerks (level 4, two at first; more at higher levels), stockers (10), a greeter (12) and Sunny the mascot (15). Applicants are rated 1–3 stars (better is faster and costs more), and clerks sell more in their dream store (♥). New hires are available the same night you unlock them.
 - Drag to look around, pinch (or scroll) to zoom.
 
 ## Build from source

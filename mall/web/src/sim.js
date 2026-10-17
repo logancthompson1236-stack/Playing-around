@@ -1,7 +1,7 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
-import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, benchAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
+import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
 import { storeSpots, kioskSpots, mulberry } from './art.js';
 
 export const sim = {
@@ -40,7 +40,13 @@ export const GUS_LOOK = { skin: '#e8b894', hair: '#e6e6e6', hairStyle: 'flatcap'
 export function staffLook(role, seed){
   const R = mulberry(seed * 977 + 3), p = a => a[Math.floor(R() * a.length)];
   const base = { skin: p(SKINS), hair: p(HAIRS), hairStyle: p(['short', 'long', 'bun']), pants: '#3d405b' };
-  return role === 'janitor' ? { ...base, hairStyle: 'cap', acc: '#3a9e95', shirt: '#3a9e95', patch: true } : { ...base, shirt: '#ff8fab', apron: '#fff6ea' };
+  switch (role){
+    case 'janitor': return { ...base, hairStyle: 'cap', acc: '#3a9e95', shirt: '#3a9e95', patch: true };
+    case 'stocker': return { ...base, hairStyle: 'cap', acc: '#8a5a44', shirt: '#c98b55', apron: '#7a5a44' };
+    case 'greeter': return { ...base, shirt: '#ef476f', badge: true };
+    case 'mascot': return { costume: 'sun' };
+    default: return { ...base, shirt: '#ff8fab', apron: '#fff6ea' };
+  }
 }
 
 /* ---------- Store helpers ---------- */
@@ -71,11 +77,14 @@ export function startDay(opts = {}){
   sim.storeState.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0 };
+  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
-  let V = (12 + 8 * open.length + ambience) * (0.6 + 0.22 * rating) * (0.9 + rand() * 0.2) * C.VISITOR_SCALE;
+  // Each store draws a crowd, a little less once the mall is big. Mascots pull in extra.
+  const draw = open.length <= 10 ? 8 * open.length : 80 + 5 * (open.length - 10);
+  const mascots = s.staff.filter(m => m.role === 'mascot').reduce((a, m) => a + staffSkill(m), 0);
+  let V = (12 + draw + ambience) * (0.6 + 0.22 * rating) * (0.9 + rand() * 0.2) * C.VISITOR_SCALE * (1 + 0.06 * mascots);
   if (opts.tutorial) V *= 0.8;
   V = Math.round(V);
   const weights = C.HOURLY, total = weights.reduce((a, b) => a + b, 0), times = [];
@@ -100,7 +109,8 @@ function spawnStaff(st){
   const p = makePerson('staff', st.look, C.ENTRANCE.x + 1, C.MAP_H - 2.5);
   const k = staffSkill(st);
   p.role = st.role; p.staffId = st.id; p.name = st.name; p.skill = k; p.dream = st.dream || null;
-  p.speed = st.role === 'janitor' ? C.JANITOR_SPEED[k] : C.STAFF_SPEED; p.cleanTime = C.JANITOR_CLEAN[k];
+  p.speed = st.role === 'janitor' ? C.JANITOR_SPEED[k] : st.role === 'stocker' ? C.STOCKER_SPEED[k] : st.role === 'mascot' ? 1.0 : C.STAFF_SPEED; p.cleanTime = C.JANITOR_CLEAN[k];
+  if (st.role === 'greeter'){ const g = greeterPost(); p.x = g.x; p.y = g.y; }
   if (st.role === 'clerk'){
     const u = S.save.units.find(v => v.id === st.storeId && v.state === 'store');
     if (u){ const sp = spotsFor(u).staff; p.x = sp.x; p.y = sp.y; p.storeId = u.id; storeInfo(u).server = p.id; p.state = 'register'; }
@@ -115,6 +125,9 @@ export function spawnGus(mode){
   sim.gus = g; sim.people.push(g);
   return g;
 }
+
+// The greeter stands just inside the doors, off to the side.
+const greeterPost = () => ({ x: C.ENTRANCE.x - 0.45, y: C.MAP_H - 1.3 });
 
 /* ---------- Movement ---------- */
 function moveDirect(p, gx, gy, dt, speedMul = 1){
@@ -166,7 +179,8 @@ function spawnCustomer(forceType, forceWish){
 function chooseWishes(type){
   const def = C.CUSTOMERS[type], openTypes = new Set(stores(S.save).map(u => u.store));
   const pool = Object.entries(def.wants).map(([k, w]) => [k, w * (openTypes.has(k) ? 2.5 : 1)]);
-  const n = type === 'browser' ? 2 + (rand() < 0.5 ? 1 : 0) : 1 + (rand() < 0.6 ? 1 : 0) + (rand() < 0.15 ? 1 : 0);
+  const extra = S.save.decor.some(d => d.type === 'directory') && rand() < 0.3 ? 1 : 0;
+  const n = (type === 'browser' ? 2 + (rand() < 0.5 ? 1 : 0) : 1 + (rand() < 0.6 ? 1 : 0) + (rand() < 0.15 ? 1 : 0)) + extra;
   const out = [];
   for (let i = 0; i < n && pool.length; i++){
     let r = rand() * pool.reduce((a, e) => a + e[1], 0);
@@ -190,7 +204,7 @@ function updateCustomer(p, dt){
   }
   switch (p.state){
     case 'arrive':
-      if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)) p.state = 'decide';
+      if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)){ greet(p); p.state = 'decide'; }
       break;
     case 'decide': decide(p); break;
     case 'pause':
@@ -224,7 +238,7 @@ function updateCustomer(p, dt){
       const chance = def.buy * (0.7 + 0.6 * p.mood) * (sim.boost === 'buy' ? 1.15 : 1);
       if (p.tutorial || rand() < chance){
         const st = storeInfo(u); st.queue.push(p.id);
-        p.state = 'queue'; p.patienceMax = C.BASE_PATIENCE * def.patience * (sim.boost === 'patience' ? 1.3 : 1); p.patience = p.patienceMax;
+        p.state = 'queue'; p.patienceMax = C.BASE_PATIENCE * def.patience * (sim.boost === 'patience' ? 1.3 : 1) * (p.patienceMul || 1); p.patience = p.patienceMax;
         setBubble(p, C.STORES[u.store].icon, 'want', 999);
         if (sim.tutorialHold) p.patienceMax = p.patience = 9999;
       } else leaveStore(p, u);
@@ -262,11 +276,25 @@ function updateCustomer(p, dt){
       break;
     }
     case 'seatIn':
-      if (runPath(p, dt)){ p.state = 'sit'; p.timer = 3 + rand() * 3; }
+      if (runPath(p, dt)){
+        p.state = 'sit'; p.timer = (3 + rand() * 3) * (p.seat.comfy ? 1.5 : 1);
+        if (p.seat.flip !== undefined) p.flip = p.seat.flip;
+        p.faceBack = !!p.seat.back;
+      }
       break;
     case 'sit':
       p.walking = false;
-      if ((p.timer -= dt) <= 0){ p.mood = Math.min(1, p.mood + 0.08); p.state = 'decide'; p.wishes = []; p.rested = true; }
+      if ((p.timer -= dt) <= 0){ p.mood = Math.min(1, p.mood + (p.seat.comfy ? 0.14 : 0.08)); p.faceBack = false; p.state = 'decide'; p.wishes = []; p.rested = true; }
+      break;
+    case 'toMachine': {
+      dropLitter(p, def);
+      const a = p.machineAt;
+      if (walkTo(p, a.x, a.y, dt)){ p.state = 'useMachine'; p.timer = C.DECOR[p.machine.type].coin.secs * (0.8 + rand() * 0.4); p.flip = p.machine.x + 0.5 < p.x; }
+      break;
+    }
+    case 'useMachine':
+      p.walking = false;
+      if ((p.timer -= dt) <= 0){ useMachine(p); p.state = 'decide'; }
       break;
     case 'exit': {
       dropLitter(p, def);
@@ -300,6 +328,11 @@ function decide(p){
     for (const u of options){ const a = spotsFor(u).front, d = Math.hypot(a.x - p.x, a.y - p.y) + storeInfo(u).queue.length * 1.5; if (d < bd){ bd = d; best = u; } }
     p.storeId = best.id; p.state = 'toStore'; return;
   }
+  if (!p.usedMachine){
+    const m = findMachine(p);
+    p.usedMachine = true;
+    if (m){ p.machine = m.d; p.machineAt = m.at; p.state = 'toMachine'; return; }
+  }
   if (!p.rested && rand() < 0.3){
     const seat = findSeat(p);
     if (seat){ p.seat = seat.spot; p.seatAccess = seat.access; p.state = 'toSeat'; return; }
@@ -308,9 +341,47 @@ function decide(p){
 }
 function findSeat(p){
   const opts = [];
-  for (const d of S.save.decor) if (d.type === 'bench'){ const a = benchAccess(d); if (isWalk(a.x, a.y)) opts.push({ access: { x: a.x + 0.5, y: a.y + 0.5 }, spot: { x: d.x + 0.5 + rand() * 0.8, y: d.y + 0.62 } }); }
+  for (const d of S.save.decor){
+    const def = C.DECOR[d.type]; if (!def.seat) continue;
+    const a = decorAccess(d); if (!isWalk(a.x, a.y)) continue;
+    // Where to sit depends on which way the seat faces (and which way the sitter looks).
+    const r = d.rot || 0, k = rand() * 0.9, comfy = !!def.comfy;
+    const spot = r === 0 ? { x: d.x + 0.55 + k, y: d.y + 0.62, comfy } : r === 2 ? { x: d.x + 0.55 + k, y: d.y + 0.45, back: true, comfy }
+      : r === 1 ? { x: d.x + 0.42, y: d.y + 0.55 + k, flip: true, comfy } : { x: d.x + 0.58, y: d.y + 0.55 + k, flip: false, comfy };
+    opts.push({ access: { x: a.x + 0.5, y: a.y + 0.5 }, spot });
+  }
   if (S.save.fountain) for (const f of fountainSpots()) opts.push({ access: { x: f.x + 0.5, y: f.y + 0.5 }, spot: { x: f.x + 0.5 + (rand() - 0.5) * 0.3, y: f.y + 0.5 } });
   return opts.length ? pick(opts) : null;
+}
+// Coin-op machines: each one has its own fans and odds. Nearest willing one wins.
+function findMachine(p){
+  let best = null, bd = Infinity;
+  for (const d of S.save.decor){
+    const c = C.DECOR[d.type].coin; if (!c || (c.who && !c.who.includes(p.type))) continue;
+    const a = decorAccess(d); if (!isWalk(a.x, a.y) || rand() >= c.chance) continue;
+    const dist = Math.hypot(a.x + 0.5 - p.x, a.y + 0.5 - p.y);
+    if (dist < bd){ bd = dist; best = { d, at: { x: a.x + 0.5, y: a.y + 0.5 } }; }
+  }
+  return best;
+}
+function useMachine(p){
+  const d = p.machine, c = C.DECOR[d.type].coin;
+  if (!S.save.decor.includes(d)) return;
+  const price = Math.round(lerp(c.price[0], c.price[1], rand()));
+  S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price;
+  p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
+  if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; }
+  sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 1.1, text: `+$${price}` });
+  emit('sale', { amount: price, store: d.type });
+}
+// The greeter says hi to everyone who walks in: a little happier, a little more patient.
+function greet(p){
+  const g = sim.people.find(q => q.role === 'greeter' && q.state === 'post');
+  if (!g) return;
+  p.mood = Math.min(1, p.mood + 0.03 + 0.03 * g.skill);
+  p.patienceMul = 1 + 0.07 * g.skill;
+  g.waveT = 0.8;
+  if (rand() < 0.3) sim.fx.push({ kind: 'heart', x: p.x, y: p.y - 1.2, t: 0, life: 1.0 });
 }
 function leaveStore(p, u){
   p.bubble = p.bubble && p.bubble.kind === 'want' ? null : p.bubble;
@@ -398,6 +469,7 @@ function completeSale(u, st, p){
 const TRASH_FROM = {
   pretzel: ['bag', 'wrapper'], candy: ['wrapper', 'lolly'], coffee: ['cup'], arcade: ['can', 'popcorn'],
   dollar: ['paper', 'bag'], boutique: ['paper'], pets: ['paper', 'bag'], books: ['paper', 'cup'],
+  scoops: ['cone', 'cup'], music: ['paper', 'bag'], gadgets: ['bag', 'paper'],
 };
 
 /* ---------- Owner and jobs ---------- */
@@ -487,6 +559,14 @@ function updateStaff(p, dt){
     if (p.storeId){ p.atRegisterId = p.storeId; p.walking = false; }
     return;
   }
+  if (p.role === 'stocker') return updateStocker(p, dt);
+  if (p.role === 'greeter'){
+    const g = greeterPost();
+    if (walkTo(p, g.x, g.y, dt)){ p.state = 'post'; p.walking = false; p.flip = false; }
+    if (p.waveT > 0) p.waveT -= dt;
+    return;
+  }
+  if (p.role === 'mascot') return updateMascot(p, dt);
   if (p.broomT > 0){
     p.broomT -= dt; p.walking = false;
     if (p.broomT <= 0){
@@ -520,6 +600,57 @@ function updateStaff(p, dt){
     }
   }
   if (p.wander && walkTo(p, p.wander.x, p.wander.y, dt, 0.6)){ p.walking = false; p.wander.wait -= dt; }
+}
+
+// Stockers carry boxes out to whichever store is running lowest and top it up (at restocking prices).
+function updateStocker(p, dt){
+  if (p.restockT > 0){
+    p.restockT -= dt; p.walking = false;
+    if (p.restockT <= 0){
+      const u = S.save.units.find(v => v.id === p.target && v.state === 'store');
+      if (u){
+        const def = C.STORES[u.store], unit = (def.price[0] + def.price[1]) / 2 * C.RESTOCK_RATE;
+        const n = Math.max(0, Math.min(def.stock - u.stock, Math.floor(S.save.money / unit)));
+        const cost = Math.round(n * unit);
+        u.stock += n; S.save.money -= cost; sim.stats.restockDay += cost;
+        if (n) sim.fx.push({ kind: 'sparkle', x: u.x + u.w / 2, y: u.y + u.h / 2, t: 0, life: 0.8 });
+      }
+      p.target = null; p.carry = false;
+    }
+    return;
+  }
+  let u = p.target && S.save.units.find(v => v.id === p.target && v.state === 'store');
+  if (!u){
+    p.target = null; p.carry = false;
+    const claimed = new Set(sim.people.filter(q => q.role === 'stocker' && q !== p).map(q => q.target));
+    let low = C.RESTOCK_AT;
+    for (const v of stores(S.save)){ if (claimed.has(v.id)) continue; const f = v.stock / C.STORES[v.store].stock; if (f < low){ low = f; u = v; } }
+    if (u){ p.target = u.id; p.carry = true; }
+  }
+  if (u){
+    const f = spotsFor(u).front;
+    if (walkTo(p, f.x + 0.35, f.y, dt)) p.restockT = C.STOCKER_TIME[p.skill];
+    return;
+  }
+  // Nothing low: wait by the doors with the next box.
+  if (walkTo(p, C.ENTRANCE.x + 2.6, C.MAP_H - 1.4, dt)) p.walking = false;
+}
+// Sunny wanders the concourse, waving. Anyone close by perks up (once per visit).
+function updateMascot(p, dt){
+  if (!p.wander || (p.wander.wait -= dt) < -4){
+    for (let k = 0; k < 30; k++){
+      const x = Math.floor(rand() * C.MAP_W), y = Math.floor(rand() * C.MAP_H);
+      if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
+    }
+  }
+  if (p.wander && walkTo(p, p.wander.x, p.wander.y, dt)){ p.walking = false; p.wander.wait -= dt; }
+  if ((p.cheerT = (p.cheerT || 0) - dt) <= 0){
+    p.cheerT = 0.5;
+    for (const q of sim.people) if (q.kind === 'customer' && !q.cheered && Math.hypot(q.x - p.x, q.y - p.y) < 1.8){
+      q.cheered = true; q.mood = Math.min(1, q.mood + 0.06 + 0.04 * p.skill);
+      sim.fx.push({ kind: 'heart', x: q.x, y: q.y - 1.2, t: 0, life: 1.0 });
+    }
+  }
 }
 
 /* ---------- Gus ---------- */
@@ -597,7 +728,7 @@ function beginClosing(){
     if (['enter', 'browse', 'queue', 'leave'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);
       if (u && !u.kiosk){ p.exit = exitPath(u, p); p.state = 'leave'; } else p.state = 'exit';
-    } else if (p.state === 'sit' || p.state === 'seatIn'){ p.state = 'exit'; }
+    } else if (p.state === 'sit' || p.state === 'seatIn'){ p.state = 'exit'; p.faceBack = false; }
     else if (p.state !== 'out') p.state = 'exit';
   }
   sim.jobs = [];
@@ -629,6 +760,7 @@ export function buildReport(){
   for (const nd of needs){ const add = Math.floor(nd.n * frac); nd.u.stock += add; restock += add / Math.max(1, nd.n) * nd.cost; }
   restock = Math.round(restock);
   s.money -= wages + utilities + restock;
+  restock += st.restockDay;   // stockers already paid for theirs during the day
   const walk = Math.max(20, map.walkCount);
   const avgDirt = st.dirtN ? st.dirtSum / st.dirtN : 0;
   const clean = clamp(5 - avgDirt / (walk / 40) * 1.4 - sim.trash.length * 0.06, 1, 5);
@@ -660,7 +792,7 @@ export function buildReport(){
     ratings: { clean, service, variety, ambience }, happy, overall, grade, rating: s.rating,
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
-    restockShort: frac < 1, gusTrash: st.gusTrash,
+    restockShort: frac < 1, gusTrash: st.gusTrash, machines: st.machines,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

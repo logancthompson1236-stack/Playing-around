@@ -2,7 +2,7 @@
 import * as C from './config.js';
 import * as A from './art.js';
 import { S, writeSave, addXp, stores, staffSkill, wageOf, stars } from './state.js';
-import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, unitAccess } from './map.js';
+import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, unitAccess, decorSize, decorAccess } from './map.js';
 import { sim, staffLook } from './sim.js';
 import { view, invalidate, poof, worldToScreen } from './render.js';
 import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portrait, showPlacementBar, hidePlacementBar, confirmBox, setToolDot } from './ui.js';
@@ -115,12 +115,33 @@ function storeItem(key, def, cost, onPick){
     h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(cost)));
   return b;
 }
+const DECOR_TEXT = {
+  bin: 'Most shoppers inside the green circle toss their trash in here instead of on the floor.',
+  bench: 'A place to sit. Folks like a break.', sofa: 'The comfiest seat in the mall. Folks leave it a little happier.',
+  vending: 'Thirsty shoppers stop for a soda. Every can is a little extra cash (and a little extra trash).',
+  ride: 'Kids beg for a ride. Families pay a few bucks a go.', gumball: 'A penny candy classic. Kids and teens stop for a gumball.',
+  directory: 'Shoppers who see it find more stores they want to visit.', lamp: 'Makes the place feel nicer, and glows once evening sets in.',
+};
 function decorCard(d){
-  const def = C.DECOR[d.type];
-  view.selected = { x: d.x, y: d.y, w: def.w, h: def.h, bin: !!def.bin };
-  showCard({ title: def.name, text: def.bin ? 'Most shoppers inside the green circle toss their trash in here instead of on the floor.' : def.seat ? 'A place to sit. Folks like a break.' : 'Makes the place feel nicer.', actions: [
-    { label: 'Move', onClick: () => startPlacement({ kind: d.type, decor: d.type, w: def.w, h: def.h, cost: 0, moveId: d.id, x: d.x, y: d.y }) },
-    { label: `Sell · +${money(def.cost / 2)}`, onClick: () => { S.save.decor = S.save.decor.filter(v => v !== d); S.save.money += Math.round(def.cost / 2); hideCard(); view.selected = null; sfx('coin'); changed(); } }] });
+  const def = C.DECOR[d.type], z = decorSize(d);
+  view.selected = { x: d.x, y: d.y, w: z.w, h: z.h, bin: !!def.bin };
+  const actions = [{ label: 'Move', onClick: () => startPlacement({ kind: d.type, decor: d.type, w: z.w, h: z.h, face: d.rot || 0, cost: 0, moveId: d.id, x: d.x, y: d.y }) }];
+  if (def.rot) actions.push({ label: 'Rotate', onClick: () => rotateInPlace(d) });
+  actions.push({ label: `Sell · +${money(def.cost / 2)}`, onClick: () => { S.save.decor = S.save.decor.filter(v => v !== d); S.save.money += Math.round(def.cost / 2); hideCard(); view.selected = null; sfx('coin'); changed(); } });
+  showCard({ title: def.name, text: DECOR_TEXT[d.type] || 'Makes the place feel nicer.', actions });
+}
+// Turn a piece a quarter turn where it stands, skipping facings that don't fit.
+function rotateInPlace(d){
+  for (let k = 1; k <= 3; k++){
+    const rot = ((d.rot || 0) + k) % 4, z = decorSize({ type: d.type, rot });
+    if (validatePlacement(S.save, d.type, d.x, d.y, z.w, z.h, rot, d.id).ok){ d.rot = rot; sfx('tap'); changed(); decorCard(d); return; }
+  }
+  sfx('error'); toast('No room to turn it here. Try Move.');
+}
+// Decor drawn small for the Build list, scaled to fit the icon.
+function decorIcon(key){
+  const def = C.DECOR[key], tall = key === 'lamp', k = 1 / Math.max(def.w, tall ? 2.7 : 1.45);
+  return iconCanvas(() => { A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-def.w / 2, tall ? 0.38 : key === 'ride' ? -0.3 : -0.15); A.decor({ type: key, x: 0, y: 0, rot: 0 }, 0); });
 }
 function fountainCard(){
   const f = C.FOUNTAIN;
@@ -158,10 +179,11 @@ export function openBuild(startTab = 0){
       }
     } else if (tab === 1){
       for (const [key, def] of Object.entries(C.DECOR)){
-        const b = h('button', { class: `item ${s.money >= def.cost ? 'can' : ''}`, onclick: () => { sfx('tap'); closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, cost: def.cost }); } },
-          iconCanvas(() => { if (key === 'plant') A.palm(0.5, 0.92); else if (key === 'bin') A.trashCan(0.5, 0.85); else { A.g.scale(0.5, 0.5); A.bench(0.1, 1.1, 1.8); } }),
-          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name), h('span', { class: 'sub' }, def.bin ? 'Shoppers nearby toss trash in it' : def.seat ? 'Somewhere to sit · +ambience' : '+ambience')),
-          h('span', { class: 'price' }, money(def.cost)));
+        const locked = s.level < def.level, have = s.decor.filter(d => d.type === key).length;
+        const b = h('button', { class: `item ${locked ? 'locked' : s.money >= def.cost ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } },
+          decorIcon(key),
+          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.sub + (def.rot ? ' · can rotate' : ''))),
+          h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(def.cost)));
         body.append(b);
       }
     } else {
@@ -249,7 +271,12 @@ function startPlacement(p){
   }
   const name = p.store ? C.STORES[p.store].name : C.DECOR[p.decor].name;
   place.name = p.moveId ? `Move ${name}` : name;
-  place.bar = showPlacementBar({ label: place.name, canFlip: p.kind === 'unit', onFlip: () => { place.face = place.face === 'down' ? 'up' : 'down'; refreshGhost(); }, onCancel: endPlacement, onConfirm: confirmPlacement });
+  const turnable = p.decor && C.DECOR[p.decor].rot;
+  place.bar = showPlacementBar({ label: place.name, canFlip: p.kind === 'unit' || turnable, flipLabel: turnable ? 'Rotate' : 'Flip door', onFlip: () => {
+    if (turnable){ place.face = (place.face + 1) % 4; const z = decorSize({ type: p.decor, rot: place.face }); place.w = z.w; place.h = z.h; moveGhostTo(place.x + 0.5, place.y + 0.5, true); }
+    else place.face = place.face === 'down' ? 'up' : 'down';
+    refreshGhost();
+  }, onCancel: endPlacement, onConfirm: confirmPlacement });
   refreshGhost();
 }
 // Stores can go into dusty storage: clearing it out is part of the job (and the price).
@@ -269,6 +296,8 @@ function validate(x, y, face){
 function accessFor(x, y, face){
   if (place.kind === 'unit'){ const dx = x + Math.floor(place.w / 2); return face === 'down' ? { x: dx, y: y + place.h } : { x: dx, y: y - 1 }; }
   if (place.kind === 'kiosk') return { x: x + 1, y: y + 1 };
+  const def = place.decor && C.DECOR[place.decor];
+  if (def && (def.seat || def.coin)) return decorAccess({ type: place.decor, x, y, rot: face || 0 });
   return null;
 }
 const placeCost = v => (place.moveId ? 0 : place.cost) + v.zones.reduce((a, z) => a + z.cost, 0);
@@ -280,9 +309,7 @@ function refreshGhost(){
   view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
     if (place.kind === 'unit'){ const def = C.STORES[place.store]; A.unitBack(temp, def, t); A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
-    else if (place.decor === 'plant') A.palm(place.x + 0.5, place.y + 0.85);
-    else if (place.decor === 'bin') A.trashCan(place.x + 0.5, place.y + 0.8);
-    else if (place.decor === 'bench') A.bench(place.x + 0.1, place.y + 0.15, 1.8);
+    else A.decor({ type: place.decor, x: place.x, y: place.y, rot: place.face || 0 }, t);
   } };
   if (place.bar){
     const clears = v.zones.length ? ` · clears ${v.zones.map(z => z.name).join(' and ')}` : '';
@@ -293,10 +320,10 @@ function refreshGhost(){
     place.bar.confirm.textContent = cost ? `Place · ${money(cost)}` : 'Place';
   }
 }
-export function moveGhostTo(x, y){
+export function moveGhostTo(x, y, force = false){
   if (!place) return;
   const nx = Math.round(x - 0.5), ny = Math.round(y - 0.5);
-  if (nx === place.x && ny === place.y) return;
+  if (nx === place.x && ny === place.y && !force) return;
   place.x = Math.max(0, Math.min(C.MAP_W - place.w, nx)); place.y = Math.max(0, Math.min(C.MAP_H - place.h, ny));
   refreshGhost();
 }
@@ -318,7 +345,7 @@ function confirmPlacement(){
   if (p.moveId){
     const u = s.units.find(v => v.id === p.moveId), d = s.decor.find(v => v.id === p.moveId);
     if (u){ u.x = p.x; u.y = p.y; u.face = p.face || u.face; }
-    if (d){ d.x = p.x; d.y = p.y; }
+    if (d){ d.x = p.x; d.y = p.y; d.rot = p.face || 0; }
   } else if (p.kind === 'unit' || p.kind === 'kiosk'){
     const def = C.STORES[p.store];
     s.units.push({ id: s.nextId++, x: p.x, y: p.y, w: p.w, h: p.h, face: p.kind === 'kiosk' ? 'down' : p.face, kiosk: p.kind === 'kiosk' || undefined, state: 'store', store: p.store, stock: def.stock });
@@ -326,7 +353,7 @@ function confirmPlacement(){
     s.flags.opened = true;
     xp += 50;
   } else {
-    s.decor.push({ id: s.nextId++, type: p.decor, x: p.x, y: p.y });
+    s.decor.push({ id: s.nextId++, type: p.decor, x: p.x, y: p.y, rot: p.face || 0 });
     xp += 5;
   }
   sfx('build'); poof(p.x, p.y, p.w, p.h);
@@ -339,11 +366,11 @@ export function endPlacement(){ place = null; view.ghost = null; hidePlacementBa
 function applicants(){
   const s = S.save, f = s.flags;
   // New applicants each day, and right away when a level unlocks a new role.
-  const key = `2:${s.day}:${s.level}`;
+  const key = `3:${s.day}:${s.level}`;
   if (f.appDay !== key || !f.applicants){
+    // Three clerks to choose from, and one of every other role you can hire.
     const roles = [];
-    if (s.level >= 4) roles.push('clerk', 'clerk', 'clerk');
-    if (s.level >= 3) roles.push('janitor');
+    for (const [role, r] of Object.entries(C.ROLES)) if (s.level >= r.level) roles.push(...(role === 'clerk' ? ['clerk', 'clerk', 'clerk'] : [role]));
     const list = [], used = new Set(['Dee', ...s.staff.map(m => m.name)]);
     roles.forEach((role, i) => {
       const seed = s.day * 31 + i * 7 + s.level * 101 + s.nextId;
@@ -365,7 +392,8 @@ export function openStaff(){
   endPick(); endPlacement(); hideCard(); view.selected = null; setToolDot('staff', false);
   openPanel({ title: 'Staff', render: (body, tab, redraw) => {
     const s = S.save, L = C.STAFF_LIMITS, count = role => s.staff.filter(m => m.role === role).length;
-    const limits = `Janitors ${count('janitor')}/${L.janitor[s.level]}` + (s.level >= 4 ? ` · Clerks ${count('clerk')}/${L.clerk[s.level]}` : ' · Clerks unlock at level 4');
+    const open = Object.entries(C.ROLES).filter(([, r]) => s.level >= r.level), next = Object.values(C.ROLES).find(r => s.level < r.level);
+    const limits = open.map(([role, r]) => `${r.plural} ${count(role)}/${L[role][s.level]}`).join(' · ') + (next ? ` · ${next.plural} at level ${next.level}` : '');
     body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, s.level < 3 ? 'You can start hiring at level 3. Until then, it’s all you.' : `${limits}. Wages come out each night.`));
     if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
     for (const m of s.staff){
@@ -382,7 +410,7 @@ export function openStaff(){
         const look = staffLook(a.role, a.seed);
         const full = count(a.role) >= L[a.role][s.level];
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
-          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a)),
+          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a), a.role === 'clerk' || a.role === 'janitor' ? null : h('span', { class: 'muted', style: 'font-size:11.5px;display:block' }, C.ROLES[a.role].desc)),
           h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
             const open = stores(s).filter(u => !s.staff.some(o => o.storeId === u.id));
             const free = open.find(u => u.store === a.dream) || open.find(u => !u.kiosk) || open[0];
@@ -399,7 +427,7 @@ export function openStaff(){
 // "Clerk · ★★☆ · $46/day", then their dream job on a line of its own (with a heart when they're working it).
 function staffLine(m){
   const k = staffSkill(m);
-  return `${m.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${stars(k)} · ${money(wageOf({ role: m.role, skill: k }))}/day`;
+  return `${C.ROLES[m.role].name} · ${stars(k)} · ${money(wageOf({ role: m.role, skill: k }))}/day`;
 }
 function dreamLine(m, at){
   if (!m.dream) return null;
