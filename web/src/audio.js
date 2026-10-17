@@ -144,9 +144,19 @@ export class AudioEngine {
 
   // ---------- Effects ----------
 
-  laser(pan = 0, homing = false) {
-    if (!this.ctx || !this._gate('laser', 0.045)) return;
+  laser(pan = 0, homing = false, kind = 'twin') {
+    if (!this.ctx || !this._gate('laser', kind === 'ion' ? 0.05 : 0.045)) return;
+    if (kind === 'scatter') return this._scatterShot(pan);
+    if (kind === 'rail') return this._railShot(pan);
     const t = this.now, ctx = this.ctx;
+    if (kind === 'ion') {
+      const out = this._out(0.3, pan, 0.05);
+      const g = ctx.createGain();
+      g.connect(out);
+      this._env(g.gain, t, 0.001, 0.25, 0.06);
+      this._osc('square', 2300 * (homing ? 0.85 : 1), 900, t, 0.06, g);
+      return;
+    }
     const out = this._out(0.5, pan, 0.08);
     const lp = this._filter('lowpass', 5200, 0.7);
     lp.connect(out);
@@ -468,6 +478,172 @@ export class AudioEngine {
       this._env(g2.gain, t + 0.07, 0.002, 0.5, 0.12);
       this._osc('sine', 1650, null, t + 0.07, 0.12, g2);
     }
+  }
+
+
+  _scatterShot(pan) {
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.6, pan, 0.15);
+    const lp = this._filter('lowpass', 2200, 0.8);
+    lp.frequency.setValueAtTime(3500, t);
+    lp.frequency.exponentialRampToValueAtTime(300, t + 0.22);
+    lp.connect(out);
+    const g = ctx.createGain();
+    g.connect(lp);
+    this._env(g.gain, t, 0.002, 1.0, 0.22);
+    this._noise(t, 0.25, g);
+    const g2 = ctx.createGain();
+    g2.connect(out);
+    this._env(g2.gain, t, 0.002, 0.6, 0.15);
+    this._osc('sine', 180, 60, t, 0.15, g2);
+  }
+
+  _railShot(pan) {
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.7, pan, 0.4);
+    const g = ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.002, 0.5, 0.45);
+    this._osc('sawtooth', 3200, 140, t, 0.45, g);
+    const g2 = ctx.createGain();
+    g2.connect(out);
+    this._env(g2.gain, t, 0.002, 0.9, 0.3);
+    this._osc('sine', 110, 40, t, 0.3, g2);
+    const bp = this._filter('bandpass', 4000, 2);
+    bp.connect(out);
+    const g3 = ctx.createGain();
+    g3.connect(bp);
+    this._env(g3.gain, t, 0.001, 0.6, 0.12);
+    this._noise(t, 0.15, g3);
+  }
+
+  mineDrop(vol = 1, pan = 0) {
+    if (!this.ctx || vol < 0.05 || !this._gate('mine', 0.2)) return;
+    const t = this.now;
+    const out = this._out(0.3 * vol, pan, 0.3);
+    const g = this.ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.002, 0.6, 0.18);
+    this._osc('triangle', 300, 520, t, 0.18, g);
+  }
+
+  mineBeep(vol = 1, pan = 0) {
+    if (!this.ctx || vol < 0.05 || !this._gate('minebeep', 0.15)) return;
+    const t = this.now;
+    const out = this._out(0.25 * vol, pan, 0.1);
+    const g = this.ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.001, 0.5, 0.06);
+    this._osc('square', 1500, null, t, 0.06, g);
+  }
+
+  beamCharge(vol = 1, pan = 0, dur = 1.5) {
+    if (!this.ctx || vol < 0.03) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.35 * Math.max(0.4, vol), pan, 0.2);
+    const g = ctx.createGain();
+    g.connect(out);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.4, t + dur);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
+    this._osc('sawtooth', 200, 1400, t, dur, g);
+    this._osc('sine', 202, 1420, t, dur, g);
+  }
+
+  beamFire(vol = 1, pan = 0) {
+    if (!this.ctx || vol < 0.03) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.8 * Math.max(0.4, vol), pan, 0.5);
+    const g = ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.002, 0.8, 0.6);
+    this._osc('sawtooth', 900, 60, t, 0.6, g);
+    const lp = this._filter('lowpass', 3000, 0.7);
+    lp.connect(out);
+    const g2 = ctx.createGain();
+    g2.connect(lp);
+    this._env(g2.gain, t, 0.002, 0.9, 0.5);
+    this._noise(t, 0.55, g2);
+  }
+
+  kamikaze(vol = 1, pan = 0) {
+    if (!this.ctx || vol < 0.08 || !this._gate('kami', 0.35)) return;
+    const t = this.now;
+    const out = this._out(0.2 * vol, pan, 0.05);
+    const g = this.ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.001, 0.5, 0.05);
+    this._osc('square', 1900, null, t, 0.05, g);
+  }
+
+  bossAlarm() {
+    if (!this.ctx) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.5, 0, 0.6);
+    for (let i = 0; i < 3; i++) {
+      const g = ctx.createGain();
+      g.connect(out);
+      const tt = t + i * 0.7;
+      this._env(g.gain, tt, 0.05, 0.6, 0.55);
+      this._osc('sawtooth', 220, 180, tt, 0.6, g);
+      this._osc('sawtooth', 277, 226, tt, 0.6, g);
+    }
+  }
+
+  droneDeploy() {
+    if (!this.ctx) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.4, 0, 0.4);
+    [0, 7, 12].forEach((s, i) => {
+      const g = ctx.createGain();
+      g.connect(out);
+      this._env(g.gain, t + i * 0.08, 0.004, 0.4, 0.2);
+      this._osc('square', 520 * Math.pow(2, s / 12), null, t + i * 0.08, 0.2, g);
+    });
+  }
+
+  dash() {
+    if (!this.ctx) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.6, 0, 0.4);
+    const bp = this._filter('bandpass', 800, 1.2);
+    bp.frequency.setValueAtTime(500, t);
+    bp.frequency.exponentialRampToValueAtTime(5000, t + 0.3);
+    bp.connect(out);
+    const g = ctx.createGain();
+    g.connect(bp);
+    this._env(g.gain, t, 0.01, 1.0, 0.35);
+    this._noise(t, 0.4, g);
+    const g2 = ctx.createGain();
+    g2.connect(out);
+    this._env(g2.gain, t, 0.005, 0.3, 0.3);
+    this._osc('sine', 400, 1600, t, 0.3, g2);
+  }
+
+  purchase() {
+    if (!this.ctx) return;
+    const t = this.now, ctx = this.ctx;
+    const out = this._out(0.4, 0, 0.4);
+    [0, 4, 7, 12, 16, 19].forEach((s, i) => {
+      const g = ctx.createGain();
+      g.connect(out);
+      this._env(g.gain, t + i * 0.045, 0.003, 0.3, 0.3);
+      this._osc('triangle', 880 * Math.pow(2, s / 12), null, t + i * 0.045, 0.3, g);
+    });
+  }
+
+  hint() {
+    if (!this.ctx) return;
+    const t = this.now;
+    const out = this._out(0.25, 0, 0.3);
+    const g = this.ctx.createGain();
+    g.connect(out);
+    this._env(g.gain, t, 0.004, 0.4, 0.4);
+    this._osc('sine', 1320, null, t, 0.4, g);
+    const g2 = this.ctx.createGain();
+    g2.connect(out);
+    this._env(g2.gain, t + 0.1, 0.004, 0.3, 0.4);
+    this._osc('sine', 1760, null, t + 0.1, 0.4, g2);
   }
 
   // ---------- Continuous engine ----------

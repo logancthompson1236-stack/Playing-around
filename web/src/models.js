@@ -248,3 +248,255 @@ export function buildWarpGate() {
   g.userData = { ring, segs, disk };
   return g;
 }
+
+// ---------------- Additional player ships ----------------
+export function buildWasp() {
+  const H = [], G = [];
+  const yellow = 0xf2c230, black = 0x22242a, grey = 0x8a919c;
+  H.push(part(cyl(0.08, 0.7, 7.6, 6)(), yellow, [0, 0, 0.8], ALONG_Z, [1, 0.8, 1]));
+  H.push(part(new THREE.SphereGeometry(0.45, 10, 8), 0x1a2a40, [0, 0.32, 1.6], [0, 0, 0], [0.7, 0.55, 2.0]));
+  mirror(H, box(3.0, 0.1, 1.2), black, [1.6, 0, 0.2], [0, -0.55, -0.05]);
+  mirror(H, box(0.9, 0.12, 0.35), yellow, [2.4, 0.02, 0.7], [0, -0.55, -0.05]);
+  mirror(H, cyl(0.12, 0.12, 3.0, 6), grey, [0.9, 0.1, -2.2], ALONG_Z);
+  mirror(H, box(0.08, 1.0, 1.1), black, [0.9, 0.55, -3.2], [0, 0, -0.2]);
+  H.push(part(cyl(0.55, 0.7, 2.0, 8)(), 0x4a4f58, [0, 0, -3.0], ALONG_Z));
+  G.push(part(cyl(0.48, 0.48, 0.08, 8)(), 0xffe08a, [0, 0, -4.02], ALONG_Z));
+  mirror(G, box(0.15, 0.15, 0.15), 0xff3030, [2.9, 0, 1.15]);
+  const g = assemble(H, G, [[0, 0, -4.3]], 0xffd27a, 3.0);
+  g.userData.muzzles = [new THREE.Vector3(1.2, -0.1, 1.6), new THREE.Vector3(-1.2, -0.1, 1.6)];
+  return g;
+}
+
+export function buildBulwark() {
+  const H = [], G = [];
+  const olive = 0x6d7458, plate = 0x9a9f8a, dark = 0x30332e, orange = 0xff8a2a;
+  H.push(part(box(2.8, 1.4, 6.6)(), olive, [0, 0, 0]));
+  H.push(part(cyl(0.4, 1.5, 2.6, 4)(), plate, [0, 0, 4.2], [Math.PI / 2, Math.PI / 4, 0], [1.2, 1, 0.6]));
+  H.push(part(box(1.4, 0.7, 1.8)(), 0x1d3048, [0, 0.95, 1.6]));
+  mirror(H, box(2.6, 0.3, 3.2), plate, [2.6, -0.2, -0.6], [0, 0, -0.08]);
+  mirror(H, box(1.1, 1.1, 4.6), dark, [3.9, -0.1, 0.4]);
+  mirror(H, cyl(0.2, 0.2, 2.0, 6), 0x7a8088, [3.9, 0.2, 3.4], ALONG_Z);
+  mirror(H, cyl(0.2, 0.2, 2.0, 6), 0x7a8088, [3.9, -0.4, 3.4], ALONG_Z);
+  mirror(H, cyl(0.75, 0.9, 2.6, 8), 0x50544c, [1.2, 0, -4.0], ALONG_Z);
+  mirror(H, box(1.5, 0.15, 0.5), orange, [2.6, 0, 0.9], [0, 0, -0.08]);
+  mirror(G, cyl(0.6, 0.6, 0.08, 8), 0xffb060, [1.2, 0, -5.32], ALONG_Z);
+  const g = assemble(H, G, [[1.2, 0, -5.6], [-1.2, 0, -5.6]], 0xffb060, 3.2);
+  g.userData.muzzles = [new THREE.Vector3(3.9, -0.1, 4.5), new THREE.Vector3(-3.9, -0.1, 4.5)];
+  return g;
+}
+
+export function buildSpecter() {
+  const H = [], G = [];
+  const hull = 0x2e2742, edge = 0x4a3f6e;
+  H.push(part(cyl(0.05, 4.2, 7.5, 3)(), hull, [0, 0, 0.2], [Math.PI / 2, 0, 0], [1, 1, 0.22]));
+  H.push(part(new THREE.SphereGeometry(0.5, 10, 8), 0x0e1a2e, [0, 0.45, 1.0], [0, 0, 0], [0.8, 0.5, 2.2]));
+  mirror(H, box(0.1, 1.1, 1.6), edge, [1.6, 0.6, -2.4], [0, 0, -0.45]);
+  mirror(H, cyl(0.45, 0.55, 2.2, 8), 0x3a3550, [1.1, 0, -2.6], ALONG_Z);
+  mirror(G, box(3.6, 0.06, 0.12), 0x6ff6ff, [1.9, 0.18, -1.0], [0, 0.62, 0]);
+  mirror(G, cyl(0.4, 0.4, 0.08, 8), 0x8ff6ff, [1.1, 0, -3.72], ALONG_Z);
+  const g = assemble(H, G, [[1.1, 0, -4.0], [-1.1, 0, -4.0]], 0x8ff6ff, 2.6);
+  g.userData.muzzles = [new THREE.Vector3(2.4, -0.1, 0.4), new THREE.Vector3(-2.4, -0.1, 0.4)];
+  return g;
+}
+
+export const SHIP_BUILDERS = { kestrel: buildPlayerShip, wasp: buildWasp, bulwark: buildBulwark, specter: buildSpecter };
+
+// ---------------- New enemies ----------------
+export function buildHornet(mat) {
+  const H = [], G = [];
+  H.push(part(new THREE.IcosahedronGeometry(1.6, 0), 0x3a2a2a, [0, 0, 0]));
+  for (const [x, y, z] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1]]) {
+    const geo = new THREE.ConeGeometry(0.35, 1.6, 5);
+    const rot = z ? [Math.PI / 2, 0, 0] : x ? [0, 0, -x * Math.PI / 2] : [y < 0 ? Math.PI : 0, 0, 0];
+    H.push(part(geo, 0x8a2020, [x * 1.6, y * 1.6, z * 1.6], rot));
+  }
+  G.push(part(new THREE.SphereGeometry(0.5, 8, 6), 0xff2020, [0, 0, 1.3]));
+  const g = assemble(H, G, [[0, 0, -1.8]], 0xff4030, 1.8, mat);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, 2)];
+  return g;
+}
+
+export function buildSpinner(mat) {
+  const H = [], G = [];
+  H.push(part(cyl(5, 5.4, 1.2, 12)(), 0x4a4a3a, [0, 0, 0]));
+  H.push(part(new THREE.SphereGeometry(2.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0x7a7a50, [0, 0.5, 0]));
+  H.push(part(cyl(1.4, 1.0, 1.6, 8)(), 0x2a2a24, [0, -1.2, 0]));
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    G.push(part(new THREE.BoxGeometry(0.5, 0.3, 0.5), i % 2 ? 0xffe040 : 0x60ff60, [Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2]));
+  }
+  G.push(part(cyl(0.6, 0.6, 0.1, 8)(), 0xffe040, [0, -2.05, 0]));
+  const g = assemble(H, G, [[0, 0, -5.4]], 0xc8ff60, 2.6, mat);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, 5.6)];
+  g.userData.dropPoint = new THREE.Vector3(0, -2.4, 0);
+  return g;
+}
+
+export function buildLongbow(mat) {
+  const H = [], G = [];
+  H.push(part(box(1.6, 1.2, 5)(), 0x3c3f4a, [0, 0, -1]));
+  H.push(part(cyl(0.35, 0.45, 10, 8)(), 0x6a6f7a, [0, 0, 5], ALONG_Z));
+  H.push(part(cyl(0.7, 0.7, 1.4, 8)(), 0x2a2c33, [0, 0, 1.6], ALONG_Z));
+  mirror(H, box(3.2, 0.12, 1.6), 0x8a2a30, [1.8, 0, -2.2], [0, 0.3, 0]);
+  mirror(H, box(0.12, 1.6, 1.4), 0x8a2a30, [0.6, 0.9, -3.0], [0, 0, -0.3]);
+  G.push(part(new THREE.SphereGeometry(0.42, 8, 6), 0xff3040, [0, 0, 10.1]));
+  G.push(part(box(0.9, 0.2, 0.2)(), 0xff6060, [0, 0.62, 0.4]));
+  const g = assemble(H, G, [[0, 0, -3.8]], 0xff5060, 2.4, mat);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, 10.4)];
+  return g;
+}
+
+Object.assign(ENEMY_BUILDERS, { hornet: buildHornet, spinner: buildSpinner, longbow: buildLongbow });
+
+// ---------------- Wingman drone ----------------
+export function buildDrone() {
+  const H = [], G = [];
+  H.push(part(new THREE.OctahedronGeometry(1.0, 0), 0xd8e6dc, [0, 0, 0], [0, 0, 0], [1, 0.6, 1.6]));
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + Math.PI / 2;
+    H.push(part(box(0.1, 1.8, 0.9)(), 0x56705e, [Math.cos(a) * 1.1, Math.sin(a) * 1.1, -0.4], [0, 0, a - Math.PI / 2]));
+  }
+  G.push(part(new THREE.SphereGeometry(0.3, 8, 6), 0x7dff9a, [0, 0, 1.4]));
+  const g = assemble(H, G, [[0, 0, -1.4]], 0x7dff9a, 1.8);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, 1.8)];
+  return g;
+}
+
+// ---------------- Bosses ----------------
+let bossMat = null;
+function getBossMaterial() {
+  if (!bossMat) bossMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.35, roughness: 0.55, fog: false,
+    emissive: new THREE.Color(0x30343c) });
+  return bossMat;
+}
+
+// Dreadnought carrier hull. Mount points (local space) for turrets, bays and the reactor core.
+export function buildDreadnought() {
+  const H = [], G = [];
+  const gun = 0x7a808c, dark = 0x4a4e58, red = 0xb02a32, plate = 0x9aa0ac;
+  // Running lights along both flanks so the hull reads at range.
+  for (const x of [-1, 1]) for (let i = 0; i < 9; i++) G.push(part(new THREE.BoxGeometry(0.8, 0.8, 2.4), i % 3 ? 0xff5a3a : 0xffd27a, [x * 25.2, 2.8, -36 + i * 9]));
+  H.push(part(cyl(9, 12, 88, 6)(), gun, [0, 0, 0], ALONG_Z, [1.5, 1, 0.75]));
+  H.push(part(cyl(0.5, 9, 22, 6)(), plate, [0, 0, 55], ALONG_Z, [1.5, 1, 0.6]));
+  H.push(part(box(10, 9, 14)(), dark, [0, 11, -18]));
+  H.push(part(box(6, 5, 8)(), plate, [0, 17, -16]));
+  mirror(H, box(8, 6, 40), dark, [20, -1, 0]);
+  mirror(H, box(9, 1.2, 46), red, [18, 2.6, 2]);
+  H.push(part(box(30, 14, 12)(), gun, [0, 0, -48]));
+  // Greebles along the spine.
+  for (let i = 0; i < 18; i++) {
+    const z = -40 + i * 5;
+    H.push(part(box(2 + (i % 3), 1.2, 2.2)(), i % 2 ? plate : dark, [((i * 7) % 9) - 4, 7.4, z]));
+  }
+  for (const x of [-10, -3.5, 3.5, 10]) G.push(part(cyl(3, 3, 0.4, 10)(), 0xffa040, [x, 0, -54.3], ALONG_Z));
+  G.push(part(box(8, 0.6, 0.4)(), 0x8fd8ff, [0, 15, -12]));
+  const hull = new THREE.Mesh(mergeGeometries(H), getBossMaterial());
+  const glow = new THREE.Mesh(mergeGeometries(G), getGlowMaterial());
+  const g = new THREE.Group();
+  g.add(hull, glow);
+  g.userData.engines = [-10, -3.5, 3.5, 10].map((x) => {
+    const s = engineSprite(0xffa040, 14);
+    s.position.set(x, 0, -56);
+    g.add(s);
+    return s;
+  });
+  g.userData.mounts = {
+    turrets: [[0, 7.8, 30], [0, 7.8, -2], [0, -7.5, 18], [0, -7.5, -30]],
+    bays: [[24.5, -1, 6], [-24.5, -1, 6]],
+    core: [0, 0, -56],
+  };
+  // Approximate collision spheres along the hull (local space).
+  g.userData.colliders = [[0, 0, 52, 9], [0, 0, 34, 13], [0, 0, 14, 15], [0, 2, -6, 16], [0, 2, -26, 16], [0, 0, -46, 14],
+    [20, -1, 12, 7], [20, -1, -10, 7], [-20, -1, 12, 7], [-20, -1, -10, 7]];
+  return g;
+}
+
+export function buildTurret(mat) {
+  const H = [], G = [];
+  H.push(part(cyl(3, 3.4, 1.4, 8)(), 0x3a3e46, [0, 0, 0]));
+  H.push(part(new THREE.SphereGeometry(2.4, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0x6c727e, [0, 0.6, 0]));
+  mirror(H, cyl(0.35, 0.35, 5, 6), 0x23262c, [0.8, 1.6, 2.6], ALONG_Z);
+  G.push(part(box(1.4, 0.4, 0.3)(), 0xff4030, [0, 2.2, 1.6]));
+  const g = assemble(H, G, [], 0xff4030, 1, mat);
+  g.userData.muzzles = [new THREE.Vector3(0.8, 1.6, 5.2), new THREE.Vector3(-0.8, 1.6, 5.2)];
+  return g;
+}
+
+export function buildBay(mat) {
+  const H = [], G = [];
+  H.push(part(box(5, 7, 16)(), 0x3a3e46, [0, 0, 0]));
+  G.push(part(box(0.3, 5, 12)(), 0xff9a30, [2.6, 0, 0]));
+  const g = assemble(H, G, [], 0xff9a30, 1, mat);
+  g.userData.muzzles = [new THREE.Vector3(4, 0, 0)];
+  return g;
+}
+
+export function buildCore(mat, color = 0xff8a30, r = 7) {
+  const H = [], G = [];
+  for (let i = 0; i < 3; i++) H.push(part(new THREE.TorusGeometry(r * 1.15, 0.5, 4, 20), 0x5a5f6a, [0, 0, 0], [i * 1.05, i * 0.6, 0]));
+  G.push(part(new THREE.IcosahedronGeometry(r, 1), color, [0, 0, 0]));
+  const g = assemble(H, G, [], color, 1, mat);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.8 }));
+  halo.scale.setScalar(r * 5);
+  g.add(halo);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, r + 1)];
+  return g;
+}
+
+export function buildShieldBubble(r, color = 0x7fd8ff) {
+  return new THREE.Mesh(
+    new THREE.IcosahedronGeometry(r, 2),
+    new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+}
+
+// Sentinel: a rotating ring station with shield pylons and beam emitters.
+export function buildSentinel() {
+  const g = new THREE.Group();
+  const ringGeo = new THREE.TorusGeometry(55, 5, 8, 48);
+  const H = [part(ringGeo, 0x8a90a0, [0, 0, 0])];
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    H.push(part(box(2, 50, 2)(), 0x343842, [Math.cos(a) * 27, Math.sin(a) * 27, 0], [0, 0, a - Math.PI / 2]));
+  }
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    H.push(part(box(4, 4, 8)(), i % 2 ? 0x6a707c : 0x2c3038, [Math.cos(a) * 55, Math.sin(a) * 55, 0], [0, 0, a]));
+  }
+  const ring = new THREE.Mesh(mergeGeometries(H), getBossMaterial());
+  const lights = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    lights.push(part(new THREE.BoxGeometry(1.6, 1.6, 1.6), 0xff5060, [Math.cos(a) * 55, Math.sin(a) * 55, 5.4]));
+  }
+  const glow = new THREE.Mesh(mergeGeometries(lights), getGlowMaterial());
+  const spin = new THREE.Group();
+  spin.add(ring, glow);
+  g.add(spin);
+  g.userData.spin = spin;
+  g.userData.mounts = {
+    pylons: [0, 1, 2, 3].map((i) => { const a = (i / 4) * Math.PI * 2 + Math.PI / 4; return [Math.cos(a) * 55, Math.sin(a) * 55, 7]; }),
+    core: [0, 0, 0],
+  };
+  g.userData.colliders = [];
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    g.userData.colliders.push([Math.cos(a) * 55, Math.sin(a) * 55, 0, 8]);
+  }
+  return g;
+}
+
+export function buildPylon(mat) {
+  const H = [], G = [];
+  H.push(part(cyl(2.2, 3, 3, 6)(), 0x3a3e46, [0, 0, 0], ALONG_Z));
+  G.push(part(new THREE.OctahedronGeometry(2.4, 0), 0x7fd8ff, [0, 0, 4.4], [0, 0, 0], [1, 1, 2]));
+  const g = assemble(H, G, [], 0x7fd8ff, 1, mat);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: getGlowTexture(), color: 0x7fd8ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.7 }));
+  halo.scale.setScalar(14);
+  halo.position.z = 4.4;
+  g.add(halo);
+  g.userData.muzzles = [new THREE.Vector3(0, 0, 9)];
+  return g;
+}
+
+export const PART_BUILDERS = { turret: buildTurret, bay: buildBay, core: buildCore, pylon: buildPylon };

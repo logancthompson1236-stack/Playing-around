@@ -58,20 +58,37 @@ export class Input {
     return { w: (app && app.clientWidth) || window.innerWidth, h: (app && app.clientHeight) || window.innerHeight };
   }
 
+  // custom: { pos: { btn: [fx, fy] }, size, opacity } from the layout editor (or null for defaults).
+  setCustom(custom) {
+    this.custom = custom ? JSON.parse(JSON.stringify(custom)) : null;
+    this.layout();
+  }
+
   layout() {
     const { w, h } = this._size();
     const s = clamp(Math.min(h / 390, w / 760), 0.72, 1.35);
     this.scale = s;
     this.stickRadius = 62 * s;
+    const C = this.custom;
+    const size = (C && C.size) || 1;
+    this.rects = {};
     for (const [k, L] of Object.entries(LAYOUT)) {
       const el = this.buttons[k];
       if (!el) continue;
-      const d = L.d * s;
+      const d = L.d * s * size;
+      let cx, cy;
+      const p = C && C.pos && C.pos[k];
+      if (p) { cx = (this.lefty ? 1 - p[0] : p[0]) * w; cy = p[1] * h; }
+      else { cx = this.lefty ? L.r * s : w - L.r * s; cy = h - L.b * s; }
+      cx = clamp(cx, d / 2, w - d / 2);
+      cy = clamp(cy, d / 2, h - d / 2);
       el.style.width = el.style.height = d + 'px';
-      el.style.bottom = (L.b * s - d / 2) + 'px';
-      if (this.lefty) { el.style.left = (L.r * s - d / 2) + 'px'; el.style.right = ''; }
-      else { el.style.right = (L.r * s - d / 2) + 'px'; el.style.left = ''; }
+      el.style.left = cx - d / 2 + 'px';
+      el.style.top = cy - d / 2 + 'px';
+      el.style.right = el.style.bottom = '';
+      this.rects[k] = { x: cx, y: cy, r: (d / 2) * 1.12 };
     }
+    this.root.style.setProperty('--ctl-opacity', String((C && C.opacity) || 1));
     const bd = this.stickRadius * 2;
     this.base.style.width = this.base.style.height = bd + 'px';
     this.knob.style.width = this.knob.style.height = bd * 0.45 + 'px';
@@ -97,16 +114,52 @@ export class Input {
   }
 
   _cacheRects() {
-    // Everything is kept in #app-local coordinates (the app is inset by phone safe areas).
+    // Pointer coordinates are converted to #app-local space (the app is inset by phone safe areas).
     const app = document.getElementById('app');
     const ar = app ? app.getBoundingClientRect() : { left: 0, top: 0 };
     this.ox = ar.left;
     this.oy = ar.top;
-    this.rects = {};
-    for (const [k, el] of Object.entries(this.buttons)) {
-      const r = el.getBoundingClientRect();
-      this.rects[k] = { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, r: (r.width / 2) * 1.12 };
-    }
+  }
+
+  // ---- Layout editor: drag buttons around, saved as screen fractions ----
+  startEditing() {
+    this.editing = true;
+    this.enabled = false;
+    this.reset();
+    this.root.classList.add('on', 'editing');
+    if (!this.custom) this.custom = { pos: {}, size: 1, opacity: 1 };
+    this.layout();
+  }
+
+  stopEditing() {
+    this.editing = false;
+    this.drag = null;
+    this.root.classList.remove('editing');
+    return this.custom;
+  }
+
+  _editDown(e) {
+    const x = e.clientX - this.ox, y = e.clientY - this.oy;
+    const btn = this._hit(x, y);
+    if (!btn) return;
+    try { this.root.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    this.drag = { id: e.pointerId, btn, dx: this.rects[btn].x - x, dy: this.rects[btn].y - y };
+    this.buttons[btn].classList.add('down');
+  }
+
+  _editMove(e) {
+    if (!this.drag || this.drag.id !== e.pointerId) return;
+    const { w, h } = this._size();
+    const x = e.clientX - this.ox + this.drag.dx, y = e.clientY - this.oy + this.drag.dy;
+    const fx = clamp(x / w, 0, 1), fy = clamp(y / h, 0, 1);
+    this.custom.pos[this.drag.btn] = [this.lefty ? 1 - fx : fx, fy];
+    this.layout();
+  }
+
+  _editUp(e) {
+    if (!this.drag || this.drag.id !== e.pointerId) return;
+    this.buttons[this.drag.btn].classList.remove('down');
+    this.drag = null;
   }
 
   _hit(x, y) {
@@ -139,6 +192,7 @@ export class Input {
   }
 
   _down(e) {
+    if (this.editing) { e.preventDefault(); return this._editDown(e); }
     if (!this.enabled) return;
     e.preventDefault();
     try { this.root.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
@@ -160,6 +214,7 @@ export class Input {
   }
 
   _move(e) {
+    if (this.editing) { e.preventDefault(); return this._editMove(e); }
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     e.preventDefault();
@@ -177,6 +232,7 @@ export class Input {
   }
 
   _up(e) {
+    if (this.editing) return this._editUp(e);
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     this.pointers.delete(e.pointerId);
@@ -223,6 +279,7 @@ export class Input {
     if (!down) return;
     if (k === 'KeyE' || k === 'KeyI') this.events.push('missile');
     if (k === 'KeyQ' || k === 'KeyO') this.events.push('emp');
+    if (k === 'KeyR') this.events.push('radar');
     if (k === 'Escape' || k === 'KeyP') this.events.push('pause');
   }
 

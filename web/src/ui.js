@@ -69,6 +69,9 @@ export class UI {
       case 'howto': this.push('howto'); break;
       case 'settings': this.push('settings'); break;
       case 'back': this.pop(); break;
+      case 'hangar': this.push('hangar'); this.h.hangar(); break;
+      case 'tutorial': this.h.tutorial(); break;
+      case 'controls': this.h.controls(); break;
       case 'resume': this.h.resume(); break;
       case 'quit': this.h.quit(); break;
       case 'title': this.h.title(); break;
@@ -84,8 +87,9 @@ export class UI {
     this._render();
   }
   pop() {
-    this.stack.pop();
+    const closed = this.stack.pop();
     this._render();
+    if (closed && this.h.closed) this.h.closed(closed);
   }
   get top() { return this.stack[this.stack.length - 1] || null; }
   _render() {
@@ -158,6 +162,7 @@ export class UI {
       ['SECTOR', stats.sector],
       ['KILLS', stats.kills],
       ['ROCKS SHATTERED', stats.rocks],
+      ['CREDITS EARNED', '+' + stats.credits.toLocaleString() + ' CR'],
       ['BEST', stats.best.toLocaleString()],
     ];
     document.getElementById('goStats').innerHTML = rows

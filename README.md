@@ -14,33 +14,54 @@ Built with [three.js](https://threejs.org) and packaged as an Android APK throug
 
 ## How to play
 
+First launch runs a short guided tutorial (skippable, and replayable from **How to Play**).
+
 | Control | Action |
 | --- | --- |
 | Left thumb (anywhere on the left half) | Floating joystick: steer |
-| **FIRE** | Twin cannons, with light aim assist. Once a target reads **LOCKED**, bolts turn gold and home in on it |
+| **FIRE** | Equipped cannon, with light aim assist. Once a target reads **LOCKED**, bolts turn gold and home in on it |
 | **BOOST** / **BRAKE** | Burn the boost meter / slow down for tight turns |
-| **Seeker** (rocket icon) | Homing missile; locks onto the target in the lock ring |
-| **EMP** (lightning icon) | Pulse that stuns nearby enemies for ~4s and erases incoming fire. Stunned ships can't shoot and take +50% damage |
+| **Missile** (rocket icon) | Fires the equipped missile type at your locked target |
+| **Ability** | Equipped ability: EMP Pulse, Drone Bay (wingman) or Phase Dash. Charges refill slowly |
 | Tap the radar | Toggle the full sector map |
 
-Slide your right thumb between buttons without lifting it. Settings include difficulty (Relaxed / Normal / Veteran), sensitivity, invert-Y, auto-fire, a left-handed layout, vibration, and graphics quality.
+Slide your right thumb between buttons without lifting it. **Settings → Customize Controls** lets you drag every button anywhere and change button size and opacity. Settings also cover difficulty (Relaxed / Normal / Veteran), sensitivity, invert-Y, auto-fire, a left-handed layout, vibration, and graphics quality.
 
-Keyboard (desktop testing): WASD/arrows to steer, Space to fire, Shift to boost, L to brake, E for missiles, Q for EMP, P to pause.
+Keyboard (desktop testing): WASD/arrows to steer, Space to fire, Shift to boost, L to brake, E for missiles, Q for ability, R for map, P to pause.
 
 ### Each sector
-- Survive 3 waves of hostiles, then fly through the **warp gate** and pick 1 of 3 ship upgrades.
-- Every cleared wave drops two supply crates just ahead of you (seekers when you're low, plus shields or repairs).
-- Large asteroids split into smaller ones. **Orange volatile** rocks explode and damage everything nearby, enemies included. **Cyan crystal** rocks drop power-ups.
-- Huge monolith asteroids can't be destroyed. Fly around them.
-- Kills in quick succession build a combo multiplier.
+- Survive 3 waves, then destroy the **capital ship** guarding the sector, then fly through the **warp gate** and pick 1 of 3 run upgrades.
+- Every cleared wave drops two supply crates just ahead of you.
+- Sectors roll 2–3 set pieces: a ringed planetoid with an orbiting asteroid belt, rock walls to thread through, crystal spires, a derelict capital-ship wreck, swirling debris storms, and dust clouds. Each theme has its own rock style.
+- Large asteroids split into smaller ones. **Orange volatile** rocks explode and hurt everything nearby. **Cyan crystal** rocks drop power-ups. Monoliths, spires and wrecks can't be destroyed.
+- Hitting rocks hurts based on how fast you hit and how big they are. A scrape is minor; ramming a mountain at full boost is not.
 
 ### Enemies
-- **Raider**: standard fighter. Makes strafing runs, then breaks away.
-- **Lancer**: fast interceptor. Orbits you and fires bursts.
-- **Warden**: heavy gunship. Holds range and fires spreads; appears more from sector 2 on.
+- **Raider**: fighter that flies its own flanking route, makes attack runs, then breaks off (climb, dive, split or loop).
+- **Lancer**: fast interceptor that orbits and fires bursts.
+- **Warden**: heavy gunship that holds range and fires spreads.
+- **Hornet**: kamikaze drone swarms. Shoot them before they reach you.
+- **Spinner**: minelayer that seeds your flight path with proximity mines (shoot mines from a distance).
+- **Longbow**: sniper. A red targeting laser tracks you, then holds still just before it fires. Move off the line.
+
+Only a few ships press an attack at once; the rest circle and weave, and anything that sits on your tail too long peels away.
+
+### Bosses
+- **Dreadnought** (odd sectors): a carrier with four turrets and two launch bays that release Hornets. Destroy them all to drop the reactor shield.
+- **Sentinel** (even sectors): a ring station with four shield pylons and laser spokes that close in on you like an iris. Slide sideways when they converge.
+
+### Hangar and credits
+Kills, bosses and cleared sectors earn **credits** that persist between runs. Spend them in the **Hangar**:
+- **Ships**: Kestrel (balanced), Wasp (fast interceptor), Bulwark (heavy, 3 module slots, shrugs off rocks), Specter (fast shields, harder to hit).
+- **Cannons**: Twin Pulse, Ion Repeater, Scatter Cannon, Rail Lance (piercing).
+- **Missiles**: Seeker, Swarm Pod (4 mini-missiles), Heavy Torpedo.
+- **Abilities**: EMP Pulse, Drone Bay, Phase Dash.
+- **Modules** (2–3 slots): Armor Plating, Shield Booster, Vector Thrusters, Afterburner Tank, Targeting Computer, Munitions Rack, Salvage Scanner.
+
+Stat bars compare your current loadout against the item you're looking at.
 
 ### Power-ups
-Hull Repair, Overshield, Rapid Fire, Spread Shot, Seeker Pack (+4 missiles), EMP Cell (+1 EMP charge), Phase Shield (temporary invulnerability; fly through rock).
+Hull Repair, Overshield, Rapid Fire, Spread Shot, Seeker Pack, Charge Cell (+1 ability charge), Wingman (a drone fights with you for 22s), Phase Shield (temporary invulnerability; fly through rock).
 
 ## Build from source
 
@@ -63,10 +84,18 @@ Requires Node 18+, JDK 17+, and the Android SDK (platform 35). Set `ANDROID_HOME
 
 ```
 web/src/
-  main.js         game loop, sectors/waves, collisions, scoring, camera
-  player.js       flight model, weapons, shields
-  enemies.js      enemy AI (pursuit, evasion, obstacle avoidance)
-  asteroids.js    instanced asteroid field, breakup, spatial hash
+  main.js         game loop, sectors/waves/bosses, collisions, scoring, credits, camera
+  player.js       flight model, loadout stats, weapons, abilities, shields
+  enemies.js      squad AI (attack tokens, flanking, break-offs), new enemy types, boss parts
+  boss.js         Dreadnought and Sentinel capital ships
+  hazards.js      mines and laser beams
+  drone.js        wingman drones
+  asteroids.js    instanced asteroid field, breakup, spatial hash, terrain set pieces
+  terrain.js      crystal spires, derelict wreck, dust clouds
+  content.js      hangar ships, weapons, abilities, modules
+  profile.js      saved credits, purchases, loadout, tutorial and control layout
+  hangar.js       hangar store UI
+  tutorial.js     first-flight tutorial and one-time hints
   projectiles.js  bolts and homing missiles
   world.js        procedural nebula skybox, planets, lighting, space dust
   particles.js    explosions, sparks, trails, shockwaves

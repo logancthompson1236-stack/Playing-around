@@ -9,6 +9,12 @@ const _v = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 const _want = new THREE.Vector3();
 
+const MISSILE_KINDS = {
+  seeker: { start: 110, accel: 260, max: 340, turn: 4.2, life: 5.5, splash: 32, scale: 1, glow: 0xff7a3a },
+  swarm: { start: 140, accel: 320, max: 370, turn: 6.0, life: 3.5, splash: 16, scale: 0.6, glow: 0xffb04a },
+  torpedo: { start: 60, accel: 140, max: 235, turn: 1.9, life: 7.5, splash: 75, scale: 2.0, glow: 0xff4a8a },
+};
+
 class BoltSet {
   constructor(scene, cap, coreColor, glowColor, len, homingColor = glowColor) {
     this.cap = cap;
@@ -36,13 +42,17 @@ class BoltSet {
   }
 
   // `target` (optional) makes the bolt curve toward that ship at `turn` rad/s.
-  spawn(pos, dir, speed, damage, life, inherit, target = null, turn = 0) {
+  // opts: { color, pierce, scale }
+  spawn(pos, dir, speed, damage, life, inherit, target = null, turn = 0, opts = null) {
     if (this.items.length >= this.cap) this.items.shift();
     const b = {
       pos: pos.clone(), prev: pos.clone(), dir: dir.clone(),
       vel: dir.clone().multiplyScalar(speed), damage, life, dead: false,
       target, turn, speed: 0,
+      color: opts && opts.color != null ? new THREE.Color(opts.color) : null,
+      pierce: !!(opts && opts.pierce), hits: null, scale: (opts && opts.scale) || 1,
     };
+    if (b.pierce) b.hits = new Set();
     if (inherit) b.vel.add(inherit);
     b.speed = b.vel.length();
     if (target) b.dir.copy(b.vel).normalize();
@@ -75,10 +85,10 @@ class BoltSet {
     for (let i = 0; i < w; i++) {
       const b = this.items[i];
       _q.setFromUnitVectors(Z, b.dir);
-      _m.compose(b.pos, _q, _s);
+      _m.compose(b.pos, _q, _s.setScalar(b.scale));
       this.core.setMatrixAt(i, _m);
       this.glow.setMatrixAt(i, _m);
-      this.glow.setColorAt(i, b.target ? this.homingColor : this.glowColor);
+      this.glow.setColorAt(i, b.target && this.homingColor !== this.glowColor ? this.homingColor : b.color || this.glowColor);
     }
     this.core.count = this.glow.count = w;
     this.core.instanceMatrix.needsUpdate = true;
@@ -102,7 +112,7 @@ export class Projectiles {
     this.missilePool = [];
     const bodyGeo = new THREE.CylinderGeometry(0.18, 0.28, 2.2, 6).rotateX(Math.PI / 2);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd0d4dc, metalness: 0.6, roughness: 0.4, flatShading: true });
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 28; i++) {
       const g = new THREE.Group();
       g.add(new THREE.Mesh(bodyGeo, bodyMat));
       const s = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -117,21 +127,27 @@ export class Projectiles {
     }
   }
 
-  firePlayer(pos, dir, speed, damage, life, inherit, target = null, turn = 0) {
-    return this.player.spawn(pos, dir, speed, damage, life, inherit, target, turn);
+  firePlayer(pos, dir, speed, damage, life, inherit, target = null, turn = 0, opts = null) {
+    return this.player.spawn(pos, dir, speed, damage, life, inherit, target, turn, opts);
   }
 
-  fireEnemy(pos, dir, speed, damage) {
-    return this.enemy.spawn(pos, dir, speed, damage, 2.6, null);
+  // opts: { target, turn, life, color, scale } — a target makes a slow homing orb.
+  fireEnemy(pos, dir, speed, damage, opts = null) {
+    if (!opts) return this.enemy.spawn(pos, dir, speed, damage, 2.6, null);
+    return this.enemy.spawn(pos, dir, speed, damage, opts.life || 2.6, null, opts.target || null, opts.turn || 0, opts);
   }
 
-  fireMissile(pos, dir, inheritVel, target, damage) {
+  // kind: 'seeker' | 'swarm' | 'torpedo'
+  fireMissile(pos, dir, inheritVel, target, damage, kind = 'seeker') {
     const mesh = this.missilePool.pop();
     if (!mesh) return null;
     mesh.visible = true;
+    const K = MISSILE_KINDS[kind] || MISSILE_KINDS.seeker;
+    mesh.scale.setScalar(K.scale);
+    mesh.children[1].material.color.set(K.glow);
     const m = {
-      mesh, pos: pos.clone(), dir: dir.clone(), speed: 110 + inheritVel.length() * 0.6,
-      target, damage, life: 5.5, age: 0, dead: false, prev: pos.clone(),
+      mesh, kind, K, pos: pos.clone(), dir: dir.clone(), speed: K.start + inheritVel.length() * 0.6,
+      target, damage, splash: K.splash, life: K.life, age: 0, dead: false, prev: pos.clone(),
     };
     this.missiles.push(m);
     return m;
@@ -145,20 +161,21 @@ export class Projectiles {
     for (const m of this.missiles) {
       m.age += dt;
       m.life -= dt;
-      m.speed = Math.min(340, m.speed + 260 * dt);
+      const K = m.K;
+      m.speed = Math.min(K.max, m.speed + K.accel * dt);
       if (!m.target || !m.target.alive) m.target = hooks.retarget(m);
       if (m.target && m.age > 0.15) {
         leadPoint(m.pos, m.target.pos, m.target.vel, m.speed, _aim);
         _v.subVectors(_aim, m.pos).normalize();
-        rotateTowards(m.dir, _v, 4.2 * dt);
+        rotateTowards(m.dir, _v, K.turn * dt);
       }
       m.prev.copy(m.pos);
       m.pos.addScaledVector(m.dir, m.speed * dt);
       m.mesh.position.copy(m.pos);
       m.mesh.quaternion.setFromUnitVectors(Z, m.dir);
-      fx.smokeTrail(_v.copy(m.pos).addScaledVector(m.dir, -1.5));
+      if (m.kind !== 'swarm' || Math.random() < 0.5) fx.smokeTrail(_v.copy(m.pos).addScaledVector(m.dir, -1.5 * K.scale));
       if (m.life <= 0) {
-        fx.explosion(m.pos, 0.5);
+        fx.explosion(m.pos, 0.5 * K.scale);
         m.dead = true;
       } else if (hooks.missile(m)) m.dead = true;
       if (m.dead) {

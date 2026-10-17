@@ -125,7 +125,7 @@ export class HUD {
       const locked = game.lock.target === e;
       if (sp.on) {
         const size = clamp(900 / Math.max(d, 1), 7, 34) * s * (e.type === 'warden' ? 1.5 : 1);
-        g.strokeStyle = locked ? '#ffc84a' : e.stunT > 0 ? 'rgba(140,230,255,0.95)' : 'rgba(255,90,80,0.85)';
+        g.strokeStyle = locked ? '#ffc84a' : e.shielded || e.stunT > 0 ? 'rgba(140,230,255,0.95)' : 'rgba(255,90,80,0.85)';
         g.lineWidth = locked ? 2.2 : 1.4;
         const c = size * 0.4;
         g.beginPath();
@@ -142,15 +142,42 @@ export class HUD {
           g.fillStyle = '#ff5a4a';
           g.fillRect(sp.x - size, sp.y + size + 4, bw * Math.max(0, e.hp / e.maxHp), 3 * s);
         }
-        if (d > 350) {
+        if (e.shielded) {
+          g.fillStyle = 'rgba(140,230,255,0.9)';
+          g.font = `bold ${9 * s}px monospace`;
+          g.textAlign = 'center';
+          g.fillText('SHIELDED', sp.x, sp.y + size + 12 * s);
+        } else if (d > 350 && !e.part) {
           g.fillStyle = 'rgba(255,140,130,0.8)';
           g.font = `${9 * s}px monospace`;
           g.textAlign = 'center';
           g.fillText(Math.round(d) + 'm', sp.x, sp.y - size - 4);
         }
-      } else if (d < 1600) {
+      } else if (d < 1600 && !e.part) {
         this.edgeArrow(g, sp, 'rgba(255,80,70,0.9)');
       }
+    }
+    // Boss arrow when off screen.
+    if (game.boss && game.boss.alive) {
+      this.project(game.boss.pos, cam, sp);
+      if (!sp.on) this.edgeArrow(g, sp, '#ff7a4a', game.boss.name);
+    }
+    // Tutorial marker.
+    const cm = game.coachMarker;
+    if (cm && cm.alive) {
+      this.project(cm.pos, cam, sp);
+      if (sp.on) {
+        const r = (16 + 4 * Math.sin(this.warnBlink * 6)) * s;
+        g.strokeStyle = '#ffd36b';
+        g.lineWidth = 2.5;
+        g.beginPath();
+        g.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+        g.stroke();
+        g.fillStyle = '#ffd36b';
+        g.font = `bold ${10 * s}px monospace`;
+        g.textAlign = 'center';
+        g.fillText('TARGET', sp.x, sp.y - r - 6);
+      } else this.edgeArrow(g, sp, '#ffd36b', 'TARGET');
     }
 
     // ---- Lock-on ----
@@ -318,7 +345,7 @@ export class HUD {
     bar(2, p.boost / p.maxBoost, p.boosting ? '#fff07a' : '#e0c040', 'BOOST');
     // Active timed power-ups.
     let i = 0;
-    for (const k of ['rapid', 'spread', 'phase']) {
+    for (const k of ['rapid', 'spread', 'phase', 'wingman']) {
       const t = p.timers[k];
       if (t <= 0) continue;
       const def = POWERUPS[k];
@@ -331,6 +358,12 @@ export class HUD {
       g.textAlign = 'left';
       g.fillText(def.icon + ' ' + Math.ceil(t) + 's', xx + 4 * s, yy + 10 * s);
       i++;
+    }
+    if (game.runCredits > 0) {
+      g.fillStyle = '#7dffb0';
+      g.font = `bold ${9.5 * s}px monospace`;
+      g.textAlign = 'left';
+      g.fillText(game.runCredits.toLocaleString() + ' CR', x, y + 3 * gap + (i ? 26 : 8) * s);
     }
   }
 
@@ -350,6 +383,21 @@ export class HUD {
     g.fillStyle = 'rgba(200,225,255,0.85)';
     g.font = `${10 * s}px monospace`;
     g.fillText(game.objectiveText(), this.w / 2, top + (game.comboMult > 1 ? 56 : 42) * s);
+    const b = game.boss;
+    if (b && b.alive) {
+      const bw = Math.min(this.w * 0.42, 340 * s), bh = 7 * s;
+      const bx = this.w / 2 - bw / 2, by = top + (game.comboMult > 1 ? 66 : 52) * s;
+      g.fillStyle = 'rgba(0,0,0,0.55)';
+      g.fillRect(bx, by, bw, bh);
+      const f = b.hpFrac;
+      g.fillStyle = b.core.shielded ? '#5ab8ff' : '#ff4a3a';
+      g.fillRect(bx, by, bw * f, bh);
+      g.strokeStyle = 'rgba(255,255,255,0.35)';
+      g.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+      g.fillStyle = b.core.shielded ? 'rgba(160,220,255,0.9)' : '#ffb0a0';
+      g.font = `bold ${9 * s}px monospace`;
+      g.fillText(b.status, this.w / 2, by + bh + 11 * s);
+    }
   }
 
   drawWarnings(g, game) {
@@ -440,6 +488,16 @@ export class HUD {
       g.arc(o.x, o.y, rr, 0, Math.PI * 2);
       g.fill();
     }
+    // Static obstacles: wreck sections, crystal spires, capital-ship hulls.
+    for (const c of game.field.statics) {
+      toRadar(c.pos, o);
+      const rr = Math.max(1.5, c.r * k);
+      if (Math.hypot(o.x - cx, o.y - cy) - rr > R) continue;
+      g.fillStyle = c.boss ? 'rgba(255,120,90,0.45)' : c.spire ? 'rgba(170,140,255,0.5)' : 'rgba(150,140,130,0.45)';
+      g.beginPath();
+      g.arc(o.x, o.y, rr, 0, Math.PI * 2);
+      g.fill();
+    }
     // Asteroids
     const r2 = range * range;
     for (const a of game.field.list) {
@@ -468,6 +526,18 @@ export class HUD {
       g.beginPath();
       g.arc(c.x, c.y, 4.5, 0, Math.PI * 2);
       g.stroke();
+    }
+    // Mines and wingmen
+    for (const m of game.hazards.mines) {
+      if (!m.alive) continue;
+      toRadar(m.pos, o);
+      g.fillStyle = '#ffa020';
+      this._stemDot(g, o, 2, cx, cy, R, false);
+    }
+    for (const d of game.wingmen.list) {
+      toRadar(d.pos, o);
+      g.fillStyle = '#7dff9a';
+      this._stemDot(g, o, 3, cx, cy, R, true);
     }
     // Enemies
     for (const e of game.enemies.list) {

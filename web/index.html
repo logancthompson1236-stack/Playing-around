@@ -36,9 +36,19 @@
       <span class="count" id="missileCount">0</span>
     </div>
     <div class="btn emp" data-btn="emp">
-      <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2" opacity=".5"/><path d="M27 6L14 27h9l-3 15 14-22h-9z" fill="currentColor"/></svg>
+      <svg viewBox="0 0 48 48" id="utilIcon"><circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="2" opacity=".5"/><path d="M27 6L14 27h9l-3 15 14-22h-9z" fill="currentColor"/></svg>
       <span class="count" id="empCount">0</span>
     </div>
+  </div>
+
+  <div id="coachRing"></div>
+  <div id="coach"><div id="coachText"></div><button id="coachSkip">SKIP TUTORIAL</button></div>
+  <div id="layoutBar">
+    <div class="lb-title">Drag buttons to move them</div>
+    <label>Size <input type="range" id="lbSize" min="0.7" max="1.4" step="0.05"></label>
+    <label>Opacity <input type="range" id="lbOpacity" min="0.3" max="1" step="0.05"></label>
+    <button id="lbReset">RESET</button>
+    <button id="lbDone" class="primary">DONE</button>
   </div>
 
   <button id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></button>
@@ -49,10 +59,11 @@
     <div class="tag">Dodge. Shatter. Survive the belt.</div>
     <div class="menu">
       <button class="primary" data-act="play">LAUNCH</button>
+      <button data-act="hangar">HANGAR</button>
       <button data-act="howto">HOW TO PLAY</button>
       <button data-act="settings">SETTINGS</button>
     </div>
-    <div class="best">BEST <span id="bestScore">0</span></div>
+    <div class="best">BEST <span id="bestScore">0</span> · CREDITS <span id="titleCredits">0</span></div>
   </div>
 
   <div class="screen" id="howto">
@@ -64,19 +75,19 @@
         <p><b>FIRE</b> twin cannons (aim assist helps near targets). Slide your thumb between buttons without lifting it.</p>
         <p><b>BOOST</b> burns the yellow meter. <b>BRAKE</b> for tight turns.</p>
         <p>Keep an enemy in the lock ring until it reads <b>LOCK</b>: your cannon bolts turn gold and curve toward it, and <b>Seeker</b> missiles home in on it.</p>
-        <p><b>EMP</b> stuns nearby enemies for a few seconds and erases incoming fire. Stunned ships can't shoot and take extra damage.</p>
+        <p>Your <b>ability</b> button uses the equipped ability: EMP (stuns enemies), Drone Bay (wingman) or Phase Dash. Charges refill slowly on their own.</p>
         <p>Tap the <b>radar</b> to toggle the full sector map.</p>
-        <p class="dim">Keyboard: WASD/arrows, Space fire, Shift boost, L brake, E missile, Q EMP, P pause.</p>
+        <p class="dim">Keyboard: WASD/arrows, Space fire, Shift boost, L brake, E missile, Q ability, R map, P pause.</p>
       </div>
       <div class="col">
         <h3>Objective</h3>
-        <p>Clear 3 waves of hostiles, then fly through the <b class="g">warp gate</b>. Pick an upgrade and push deeper. Every cleared wave drops supplies just ahead of you.</p>
+        <p>Clear 3 waves, destroy the <b>capital ship</b> guarding the sector, then fly through the <b class="g">warp gate</b>. Every cleared wave drops supplies just ahead of you. Kills earn <b>credits</b> for the Hangar.</p>
         <p>Shoot big asteroids to split them. <b class="o">Orange volatile</b> rocks explode and hurt everything nearby. <b class="c">Cyan crystal</b> rocks drop power-ups.</p>
         <h3>Power-ups</h3>
         <div id="puLegend"></div>
       </div>
     </div>
-    <div class="menu row"><button data-act="back">BACK</button></div>
+    <div class="menu row"><button data-act="tutorial">REPLAY TUTORIAL</button><button data-act="back">BACK</button></div>
   </div>
 
   <div class="screen" id="settings">
@@ -96,7 +107,21 @@
         <select id="sQuality"><option value="0">Low (battery saver)</option><option value="1">Medium</option><option value="2">High</option></select>
       </label>
     </div>
-    <div class="menu row"><button data-act="back">BACK</button></div>
+    <div class="menu row"><button data-act="controls">CUSTOMIZE CONTROLS</button><button data-act="back">BACK</button></div>
+  </div>
+
+  <div class="screen" id="hangar">
+    <div class="hg-left">
+      <div class="hg-title">HANGAR</div>
+      <div class="hg-loadout" id="hgLoadout"></div>
+      <div class="hg-stats" id="hgStats"></div>
+    </div>
+    <div class="hg-panel">
+      <div class="hg-top"><div class="hg-tabs" id="hgTabs"></div><div class="hg-credits" id="hgCredits">0 CR</div></div>
+      <div class="hg-list" id="hgList"></div>
+      <div class="hg-detail"><div id="hgDetail"></div><button id="hgAction" class="hg-action">EQUIP</button></div>
+      <div class="menu row"><button data-act="back">BACK</button></div>
+    </div>
   </div>
 
   <div class="screen" id="pause">

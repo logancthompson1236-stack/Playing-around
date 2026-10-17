@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARENA, ASTEROID_TIERS } from './config.js';
 import { fbm3, rand, randInt, randomUnit, gaussian, chance, getGlowTexture, mulberry32 } from './util.js';
+import { buildSpires, buildWreck, buildDustClouds } from './terrain.js';
 
 const VARIANTS = 6;
 const CAPACITY = { L: 48, M: 96, S: 140 };
@@ -18,7 +19,7 @@ export function rockShape(x, y, z, seed, rough = 1) {
   return r;
 }
 
-function makeRockGeometry(detail, seed, rough, stretch) {
+function makeRockGeometry(detail, seed, rough, stretch, strata = false) {
   const g = new THREE.IcosahedronGeometry(1, detail);
   const p = g.attributes.position;
   const col = new Float32Array(p.count * 3);
@@ -27,7 +28,13 @@ function makeRockGeometry(detail, seed, rough, stretch) {
     v.fromBufferAttribute(p, i).normalize();
     const r = rockShape(v.x, v.y, v.z, seed, rough);
     const shade = THREE.MathUtils.clamp(0.55 + (r - 0.78) * 1.6, 0.35, 1.15);
-    const speck = 0.9 + fbm3(v.x * 9, v.y * 9, v.z * 9, seed + 99, 2) * 0.2;
+    let speck = 0.9 + fbm3(v.x * 9, v.y * 9, v.z * 9, seed + 99, 2) * 0.2;
+    if (strata) {
+      // Layered sediment bands plus the odd bright mineral vein.
+      const band = Math.sin(v.y * 16 + fbm3(v.x * 2, v.y * 2, v.z * 2, seed + 7, 2) * 5);
+      speck *= 0.88 + 0.12 * band;
+      if (band > 0.93) speck *= 1.35;
+    }
     v.multiplyScalar(r).multiply(stretch);
     p.setXYZ(i, v.x, v.y, v.z);
     col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade * speck;
@@ -104,6 +111,10 @@ export class AsteroidField {
         this.pools[tier].push(new InstancePool(geo, this.mat, CAPACITY[tier], scene));
       }
     }
+    this.statics = [];   // sphere colliders: wreck, spires, boss hulls
+    this.terrain = new THREE.Group();
+    scene.add(this.terrain);
+    this.styleKey = 'rock';
     this.glowPool = [];
     for (let i = 0; i < 40; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -125,6 +136,41 @@ export class AsteroidField {
     for (const a of this.list) if (a.glow) { a.glow.visible = false; this.glowPool.push(a.glow); }
     this.list.length = 0;
     this.monoliths.length = 0;
+    this.statics = this.statics.filter((c) => c.boss); // boss colliders are owned by the boss
+    for (const c of [...this.terrain.children]) {
+      this.terrain.remove(c);
+      c.traverse((o) => { if (o.geometry && o.geometry !== undefined) o.geometry.dispose?.(); if (o.material) o.material.dispose?.(); });
+    }
+    this.features = [];
+    this.wreck = null;
+  }
+
+  // Rebuild the rock shapes for a theme: rounded rock, chunky boulders, or sharp shards.
+  setStyle(style) {
+    if (style === this.styleKey) return;
+    this.styleKey = style;
+    for (const tier of ['L', 'M', 'S']) {
+      this.pools[tier].forEach((pool, v) => {
+        let st, rough = tier === 'S' ? 1.2 : 1, detail = this.quality === 0 && tier === 'L' ? 1 : DETAIL[tier];
+        if (style === 'shard') { st = new THREE.Vector3(rand(0.5, 0.75), rand(0.5, 0.8), rand(1.4, 2.1)); rough *= 0.6; detail = Math.max(0, detail - 1); }
+        else if (style === 'chunk') { st = new THREE.Vector3(rand(0.95, 1.15), rand(0.85, 1.05), rand(0.95, 1.15)); rough *= 1.45; }
+        else st = new THREE.Vector3(rand(0.85, 1.25), rand(0.75, 1.1), rand(0.85, 1.3));
+        const geo = makeRockGeometry(detail, v * 17.3 + tier.charCodeAt(0) + (style === 'rock' ? 0 : 5.1), rough, st);
+        pool.mesh.geometry.dispose();
+        pool.mesh.geometry = geo;
+      });
+    }
+  }
+
+  _addStatic(pos, r, extra = {}) {
+    const c = { tier: 'X', shape: 'sphere', pos: pos.clone(), r, alive: true, vel: new THREE.Vector3(), ...extra };
+    this.statics.push(c);
+    return c;
+  }
+
+  _blocked(pos, r) {
+    if (this.monoliths.some((m) => m.pos.distanceTo(pos) < m.r * 1.05 + r)) return true;
+    return this.statics.some((c) => !c.boss && c.pos.distanceTo(pos) < c.r + r);
   }
 
   generate(theme, sector, spawnPoint) {
@@ -133,16 +179,94 @@ export class AsteroidField {
     const rng = mulberry32(sector * 7919 + 13);
     const R = ARENA.radius, H = ARENA.halfHeight;
     const dens = this.quality === 0 ? 0.7 : 1;
+    this.setStyle(theme.rockStyle || 'rock');
+
+    // Pick this sector's set pieces (sector 1 always shows off the ringed planetoid).
+    const pool = ['planetoid', 'wall', 'spires', 'wreck', 'debris', 'dust'];
+    for (let i = pool.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    let feats = pool.slice(0, 3);
+    if (sector === 1 && !feats.includes('planetoid')) feats[0] = 'planetoid';
+    if (feats.includes('spires') === false && rng() < 0.4) feats.push('spires');
+    this.features = feats;
+    const findSpot = (clearance, fromSpawn, maxR = 0.8) => {
+      for (let t = 0; t < 60; t++) {
+        const ang = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * R * maxR;
+        const p = new THREE.Vector3(Math.cos(ang) * rad, (rng() * 2 - 1) * H * 0.4, Math.sin(ang) * rad);
+        if (p.distanceTo(spawnPoint) < fromSpawn) continue;
+        if (this._blocked(p, clearance)) continue;
+        return p;
+      }
+      return null;
+    };
+    const ringJobs = [];
+    if (feats.includes('planetoid')) {
+      const r = 340 + rng() * 80;
+      const pos = findSpot(r + 300, r + 500, 0.55);
+      if (pos) {
+        this.addMonolith(pos, r, sector * 13.7, theme, 1.0);
+        const axis = new THREE.Vector3((rng() - 0.5) * 0.8, 1, (rng() - 0.5) * 0.8).normalize();
+        ringJobs.push({ center: pos, axis, radius: r * (1.85 + rng() * 0.35) });
+      }
+    }
+    if (feats.includes('wall')) {
+      // An arc of tall rock pillars with gaps you can thread.
+      const c = findSpot(200, 700, 0.6);
+      if (c) {
+        const arcR = 520 + rng() * 260, a0 = rng() * Math.PI * 2, span = 1.6 + rng() * 0.8;
+        let a = a0;
+        while (a < a0 + span) {
+          const r = 70 + rng() * 60;
+          const p = new THREE.Vector3(c.x + Math.cos(a) * arcR, c.y + (rng() - 0.5) * 120, c.z + Math.sin(a) * arcR);
+          if (p.distanceTo(spawnPoint) > r + 220 && Math.hypot(p.x, p.z) < R * 0.95) this.addMonolith(p, r, sector * 5.3 + a * 11, theme, 0.55);
+          a += (2 * r + 45 + rng() * 70) / arcR;
+        }
+      }
+    }
+    if (feats.includes('wreck')) {
+      const pos = findSpot(240, 450, 0.75);
+      if (pos) {
+        const { group, colliders } = buildWreck(rng);
+        group.position.copy(pos);
+        group.rotation.set((rng() - 0.5) * 0.5, rng() * 6.28, (rng() - 0.5) * 0.6);
+        this.terrain.add(group);
+        group.updateMatrixWorld(true);
+        for (const [x, y, z, r, parent] of colliders) {
+          const wp = new THREE.Vector3(x, y, z).applyMatrix4(parent.matrixWorld);
+          this._addStatic(wp, r, { wreck: true });
+        }
+        this.wreck = group;
+      }
+    }
 
     // Monoliths: huge unbreakable landmarks.
-    const mCount = 12 + Math.min(sector, 6);
+    const mCount = 12 + Math.min(sector, 6) - (feats.includes('planetoid') ? 3 : 0) - (feats.includes('wall') ? 4 : 0);
     for (let i = 0; i < mCount * 4 && this.monoliths.length < mCount; i++) {
       const ang = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * R * 0.92;
       const pos = new THREE.Vector3(Math.cos(ang) * rad, (rng() * 2 - 1) * H * 0.7, Math.sin(ang) * rad);
       const r = 130 + rng() * 140;
       if (pos.distanceTo(spawnPoint) < r + 260) continue;
       if (this.monoliths.some((m) => m.pos.distanceTo(pos) < m.r + r + 200)) continue;
+      if (this.statics.some((c) => !c.boss && c.pos.distanceTo(pos) < c.r + r + 120)) continue;
       this.addMonolith(pos, r, sector * 31 + i * 3.7, theme);
+    }
+
+    if (feats.includes('spires')) {
+      // Crystal outcrops growing from a few monoliths.
+      const spires = [];
+      const hosts = this.monoliths.filter((m) => m.r < 300).slice(0, 5);
+      for (const m of hosts) {
+        const n = 8 + ((rng() * 9) | 0);
+        const center = randomUnit(new THREE.Vector3());
+        for (let k = 0; k < n; k++) {
+          const dir = center.clone().addScaledVector(randomUnit(new THREE.Vector3()), 0.55).normalize();
+          const base = m.pos.clone().addScaledVector(dir, this.monolithRadius(m, dir) * 0.9);
+          const out = dir.clone().addScaledVector(randomUnit(new THREE.Vector3()), 0.25).normalize();
+          const len = 18 + rng() * 42, rad = 3 + rng() * 4.5;
+          spires.push({ base, dir: out, len, rad });
+          this._addStatic(base.clone().addScaledVector(out, len * 0.5), Math.max(rad * 1.3, len * 0.32), { spire: true });
+        }
+      }
+      if (spires.length) this.terrain.add(buildSpires(spires, theme.crystal || 0x9a7bff));
     }
 
     // Cluster centers for belt-like density.
@@ -161,25 +285,70 @@ export class AsteroidField {
       }
       return out;
     };
-    const counts = { L: Math.round(70 * dens), M: Math.round(115 * dens), S: Math.round(150 * dens) };
+    const counts = { L: Math.round(64 * dens), M: Math.round(105 * dens), S: Math.round(135 * dens) };
     const volatileP = sector >= 1 ? 0.1 + 0.01 * sector : 0;
     for (const tier of ['L', 'M', 'S']) {
       for (let i = 0; i < counts[tier]; i++) {
         const pos = place(new THREE.Vector3());
         if (pos.distanceTo(spawnPoint) < 160) continue;
-        if (this.monoliths.some((m) => m.pos.distanceTo(pos) < m.r * 1.05 + 40)) continue;
+        if (this._blocked(pos, 40)) continue;
         let type = 'rock';
         if (tier !== 'S' && chance(volatileP)) type = 'volatile';
         else if (tier === 'M' && chance(0.09)) type = 'crystal';
         this.spawn(tier, pos, randomUnit(new THREE.Vector3()).multiplyScalar(rand(0, 7)), type);
       }
     }
+
+    // Planetary ring: a slowly orbiting belt of rocks.
+    for (const job of ringJobs) {
+      const u = new THREE.Vector3(1, 0, 0).cross(job.axis);
+      if (u.lengthSq() < 0.01) u.set(0, 0, 1).cross(job.axis);
+      u.normalize();
+      const w = new THREE.Vector3().crossVectors(job.axis, u);
+      const n = Math.round(130 * dens);
+      for (let i = 0; i < n; i++) {
+        const a = rng() * Math.PI * 2;
+        const rr = job.radius + gaussian() * 45;
+        const pos = job.center.clone().addScaledVector(u, Math.cos(a) * rr).addScaledVector(w, Math.sin(a) * rr).addScaledVector(job.axis, gaussian() * 10);
+        if (pos.distanceTo(spawnPoint) < 140) continue;
+        const tier = rng() < 0.12 ? 'L' : rng() < 0.5 ? 'M' : 'S';
+        const ast = this.spawn(tier, pos, new THREE.Vector3(), tier !== 'S' && rng() < 0.06 ? 'crystal' : 'rock');
+        if (ast) ast.orbit = { center: job.center, axis: job.axis, w: 0.035 + rng() * 0.01 };
+      }
+    }
+
+    if (feats.includes('debris')) {
+      // Dense swirling storms of small rocks.
+      for (let k = 0; k < 2; k++) {
+        const c = findSpot(180, 400, 0.8);
+        if (!c) continue;
+        const axis = randomUnit(new THREE.Vector3());
+        for (let i = 0; i < Math.round(65 * dens); i++) {
+          const pos = c.clone().add(randomUnit(new THREE.Vector3()).multiplyScalar(Math.cbrt(rng()) * 160));
+          const ast = this.spawn(rng() < 0.15 ? 'M' : 'S', pos, new THREE.Vector3(), 'rock');
+          if (ast) ast.orbit = { center: c, axis, w: 0.12 + rng() * 0.08 };
+        }
+      }
+    }
+
+    if (feats.includes('dust') || feats.includes('debris')) {
+      const pts = [];
+      const n = feats.includes('dust') ? 16 : 6;
+      for (let i = 0; i < n; i++) {
+        const ang = rng() * Math.PI * 2, rad = Math.sqrt(rng()) * R * 0.9;
+        pts.push({ pos: new THREE.Vector3(Math.cos(ang) * rad, (rng() * 2 - 1) * H * 0.6, Math.sin(ang) * rad), size: 320 + rng() * 420, opacity: 0.1 + rng() * 0.1 });
+      }
+      this.terrain.add(buildDustClouds(pts, [theme.nebA, theme.nebB, theme.fog]));
+    }
   }
 
-  addMonolith(pos, r, seed, theme) {
+  addMonolith(pos, r, seed, theme, flat = null) {
     const detail = this.quality === 0 ? 3 : 4;
-    const st = new THREE.Vector3(rand(0.9, 1.2), rand(0.6, 0.9), rand(0.9, 1.25));
-    const geo = makeRockGeometry(detail, seed, 1.25, st);
+    // `flat` = vertical squash; pillars for walls use a tall stretch instead.
+    const st = flat === 1.0 ? new THREE.Vector3(1, 0.95, 1)
+      : flat === 0.55 ? new THREE.Vector3(rand(0.7, 0.9), rand(1.3, 1.7), rand(0.7, 0.9))
+      : new THREE.Vector3(rand(0.9, 1.2), rand(0.6, 0.9), rand(0.9, 1.25));
+    const geo = makeRockGeometry(detail, seed, flat === 1.0 ? 0.8 : 1.25, st, true);
     const mat = this.mat;
     const mesh = new THREE.InstancedMesh(geo, mat, 1); // instanced so it shares the per-instance color path
     const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rand(0, 6), rand(0, 6), rand(0, 6)));
@@ -189,7 +358,7 @@ export class AsteroidField {
     mesh.setColorAt(0, c);
     this.scene.add(mesh);
     const inv = quat.clone().invert();
-    this.monoliths.push({ tier: 'X', pos, r, seed, mesh, quat, inv, st, rough: 1.25, alive: true, vel: new THREE.Vector3() });
+    this.monoliths.push({ tier: 'X', pos, r, seed, mesh, quat, inv, st, rough: flat === 1.0 ? 0.8 : 1.25, alive: true, vel: new THREE.Vector3() });
   }
 
   // Approximate surface radius of a monolith along world direction d (unit).
@@ -288,6 +457,10 @@ export class AsteroidField {
 
     const touched = new Set();
     for (const a of list) {
+      if (a.orbit) {
+        _v.subVectors(a.pos, a.orbit.center).applyAxisAngle(a.orbit.axis, a.orbit.w * dt);
+        a.pos.copy(a.orbit.center).add(_v);
+      }
       a.pos.addScaledVector(a.vel, dt);
       // Soft arena bounds.
       const hr = Math.hypot(a.pos.x, a.pos.z);
@@ -317,6 +490,7 @@ export class AsteroidField {
       this._insert(a);
     }
     for (const p of touched) p.mesh.instanceMatrix.needsUpdate = true;
+    if (this.wreck && this.wreck.parent) for (const l of this.wreck.userData.lights) l.material.opacity = Math.random() < 0.08 ? 0.15 : 0.85;
     for (const tier in this.pools) for (const p of this.pools[tier]) if (!touched.has(p)) p.mesh.count = p.list.length;
   }
 
@@ -356,12 +530,17 @@ export class AsteroidField {
       const lim = m.r * 1.35 + r;
       if (m.pos.distanceToSquared(pos) < lim * lim) if (fn(m) === false) return;
     }
+    for (const c of this.statics) {
+      const lim = c.r + r;
+      if (c.pos.distanceToSquared(pos) < lim * lim) if (fn(c) === false) return;
+    }
   }
 
   // Signed-ish distance from point to asteroid surface (negative = inside).
   surfaceDistance(a, p) {
     _v.subVectors(p, a.pos);
     const d = _v.length();
+    if (a.shape === 'sphere') return d - a.r;
     if (a.tier === 'X') {
       if (d < 1e-3) return -a.r;
       _v.multiplyScalar(1 / d);
