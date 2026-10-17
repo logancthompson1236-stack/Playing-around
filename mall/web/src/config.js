@@ -11,10 +11,8 @@ export const LAST_ENTRY = 0.95;        // fraction of the day after which nobody
 export const START_CASH = 500;
 export const OWNER_SPEED = 3.2;        // tiles per second
 export const OWNER_SERVE = 1.1;        // seconds per checkout
-export const CLERK_SERVE = 1.5;
 export const OWNER_CLEAN = 0.45;
-export const JANITOR_CLEAN = 0.8;
-export const STAFF_SPEED = 2.4;
+export const STAFF_SPEED = 2.4;        // clerks walking to their register
 export const BASE_PATIENCE = 24;       // seconds a customer waits in line before leaving
 export const MAX_JOBS = 3;
 export const MAX_TRASH = 70;
@@ -97,7 +95,14 @@ export const LEVEL_XP = [0, 0, 100, 300, 650, 1150, 1800, 2700, 3800];   // XP n
 export const MAX_LEVEL = 8;
 // How many of each role you can employ at each level (index = level).
 export const STAFF_LIMITS = { janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3], clerk: [0, 0, 0, 0, 2, 3, 4, 5, 6] };
-export const WAGES = { janitor: 35, clerk: 45 };
+// Staff are rated 1–3 stars (index = stars). Better staff work faster and cost more.
+export const WAGES = { janitor: [0, 28, 36, 46], clerk: [0, 36, 46, 58] };
+export const JANITOR_SPEED = [0, 1.5, 1.75, 2.0];   // tiles per second
+export const JANITOR_CLEAN = [0, 1.5, 1.2, 0.95];   // seconds per sweep
+export const JANITOR_SIGHT = 7;                     // tiles; trash farther away waits for someone closer
+export const CLERK_SERVE = [0, 1.9, 1.5, 1.2];      // seconds per checkout
+export const DREAM_SERVE = 0.8;                     // a clerk in their dream job checks out faster…
+export const DREAM_SPEND = 1.15;                    // …and talks customers into spending more
 // What each level unlocks. The report card and the level-up screen are built from this.
 export const LEVEL_UNLOCKS = {
   2: [{ store: 'coffee' }, { zone: 'nw' }],

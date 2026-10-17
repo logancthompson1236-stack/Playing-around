@@ -391,7 +391,7 @@ The tips are written in Gus's voice, so they read like advice from a friend, not
 | Role | Unlock | What they do | Upgrades |
 |---|---|---|---|
 | Janitor | Lv3 (Dee, recommended by Gus) | Cleans an assigned zone or patrols the mall | Speed, zone size, mop for spills |
-| Clerk | Lv4 (two at first, more as you level) | Staffs one of your stores' registers | Checkout speed, upselling |
+| Clerk | Lv4 (two at first, more as you level) | Staffs one of your stores' registers; faster and better at selling in their dream store | Checkout speed, upselling |
 | Stocker | Lv12 | Restocks your stores during the day | Carry capacity |
 | Security Guard | Lv15 | Catches shoplifters and settles rowdy teens | Patrol radius |
 | Handyman | Lv18 | Fixes breakdowns | Speed |
@@ -522,6 +522,14 @@ v0.4.0 changes, from playtest feedback:
 - **Storage clears as you build:** Build new puts up a storefront anywhere. If it lands on dusty storage, clearing that room is added to the price (shown before you confirm). Storage can still be cleared on its own from Fix up.
 - **Tips:** "Fix up a unit", "Open a store" and "Storage rooms" are replaced by one "Opening a store" tip that only shows until you've opened a store, plus an "Out of storefronts" tip once every storefront is taken.
 - **Prices you can't afford** are greyed out, and the bar says how much you need.
+
+v0.5.0 changes, from playtest feedback:
+- **Same-size storefronts:** a store only opens in a storefront of exactly its size (Sweet Tooth lights up only the 2×2s), so there's one clear price.
+- **Store counts:** the store lists show how many of each you already have.
+- **Staff stars:** every applicant has a 1–3 star rating. More stars means faster work and a higher wage (janitors $28/$36/$46, clerks $36/$46/$58 a day).
+- **Dream jobs:** each clerk has a dream store, shown before you hire them. Working it, they check out 20% faster and customers spend 15% more. Hiring puts them there if it's free, and the register picker marks it with ♥.
+- **Janitors:** slower, and they only notice trash within about 7 tiles. With two or more, each patrols their own slice of the mall, so a second janitor pays off in a busy mall. Dee is a 3-star janitor.
+- **Story fixes:** Gus holds a real flashlight in the intro and sweeps it around, and on Day 1 he stands off to the side so the first customer walks past him, not through him.
 
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types

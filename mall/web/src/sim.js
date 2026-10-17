@@ -1,6 +1,6 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
-import { S, stores, addXp } from './state.js';
+import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, benchAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
 import { storeSpots, kioskSpots, mulberry } from './art.js';
 
@@ -98,7 +98,9 @@ function makePerson(kind, look, x, y){
 }
 function spawnStaff(st){
   const p = makePerson('staff', st.look, C.ENTRANCE.x + 1, C.MAP_H - 2.5);
-  p.role = st.role; p.staffId = st.id; p.name = st.name; p.speed = C.STAFF_SPEED * (st.fast ? 1.15 : 1); p.cleanTime = C.JANITOR_CLEAN * (st.fast ? 0.8 : 1);
+  const k = staffSkill(st);
+  p.role = st.role; p.staffId = st.id; p.name = st.name; p.skill = k; p.dream = st.dream || null;
+  p.speed = st.role === 'janitor' ? C.JANITOR_SPEED[k] : C.STAFF_SPEED; p.cleanTime = C.JANITOR_CLEAN[k];
   if (st.role === 'clerk'){
     const u = S.save.units.find(v => v.id === st.storeId && v.state === 'store');
     if (u){ const sp = spotsFor(u).staff; p.x = sp.x; p.y = sp.y; p.storeId = u.id; storeInfo(u).server = p.id; p.state = 'register'; }
@@ -364,7 +366,7 @@ function updateStores(dt){
     if (Math.hypot(front.x - spot.x, front.y - spot.y) > 0.2){ st.serveT = 0; continue; }
     front.served = true;
     st.serveT += dt;
-    const need = server.kind === 'owner' ? C.OWNER_SERVE : C.CLERK_SERVE;
+    const need = server.kind === 'owner' ? C.OWNER_SERVE : C.CLERK_SERVE[server.skill] * (server.dream === u.store ? C.DREAM_SERVE : 1);
     server.serving = st.serveT / need;
     if (st.serveT >= need){ st.serveT = 0; server.serving = 0; completeSale(u, st, front); }
   }
@@ -373,6 +375,8 @@ function completeSale(u, st, p){
   const def = C.STORES[u.store], cdef = C.CUSTOMERS[p.type];
   let price = lerp(def.price[0], def.price[1], rand()) * cdef.spend;
   if (sim.boost === 'price') price *= 1.1;
+  const server = st.server && personById(st.server);
+  if (server && server.kind === 'staff' && server.dream === u.store) price *= C.DREAM_SPEND;
   price = Math.max(1, Math.round(price));
   S.save.money += price;
   sim.stats.revenue += price; sim.stats.served++;
@@ -497,7 +501,8 @@ function updateStaff(p, dt){
     p.target = null;
     const claimed = new Set(sim.people.filter(q => q.role === 'janitor' && q !== p).map(q => q.target));
     if (sim.owner && sim.owner.cleanTarget) claimed.add(sim.owner.cleanTarget);
-    let bd = Infinity;
+    // Janitors only notice trash near them, so one janitor can't be everywhere at once.
+    let bd = C.JANITOR_SIGHT;
     for (const t of sim.trash){ if (claimed.has(t.id)) continue; const d = Math.hypot(t.x - p.x, t.y - p.y); if (d < bd){ bd = d; tr = t; } }
     if (tr){ p.target = tr.id; p.wander = null; }
   }
@@ -505,10 +510,12 @@ function updateStaff(p, dt){
     if (walkTo(p, tr.x, tr.y + 0.15, dt)) p.broomT = p.cleanTime;
     return;
   }
-  // Nothing to clean: amble around the concourse.
+  // Nothing to clean: patrol. With more than one janitor, each keeps to their own slice of the mall.
   if (!p.wander || (p.wander.wait -= dt) < -6){
-    for (let k = 0; k < 20; k++){
-      const x = Math.floor(rand() * C.MAP_W), y = 6 + Math.floor(rand() * 3);
+    const crew = sim.people.filter(q => q.role === 'janitor'), i = crew.indexOf(p), n = crew.length;
+    const x0 = Math.floor(C.MAP_W * i / n), x1 = Math.floor(C.MAP_W * (i + 1) / n);
+    for (let k = 0; k < 40; k++){
+      const x = x0 + Math.floor(rand() * (x1 - x0)), y = Math.floor(rand() * C.MAP_H);
       if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }
@@ -611,7 +618,7 @@ export function buildReport(){
   const s = S.save, st = sim.stats;
   for (const p of sim.people) if (p.kind === 'customer'){ st.moodSum += p.mood; st.moodN++; }
   const open = stores(s);
-  const wages = s.staff.reduce((a, m) => a + (C.WAGES[m.role] || 0), 0);
+  const wages = s.staff.reduce((a, m) => a + wageOf(m), 0);
   const utilities = C.UTILITIES_BASE + C.UTILITIES_PER_STORE * open.length;
   // Restock every store overnight.
   let restockWanted = 0;

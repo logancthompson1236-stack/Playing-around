@@ -1,5 +1,5 @@
 // The save file and per-device settings. The save is plain JSON so it can later be shared for mall visits.
-import { START_CASH, START_UNITS, START_KIOSKS, STORES, VERSION, LEVEL_XP, MAX_LEVEL } from './config.js';
+import { START_CASH, START_UNITS, START_KIOSKS, STORES, VERSION, LEVEL_XP, MAX_LEVEL, WAGES } from './config.js';
 
 const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
@@ -52,6 +52,11 @@ export function loadSettings(){
 export function writeSettings(){
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings)); } catch {}
 }
+
+// Older saves have no star rating: Dee was the quick one.
+export const staffSkill = m => m.skill || (m.fast ? 3 : 2);
+export const wageOf = m => WAGES[m.role][staffSkill(m)];
+export const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 
 export function stores(save = S.save){ return save.units.filter(u => u.state === 'store'); }
 export function unitById(id){ return S.save.units.find(u => u.id === id) || null; }

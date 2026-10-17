@@ -313,10 +313,13 @@ function drawScene(ctx, w, scene, t, mallName){
     });
     A.rr(6.3, 4.1, 3.4, 3.1, 0.06); A.fs('#2a2236', 0.08);
     g.fillStyle = 'rgba(185,228,245,.12)'; g.fillRect(6.4, 4.2, 1.6, 3.0); g.fillRect(8.05, 4.2, 1.55, 3.0);
-    const sway = Math.sin(t * 1.3) * 0.5;
-    g.save(); g.globalAlpha = 0.5; const beam = g.createLinearGradient(8.4, 5.6, 6.0 + sway, 7.2); beam.addColorStop(0, 'rgba(255,240,170,.9)'); beam.addColorStop(1, 'rgba(255,240,170,0)');
-    g.fillStyle = beam; g.beginPath(); g.moveTo(8.5, 5.6); g.lineTo(5.0 + sway, 7.6); g.lineTo(7.4 + sway, 7.9); g.closePath(); g.fill(); g.restore();
-    g.save(); g.filter = 'brightness(0.55)'; A.person(8.7, 7.1, { ...GUS_LOOK, t, s: 1.5 }); g.restore();
+    // Gus sweeps his flashlight back and forth; the beam starts at the lens in his hand.
+    const gx = 8.7, gy = 7.1, gs = 1.5, aim = 1.75 + Math.sin(t * 1.1) * 0.75;
+    g.save(); g.filter = 'brightness(0.55)'; A.person(gx, gy, { ...GUS_LOOK, t, s: gs, torch: aim }); g.restore();
+    const hx = gx + gs * 0.215, hy = gy - gs * 0.32, lx = hx + Math.cos(aim) * gs * 0.24, ly = hy + Math.sin(aim) * gs * 0.24;
+    const len = 2.6, ex = lx + Math.cos(aim) * len, ey = ly + Math.sin(aim) * len, px = -Math.sin(aim) * 0.85, py = Math.cos(aim) * 0.85;
+    g.save(); g.globalAlpha = 0.5; const beam = g.createLinearGradient(lx, ly, ex, ey); beam.addColorStop(0, 'rgba(255,240,170,.95)'); beam.addColorStop(1, 'rgba(255,240,170,0)');
+    g.fillStyle = beam; g.beginPath(); g.moveTo(lx, ly); g.lineTo(ex + px, ey + py); g.lineTo(ex - px, ey - py); g.closePath(); g.fill(); g.restore();
     A.rr(2.5, 4.4, 2.6, 1.8, 0.05); A.fs('#3a3048', 0.06); A.planks(2.5, 5.1, 6.2, 1.8, 3);
     A.rr(10.9, 4.4, 2.6, 1.8, 0.05); A.fs('#3a3048', 0.06); A.forLease(12.2, 5.3, 0.06, 1.2);
   }

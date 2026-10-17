@@ -87,7 +87,7 @@ export const TIPS = {
   wish: { title: 'Grey bubbles', text: 'Grey means we don’t have what they want. The report card keeps a list of what folks wished for.' },
   litter: { title: 'Trash cans', text: 'Put a trash can out and most folks nearby will toss their trash in it instead of on the floor. Build, then Decor.' },
   staff: { title: 'Hiring help', text: 'You can hire staff now. Open Staff at night. Janitors sweep, clerks run a register for you.' },
-  clerks: { title: 'Clerks', text: 'Clerks can run a register for you now. Hire one under Staff and pick their store.' },
+  clerks: { title: 'Clerks', text: 'Clerks can run a register for you now. Hire one under Staff and pick their store. Put them in their dream job (♥) and folks spend more.' },
   speed: { title: 'Speed things up', text: 'Got help now? Tap the fast-forward button to speed up the day.' },
   fountain: { title: 'The old fountain', text: 'That fountain was the heart of this place. Fix it up and folks will stop to sit a while.' },
   stockout: { title: 'Empty shelves', text: 'A store ran out today. Shelves restock overnight, so keep a little cash on hand.' },

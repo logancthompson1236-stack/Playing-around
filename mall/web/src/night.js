@@ -1,7 +1,7 @@
 // Night mode: tapping things in the mall, the Build and Staff panels, and placing or moving things.
 import * as C from './config.js';
 import * as A from './art.js';
-import { S, writeSave, addXp, stores } from './state.js';
+import { S, writeSave, addXp, stores, staffSkill, wageOf, stars } from './state.js';
 import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, unitAccess } from './map.js';
 import { sim, staffLook } from './sim.js';
 import { view, invalidate, poof, worldToScreen } from './render.js';
@@ -74,11 +74,12 @@ function unitCard(u){
     ],
   });
 }
-// Every empty or boarded-up storefront a store fits in, cheapest first.
+// A store opens in an empty or boarded-up storefront of exactly its size, cheapest first.
+const fits = (def, u) => def.w === u.w && def.h === u.h;
 function roomFor(key){
   const def = C.STORES[key];
   if (def.kiosk) return [];
-  return S.save.units.filter(u => !u.kiosk && u.state !== 'store' && def.w <= u.w && def.h <= u.h)
+  return S.save.units.filter(u => !u.kiosk && u.state !== 'store' && fits(def, u))
     .map(u => ({ u, cost: def.cost + fixCost(u) })).sort((a, b) => a.cost - b.cost);
 }
 function openStore(u, key){
@@ -98,18 +99,19 @@ function openInUnit(u){
   hideCard();
   const fix = fixCost(u);
   openPanel({ title: 'Open a store here', render: body => {
-    body.append(h('p', { class: 'muted', style: 'margin:0' }, `This storefront is ${u.w}×${u.h}.${fix ? ` Prices include ${money(fix)} to fix it up.` : ''} Stores that fit:`));
+    body.append(h('p', { class: 'muted', style: 'margin:0' }, `This storefront is ${u.w}×${u.h}.${fix ? ` Prices include ${money(fix)} to fix it up.` : ''} ${u.w}×${u.h} stores:`));
     for (const [key, def] of Object.entries(C.STORES)){
-      if (def.kiosk || def.w > u.w || def.h > u.h) continue;
+      if (def.kiosk || !fits(def, u)) continue;
       body.append(storeItem(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }));
     }
   } });
 }
 function storeItem(key, def, cost, onPick){
   const locked = S.save.level < def.level, afford = S.save.money >= cost;
+  const have = stores(S.save).filter(u => u.store === key).length;
   const b = h('button', { class: `item ${locked ? 'locked' : afford ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); onPick(); } },
     iconCanvas(() => A.storeIcon(def.icon, 0.5, 0.5, 0.62)),
-    h('span', { class: 'info' }, h('span', { class: 'name' }, def.name), h('span', { class: 'sub' }, `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
+    h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
     h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(cost)));
   return b;
 }
@@ -189,7 +191,7 @@ function startNew(key){
 function startPick(key){
   const def = C.STORES[key], spots = roomFor(key);
   if (!spots.length){
-    if (!def.kiosk) toast(`No empty storefront fits ${def.name}, so put up a new one.`, 3000);
+    if (!def.kiosk) toast(`No empty ${def.w}×${def.h} storefront for ${def.name}, so put up a new one.`, 3000);
     return startNew(key);
   }
   hideCard(); view.selected = null;
@@ -218,7 +220,7 @@ function refreshPick(){
   const def = C.STORES[pick.key], sel = pick.sel;
   view.spots.forEach((v, i) => { v.sel = pick.spots[i] === sel; });
   const short = sel && S.save.money < sel.cost;
-  pick.bar.info.textContent = !sel ? `Tap a glowing storefront for ${def.name}` : short ? `Not enough money (need ${money(sel.cost)})` : `${def.name} here${fixCost(sel.u) ? ', fix-up included' : ''}`;
+  pick.bar.info.textContent = !sel ? `Tap a glowing ${def.w}×${def.h} storefront for ${def.name}` : short ? `Not enough money (need ${money(sel.cost)})` : `${def.name} here${fixCost(sel.u) ? ', fix-up included' : ''}`;
   pick.bar.info.style.color = short ? '#b3263e' : '';
   pick.bar.confirm.textContent = sel ? `Open · ${money(sel.cost)}` : 'Open';
   pick.bar.confirm.disabled = !sel || short;
@@ -337,7 +339,7 @@ export function endPlacement(){ place = null; view.ghost = null; hidePlacementBa
 function applicants(){
   const s = S.save, f = s.flags;
   // New applicants each day, and right away when a level unlocks a new role.
-  const key = `${s.day}:${s.level}`;
+  const key = `2:${s.day}:${s.level}`;
   if (f.appDay !== key || !f.applicants){
     const roles = [];
     if (s.level >= 4) roles.push('clerk', 'clerk', 'clerk');
@@ -348,12 +350,15 @@ function applicants(){
       const R = A.mulberry(seed);
       let name; do { name = C.FIRST_NAMES[Math.floor(R() * C.FIRST_NAMES.length)]; } while (used.has(name) && used.size < C.FIRST_NAMES.length);
       used.add(name);
-      list.push({ seed, role, name });
+      // Star rating: most applicants are decent, a few are great. Clerks each have a dream store.
+      const r = R(), skill = r < 0.35 ? 1 : r < 0.8 ? 2 : 3;
+      const dreams = Object.keys(C.STORES).filter(k => C.STORES[k].level <= s.level);
+      list.push({ seed, role, name, skill, dream: role === 'clerk' ? dreams[Math.floor(R() * dreams.length)] : null });
     });
     f.applicants = list; f.appDay = key;
   }
   const out = [...f.applicants];
-  if (s.level >= 3 && !f.hiredDee) out.unshift({ seed: 2004, role: 'janitor', name: 'Dee', dee: true });
+  if (s.level >= 3 && !f.hiredDee) out.unshift({ seed: 2004, role: 'janitor', name: 'Dee', dee: true, skill: 3 });
   return out;
 }
 export function openStaff(){
@@ -365,11 +370,10 @@ export function openStaff(){
     if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
     for (const m of s.staff){
       const ownStores = stores(s).filter(u => !s.staff.some(o => o !== m && o.storeId === u.id));
-      const sel = m.role === 'clerk' ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); } },
-        h('option', { value: '' }, 'No register'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name))) : null;
+      const sel = m.role === 'clerk' ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); redraw(); } },
+        h('option', { value: '' }, 'No register'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name + (m.dream === u.store ? ' ♥' : '')))) : null;
       body.append(h('div', { class: 'staff-row' }, portrait(m.look, 44),
-        h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { class: 'name', style: 'font:600 15px var(--display);display:block' }, m.name), h('span', { class: 'sub muted', style: 'font-size:12px' }, `${m.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${money(C.WAGES[m.role])}/day${m.fast ? ' · quick' : ''}`)),
-        sel,
+        h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { class: 'name', style: 'font:600 15px var(--display);display:block' }, m.name), h('span', { class: 'sub muted', style: 'font-size:12px;display:block' }, staffLine(m)), dreamLine(m, s.units.find(u => u.id === m.storeId)), sel),
         h('button', { class: 'btn small', onclick: async () => { if (await confirmBox(`Let ${m.name} go?`, 'Let go')){ s.staff = s.staff.filter(o => o !== m); if (m.dee) s.flags.hiredDee = false; writeSave(); redraw(); } } }, 'Let go')));
     }
     if (s.level >= 3){
@@ -378,10 +382,11 @@ export function openStaff(){
         const look = staffLook(a.role, a.seed);
         const full = count(a.role) >= L[a.role][s.level];
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
-          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px' }, `${a.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${money(C.WAGES[a.role])}/day${a.dee ? ' · Gus recommends her: works faster' : ''}`)),
+          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a)),
           h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
-            const free = stores(s).find(u => !s.staff.some(o => o.storeId === u.id) && !u.kiosk) || stores(s).find(u => !s.staff.some(o => o.storeId === u.id));
-            s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, fast: !!a.dee, dee: !!a.dee });
+            const open = stores(s).filter(u => !s.staff.some(o => o.storeId === u.id));
+            const free = open.find(u => u.store === a.dream) || open.find(u => !u.kiosk) || open[0];
+            s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, skill: a.skill || 2, dream: a.dream || null, dee: !!a.dee });
             if (a.dee) s.flags.hiredDee = true; else s.flags.applicants = s.flags.applicants.filter(x => x !== a);
             sfx('build'); writeSave(); redraw(); tip('speed');
             toast(`${a.name} starts tomorrow`);
@@ -389,6 +394,17 @@ export function openStaff(){
       }
     }
   } });
+}
+
+// "Clerk · ★★☆ · $46/day", then their dream job on a line of its own (with a heart when they're working it).
+function staffLine(m){
+  const k = staffSkill(m);
+  return `${m.role === 'janitor' ? 'Janitor' : 'Clerk'} · ${stars(k)} · ${money(wageOf({ role: m.role, skill: k }))}/day`;
+}
+function dreamLine(m, at){
+  if (!m.dream) return null;
+  const working = at && at.store === m.dream;
+  return h('span', { class: 'dream', style: 'font-size:12px;display:block' }, `${working ? '♥ ' : ''}Dream job: ${C.STORES[m.dream].name}${working ? ' (working it!)' : ''}`);
 }
 
 /* ---------- Notebook ---------- */

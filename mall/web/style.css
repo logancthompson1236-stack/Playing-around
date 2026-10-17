@@ -196,3 +196,6 @@ input[type=text]{font:600 15px var(--body);color:var(--ink);background:#fff;bord
 .dialog{z-index:10}
 .modal{z-index:20}
 .toast{z-index:30}
+.item .have{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;background:#ffe8a3;border:1.5px solid var(--ink);font:600 11px var(--display);vertical-align:2px}
+.staff-row .dream{color:#c2185b;font-weight:700}
+.staff-row .info select{display:block;margin-top:4px;max-width:100%}

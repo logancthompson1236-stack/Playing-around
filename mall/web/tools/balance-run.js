@@ -60,7 +60,7 @@ function night(){
     const choices = Object.entries(C.STORES).filter(([k, d]) => !d.kiosk && d.level <= s.level).sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || b[1].level - a[1].level);
     let opened = false;
     for (const u of vacant){
-      const pick = choices.find(([k, d]) => d.w <= u.w && d.h <= u.h && s.money >= d.cost + 150 && (!owned.has(k) || owned.size >= choices.length));
+      const pick = choices.find(([k, d]) => d.w === u.w && d.h === u.h && s.money >= d.cost + 150 && (!owned.has(k) || owned.size >= choices.length));
       if (pick){ s.money -= pick[1].cost; u.state = 'store'; u.store = pick[0]; u.stock = pick[1].stock; gain(40); opened = true; break; }
     }
     if (opened) continue;
@@ -68,7 +68,7 @@ function night(){
     const der = s.units.filter(u => u.state === 'derelict').sort((a, b) => a.w * a.h - b.w * b.h);
     for (const [k, d] of choices){
       if (owned.has(k) && owned.size < choices.length) continue;
-      const u = der.find(v => v.w >= d.w && v.h >= d.h), fix = u ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
+      const u = der.find(v => v.w === d.w && v.h === d.h), fix = u ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
       if (u && s.money >= fix + d.cost + 150){ s.money -= fix + d.cost; u.state = 'store'; u.store = k; u.stock = d.stock; gain(65); opened = true; break; }
     }
     if (opened) continue;

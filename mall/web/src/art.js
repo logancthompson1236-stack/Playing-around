@@ -355,8 +355,16 @@ export function person(x, y, o){
     g.beginPath(); g.moveTo(0.18, -0.42); g.lineTo(mx, 0.0); g.strokeStyle = '#c98b55'; g.lineWidth = 0.04; g.stroke();
     rr(mx - 0.17, -0.06, 0.34, 0.1, 0.05); fs('#ece6dc', 0.035);
   }
+  // A flashlight held out in the right hand, pointing at angle o.torch (radians, 0 = right).
+  if (o.torch !== undefined){
+    g.save(); g.translate(0.215, -0.32); g.rotate(o.torch);
+    rr(0, -0.04, 0.2, 0.08, 0.025); fs('#4a5058', 0.03);
+    rr(0.17, -0.06, 0.07, 0.12, 0.025); fs('#9aa3ab', 0.03);
+    rr(0.225, -0.045, 0.02, 0.09, 0.01); fs('#fff6c8', 0);
+    g.restore();
+  }
   for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
-    const swing = sw * dir * 0.04;
+    const swing = o.torch !== undefined && ax > 0 ? 0 : sw * dir * 0.04;
     rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }

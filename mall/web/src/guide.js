@@ -48,7 +48,8 @@ export function seenTips(){ return Object.keys(S.save.flags.tips); }
 /* ---------- Day 1 ---------- */
 export async function runDay1(onDone){
   const g = sim.gus;
-  g.x = C.ENTRANCE.x + 2.3; g.y = C.MAP_H - 3.2; g.state = 'stand';
+  // Off to the side of the entrance hall, out of the way of shoppers heading in.
+  g.x = C.ENTRANCE.x - 0.62; g.y = C.MAP_H - 3.2; g.state = 'stand';
   await wait(0.6);
   await say(DAY1.open);
   const kiosk = S.save.units.find(u => u.kiosk);
