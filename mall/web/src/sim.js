@@ -68,7 +68,7 @@ export function startDay(opts = {}){
   sim.storeState.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, binned: 0 };
+  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
@@ -329,7 +329,6 @@ function dropLitter(p, def){
   // A trash can nearby? Most people use it, and you can see them toss it in.
   const bin = binNear(p.x, p.y);
   if (bin && rand() < C.BIN_USE){
-    sim.stats.binned++;
     sim.fx.push({ kind: 'toss', x: p.x, y: p.y - 0.5, tx: bin.x + 0.5, ty: bin.y + 0.3, trash: kind, t: 0, life: 0.55 });
     emit('binned');
     return;
@@ -646,7 +645,7 @@ export function buildReport(){
     ratings: { clean, service, variety, ambience }, happy, overall, grade, rating: s.rating,
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
-    restockShort: frac < 1, gusTrash: st.gusTrash, binned: st.binned,
+    restockShort: frac < 1, gusTrash: st.gusTrash,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

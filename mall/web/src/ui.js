@@ -413,7 +413,6 @@ export function showReport(r, firstDay){
       h('div', { class: 'xp' }, `XP +${r.xpGain}`, h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(prog * 100)}%` })), `Lv ${r.levelAfter}`),
       r.wishes.length ? h('div', {}, h('b', {}, 'Wished for: '), r.wishes.map(w => `${w.n}× ${w.name}`).join(' · ')) : null,
       r.top ? h('div', {}, h('b', {}, 'Top store: '), `${r.top.name} (${money(r.top.amount)})`) : null,
-      r.binned ? h('div', { class: 'muted' }, `Your trash cans caught ${r.binned} piece${r.binned > 1 ? 's' : ''} of litter.`) : null,
       r.gusTrash ? h('div', { class: 'muted' }, `Gus picked up ${r.gusTrash} piece${r.gusTrash > 1 ? 's' : ''} of trash on his laps.`) : null,
       r.restockShort ? h('div', { class: 'muted' }, 'Money was tight, so some shelves were only partly restocked.') : null,
     );

@@ -504,7 +504,7 @@ v0.1.0 notes:
 v0.2.0 changes, from playtest feedback:
 - **Pacing:** days are 3 minutes, and prices are up about 35% while shoppers per minute stay about the same.
 - **Litter:** a quarter of the old rate. Trash is drawn bigger, with a different item for each store (cups, bags, wrappers, cans, popcorn, banana peels), and flies show up on trash that's been sitting a while.
-- **Trash cans:** most shoppers inside a can's range visibly toss their trash in. The report card counts what the cans caught.
+- **Trash cans:** most shoppers inside a can's range visibly toss their trash in.
 - **Level ups:** they show exactly what you unlocked, at the top of the report card or in a popup at night.
 - **Hiring:** the first night you can hire, Gus stops by, recommends Dee and walks you through the Staff screen.
 - **Reset save:** on the pause screen, with a warning.
