@@ -1,6 +1,6 @@
 {
   "name": "mall-revival",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "Cozy 2D mall sim for Android and iPhone",
   "scripts": {

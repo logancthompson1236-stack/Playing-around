@@ -5,7 +5,7 @@ import { rebuildMap, occAt, FOUNTAIN_ID } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam } from './render.js';
 import { initInput } from './input.js';
-import { unlockAudio, sfx, setMusicMode, applySettings } from './audio.js';
+import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
 import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning } from './guide.js';
 import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
@@ -19,6 +19,13 @@ loadSettings();
 initRender(canvas);
 window.addEventListener('resize', () => { resize(); });
 document.addEventListener('pointerdown', () => unlockAudio(), { capture: true });
+// Leaving the app (home button, app switcher, screen off, a call) pauses the day and the sound.
+// Browsers report it as visibilitychange; the Android app also sends pause/resume.
+function toBackground(){ setBackground(true); if (phase === 'day' && !sim.paused) pauseMenu(); }
+function fromBackground(){ setBackground(false); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) toBackground(); else fromBackground(); });
+document.addEventListener('pause', toBackground);
+document.addEventListener('resume', fromBackground);
 
 UI.buildHud({
   speed: () => { sim.speed = sim.speed > 1 ? 1 : 2; },
@@ -180,14 +187,18 @@ function openDoors(){
 }
 
 /* ---------- Menus ---------- */
+let pauseOpen = false;
 function pauseMenu(){
+  if (pauseOpen) return;
+  pauseOpen = true;
   sim.paused = true;
   const m = UI.modal(UI.h('div', {}, UI.h('h2', {}, 'Paused'),
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
     UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
-      UI.h('button', { class: 'btn danger', onclick: async () => { m.close(); if (await UI.confirmResetSave()){ clearSave(); location.reload(); } else pauseMenu(); } }, 'Reset save'),
-      UI.h('button', { class: 'btn', onclick: () => { m.close(); settings(true, pauseMenu); } }, 'Settings'),
-      UI.h('button', { class: 'btn primary', onclick: () => { m.close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { m.close(); sim.paused = false; } });
+      UI.h('button', { class: 'btn danger', onclick: async () => { close(); if (await UI.confirmResetSave()){ clearSave(); location.reload(); } else pauseMenu(); } }, 'Reset save'),
+      UI.h('button', { class: 'btn', onclick: () => { close(); settings(true, pauseMenu); } }, 'Settings'),
+      UI.h('button', { class: 'btn primary', onclick: () => { close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { close(); sim.paused = false; } });
+  const close = () => { m.close(); pauseOpen = false; };
 }
 function settings(inGame, onClose){
   UI.showSettings({ inGame, onClose, onChange: () => { writeSettings(); applySettings(); }, onRestart: () => { clearSave(); location.reload(); } });

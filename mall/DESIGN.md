@@ -541,6 +541,8 @@ v0.6.0 changes:
 - **Rotating decor:** benches, sofas, planters, machines and the directory can face four ways. Use Rotate while placing, or tap a placed piece and Rotate to turn it where it stands. Seats are sat on facing the right way.
 - **Bigger malls:** each store past the tenth adds a bit less traffic than the first ten.
 
+v0.6.1: leaving the app (home button, app switcher, screen off, a call) pauses the day and the sound. You come back to the Paused menu.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

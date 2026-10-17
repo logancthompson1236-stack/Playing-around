@@ -13,6 +13,11 @@ export function unlockAudio(){
   musicBus = ac.createGain(); musicBus.gain.value = 0; musicBus.connect(master);
   applySettings();
 }
+// Silence everything while the app is in the background, and pick back up when it returns.
+export function setBackground(hidden){
+  if (!ac) return;
+  if (hidden) ac.suspend(); else ac.resume();
+}
 export function applySettings(){
   if (!ac) return;
   sfxBus.gain.setTargetAtTime(S.settings.sound ? 0.7 : 0, ac.currentTime, 0.05);
