@@ -9,7 +9,7 @@ export const view = {
   W: 0, H: 0, dpr: 1,
   cam: { x: 13, y: 9, s: 56 }, minS: 24, maxS: 120,
   mode: 'day', night: 0,            // night: 0 day … 1 full night tint
-  ghost: null, highlight: null, selected: null,
+  ghost: null, highlight: null, selected: null, spots: null,
   cache: null, cacheRev: -1, cachePPT: 0, dirty: true,
   poofs: [],
 };
@@ -219,6 +219,12 @@ function drawGhost(t){
   ctx.globalAlpha = 0.55;
   if (gh.preview) gh.preview(t);
   ctx.globalAlpha = 1;
+  // Storage that gets cleared out as part of this build.
+  for (const z of gh.zones || []){
+    ctx.fillStyle = 'rgba(255,210,63,.14)'; ctx.fillRect(z.x, z.y, z.w, z.h);
+    ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 0.06; ctx.setLineDash([0.22, 0.14]);
+    ctx.strokeRect(z.x + 0.04, z.y + 0.04, z.w - 0.08, z.h - 0.08); ctx.setLineDash([]);
+  }
   ctx.fillStyle = ok ? 'rgba(76,195,138,.32)' : 'rgba(239,71,111,.32)';
   ctx.fillRect(gh.x, gh.y, gh.w, gh.h);
   ctx.strokeStyle = ok ? '#2f9e6a' : '#d62839'; ctx.lineWidth = 0.06; ctx.setLineDash([0.15, 0.1]);
@@ -292,6 +298,22 @@ function drawOverlays(t){
     if (hl.w){ A.rr(hl.x - 0.15, hl.y - 0.15, hl.w + 0.3, hl.h + 0.3, 0.2); ctx.stroke(); }
     else { A.circ(hl.x, hl.y, r); ctx.stroke(); }
     ctx.restore();
+  }
+  // Storefronts a store can open in, each with its price.
+  if (view.spots){
+    const k = Math.abs(Math.sin(t * 3));
+    for (const sp of view.spots){
+      ctx.save();
+      A.rr(sp.x + 0.06, sp.y + 0.06, sp.w - 0.12, sp.h - 0.12, 0.2);
+      ctx.fillStyle = sp.sel ? 'rgba(255,210,63,.3)' : sp.afford ? `rgba(76,195,138,${0.14 + k * 0.14})` : 'rgba(200,190,210,.16)'; ctx.fill();
+      ctx.strokeStyle = sp.sel ? '#ffd23f' : sp.afford ? '#4cc38a' : '#b9adc6'; ctx.lineWidth = sp.sel ? 0.13 : 0.08;
+      ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = (sp.sel ? 0.4 : 0.15 + k * 0.2) * view.dpr * view.cam.s;
+      ctx.stroke();
+      ctx.restore();
+      const cx = sp.x + sp.w / 2, cy = sp.y + sp.h / 2, w = 0.36 + sp.label.length * 0.17;
+      A.rr(cx - w / 2, cy - 0.25, w, 0.5, 0.25); A.fs(sp.sel ? '#ffd23f' : sp.afford ? '#fffaf3' : '#e4dcea', 0.05);
+      A.text(sp.label, cx, cy + 0.01, 0.28, sp.afford ? A.OUT : '#8a7d93', 700);
+    }
   }
   // Selection outline at night
   const sel = view.selected;

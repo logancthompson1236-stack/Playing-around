@@ -142,13 +142,20 @@ export const ENTRY_TILE = { x: ENTRANCE.x, y: MAP_H - 1 };
 
 /* ---------- Placement ---------- */
 // kind: 'unit' (new store shell), 'kiosk', or a decor type. Returns { ok, reason }.
-export function validatePlacement(save, kind, x, y, w, h, face, ignoreId = 0){
+// clearZones: storage rooms to treat as already cleared (building there clears them out).
+export function validatePlacement(save, kind, x, y, w, h, face, ignoreId = 0, clearZones = []){
+  if (!clearZones.length) return checkPlacement(save, kind, x, y, w, h, face, ignoreId);
+  const floor = map.floor.slice();
+  for (let i = 0; i < GW * MAP_H; i++) if (clearZones.includes(map.zone[i])) map.floor[i] = FLOOR_CLEAN;
+  try { return checkPlacement(save, kind, x, y, w, h, face, ignoreId); } finally { map.floor.set(floor); }
+}
+function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
   const occ = map.occ.slice();
   if (ignoreId) for (let i = 0; i < occ.length; i++) if (occ[i] === ignoreId) occ[i] = 0;
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++){
     if (i < 0 || j < 0 || i >= MAP_W || j >= MAP_H) return { ok: false, reason: 'Out of bounds' };
     const f = map.floor[idx(i, j)];
-    if (f === FLOOR_DUST) return { ok: false, reason: 'Clear out this storage area first' };
+    if (f === FLOOR_DUST) return { ok: false, reason: 'Still storage here. Build a store on it to clear it out.' };
     if (f !== FLOOR_CLEAN || occ[idx(i, j)]) return { ok: false, reason: 'Something is in the way' };
     if (j === MAP_H - 1 && i >= ENTRANCE.x && i < ENTRANCE.x + ENTRANCE.w) return { ok: false, reason: 'Keep the doors clear' };
   }

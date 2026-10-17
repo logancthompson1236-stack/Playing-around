@@ -16,7 +16,7 @@ export function initInput(canvas, h){
     } else if (pts.size === 2){
       const [a, b] = [...pts.values()];
       pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: view.cam.s, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, cx: view.cam.x, cy: view.cam.y };
-      moved = true; grab = false;
+      moved = true; grab = false; view.camTarget = null;
     }
   });
   canvas.addEventListener('pointermove', e => {
@@ -37,6 +37,7 @@ export function initInput(canvas, h){
     if (!moved && Math.hypot(p.x - start.x, p.y - start.y) > 9) moved = true;
     if (!moved) return;
     if (grab){ const w = screenToWorld(p.x, p.y); h.onGrabMove && h.onGrabMove(w.x, w.y); return; }
+    view.camTarget = null;
     view.cam.x = start.cx - (p.x - start.x) / view.cam.s;
     view.cam.y = start.cy - (p.y - start.y) / view.cam.s;
     clampCam();

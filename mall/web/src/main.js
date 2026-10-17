@@ -171,7 +171,8 @@ async function enterNight(report, gusVisited = false){
   nightTips(report);
 }
 function openDoors(){
-  if (placing() || UI.dialogOpen || deeSceneRunning()) return;
+  if (placing()){ UI.toast('Finish or cancel what you’re placing first'); return; }
+  if (UI.dialogOpen || deeSceneRunning()) return;
   const s = S.save;
   s.day++; s.flags.tipsToday = 0; s.phase = 'day';
   writeSave();
@@ -210,10 +211,12 @@ function frame(now){
     if (phase === 'night'){ stepGus(dt); updateTips(UI.panelOpen() || placing() || deeSceneRunning()); }
   }
   if (view.camTarget){
-    const c = view.cam, k = Math.min(1, dt * 4);
-    c.x += (view.camTarget.x - c.x) * k; c.y += (view.camTarget.y - c.y) * k;
-    if (Math.hypot(view.camTarget.x - c.x, view.camTarget.y - c.y) < 0.05) view.camTarget = null;
+    const c = view.cam, T = view.camTarget, k = Math.min(1, dt * 4), px = c.x, py = c.y, ps = c.s;
+    c.x += (T.x - c.x) * k; c.y += (T.y - c.y) * k;
+    if (T.s) c.s += (T.s - c.s) * k;
     clampCam();
+    // Done once it has (nearly) stopped moving, including when the edge of the map holds it back.
+    if (Math.abs(c.x - px) + Math.abs(c.y - py) + Math.abs(c.s - ps) / 40 < 0.003) view.camTarget = null;
   }
   render(t);
   if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report') UI.updateHud(phase !== 'day'); }

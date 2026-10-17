@@ -20,10 +20,9 @@ const queue = [];
 let shownThisPhase = 0;
 // Tips can go stale while they wait (e.g. you already opened the store). Each is re-checked right before it shows.
 const STILL = {
-  renovate: s => s.units.some(u => u.state === 'derelict'),
-  vacant: s => s.units.some(u => u.state === 'vacant'),
+  open: s => !s.flags.opened && s.units.filter(u => u.state === 'store').length <= 2,
+  newshell: s => !s.units.some(u => !u.kiosk && u.state !== 'store'),
   fountain: s => !s.fountain,
-  zone: s => C.ZONES.some(z => !s.zones[z.id] && s.level >= z.level),
   staff: s => s.staff.length === 0,
   clerks: s => !s.staff.some(m => m.role === 'clerk'),
   litter: s => !s.decor.some(d => d.type === 'bin'),

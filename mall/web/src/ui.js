@@ -221,14 +221,15 @@ export const cardOpen = () => !!cardEl;
 
 /* ---------- Placement bar ---------- */
 let placeEls = null;
-export function showPlacementBar({ label, canFlip, onFlip, onCancel, onConfirm }){
+export function showPlacementBar({ label, canFlip, onFlip, onCancel, onConfirm, confirmLabel = 'Place', extra }){
   hidePlacementBar();
   const info = h('div', { class: 'chip place-hint' }, label);
-  const confirm = h('button', { class: 'btn go' }, 'Place');
+  const confirm = h('button', { class: 'btn go' }, confirmLabel);
   confirm.addEventListener('click', () => { onConfirm(); });
   const bar = h('div', { class: 'card', style: 'width:auto;flex-direction:row;align-items:center;gap:8px' },
     canFlip ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); onFlip(); } }, 'Flip door') : null,
     h('button', { class: 'btn small', onclick: () => { sfx('tap'); onCancel(); } }, 'Cancel'),
+    extra ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); extra.onClick(); } }, extra.label) : null,
     confirm);
   placeEls = { info, bar, confirm };
   root.append(info, bar);
@@ -449,8 +450,8 @@ export function unlockList(levels){
   const rows = [];
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
-    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = 'New store. Open it in an empty unit or from Build.'; }
-    else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'Can be cleared now. Tap it at night.'; }
+    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = 'New store. Tap Build to open one.'; }
+    else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
     else if (u.hire === 'janitor'){ paint = () => A.trashCan(0.5, 0.85); title = 'Hire a janitor'; where = 'Tap Staff at night.'; }
     else if (u.hire === 'clerk'){ paint = () => A.storeIcon('dollar', 0.5, 0.5, 0.6); title = `Hire up to ${C.STAFF_LIMITS.clerk[lv]} clerks`; where = 'They run a register for you. Tap Staff at night.'; }
     else if (u.staffSlots){ paint = () => A.storeIcon('heart', 0.5, 0.5, 0.6); title = 'Room for more staff'; where = `Up to ${C.STAFF_LIMITS.clerk[lv]} clerks and ${C.STAFF_LIMITS.janitor[lv]} janitor${C.STAFF_LIMITS.janitor[lv] > 1 ? 's' : ''}.`; }

@@ -64,11 +64,14 @@ function night(){
       if (pick){ s.money -= pick[1].cost; u.state = 'store'; u.store = pick[0]; u.stock = pick[1].stock; gain(40); opened = true; break; }
     }
     if (opened) continue;
-    // Otherwise renovate the cheapest unit that a new store could use.
+    // Otherwise fix up a boarded-up unit and open a store in it, in one go (the smallest unit that fits).
     const der = s.units.filter(u => u.state === 'derelict').sort((a, b) => a.w * a.h - b.w * b.h);
-    const want = choices.find(([k]) => !owned.has(k));
-    const target = want ? der.find(u => u.w >= want[1].w && u.h >= want[1].h) : der[0];
-    if (target && !vacant.length && s.money >= target.w * target.h * C.RENOVATE_PER_TILE + (want ? want[1].cost : 0)){ s.money -= target.w * target.h * C.RENOVATE_PER_TILE; target.state = 'vacant'; gain(25); continue; }
+    for (const [k, d] of choices){
+      if (owned.has(k) && owned.size < choices.length) continue;
+      const u = der.find(v => v.w >= d.w && v.h >= d.h), fix = u ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
+      if (u && s.money >= fix + d.cost + 150){ s.money -= fix + d.cost; u.state = 'store'; u.store = k; u.stock = d.stock; gain(65); opened = true; break; }
+    }
+    if (opened) continue;
     break;
   }
   // Hire help when allowed.

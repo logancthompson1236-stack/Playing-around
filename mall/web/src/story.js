@@ -81,15 +81,14 @@ export const DEE_SCENE = {
 
 export const TIPS = {
   night: { title: 'Nights are for building', text: 'Nothing’s on the clock till you hit Open Doors. Tap things in the mall to see what you can do.' },
-  renovate: { title: 'Fix up a unit', text: 'That old unit could be a shop again. Tap a boarded-up store to fix it up.' },
-  vacant: { title: 'Open a store', text: 'Fixed up! Tap the empty unit to open a store inside it.' },
+  open: { title: 'Opening a store', text: 'Those boarded-up storefronts can be shops again. Tap Build, pick a store, then tap a glowing storefront to open it.' },
+  newshell: { title: 'Out of storefronts', text: 'Every storefront’s taken. Pick a store under Build and tap Build new to put one up. Old storage gets cleared out as part of the job.' },
   walkout: { title: 'Folks don’t wait forever', text: 'Watch the ring around their bubble. When it runs out, they leave grumpy.' },
   wish: { title: 'Grey bubbles', text: 'Grey means we don’t have what they want. The report card keeps a list of what folks wished for.' },
   litter: { title: 'Trash cans', text: 'Put a trash can out and most folks nearby will toss their trash in it instead of on the floor. Build, then Decor.' },
   staff: { title: 'Hiring help', text: 'You can hire staff now. Open Staff at night. Janitors sweep, clerks run a register for you.' },
   clerks: { title: 'Clerks', text: 'Clerks can run a register for you now. Hire one under Staff and pick their store.' },
   speed: { title: 'Speed things up', text: 'Got help now? Tap the fast-forward button to speed up the day.' },
-  zone: { title: 'Storage rooms', text: 'Those dusty storage rooms are wasted space. Clear one out and you can build anywhere on the new floor.' },
   fountain: { title: 'The old fountain', text: 'That fountain was the heart of this place. Fix it up and folks will stop to sit a while.' },
   stockout: { title: 'Empty shelves', text: 'A store ran out today. Shelves restock overnight, so keep a little cash on hand.' },
   register: { title: 'Back to the register', text: 'You can tap any store to go stand at its register. You’ll serve whoever lines up until you leave.' },

@@ -374,7 +374,7 @@ That's all. Building, hiring and leasing wait until they're relevant.
 | First time this happens | Gus's tip |
 |---|---|
 | First night | *"Nights are for building. Nothing's on the clock till you hit Open Doors."* |
-| Enough money to renovate | *"That old unit could be a shop again. Tap it to fix it up."* |
+| Enough money to open a store | *"Those boarded-up storefronts can be shops again. Tap Build, pick a store, then tap a glowing storefront."* |
 | A customer walks out | *"Folks don't wait forever. Watch the ring around their bubble."* |
 | A grey wish bubble | *"Grey means we don't have what they want. The report card keeps a list."* |
 | Level 3 | Gus introduces Dee, and the Staff button lights up |
@@ -516,6 +516,12 @@ v0.3.0 changes, from playtest feedback:
 - **Tips:** a queued tip is dropped if it no longer applies (no more "Open a store" after you've opened one).
 - **Gus's dialog** sits higher, clear of the HUD buttons.
 - **Hiring:** staff unlocked by a level up at night can be hired right away. Clerks unlock at level 4 with room for two, then one more per level (up to 6 at level 8). Janitors go 1 → 2 → 3 at levels 3, 5 and 7.
+
+v0.4.0 changes, from playtest feedback:
+- **Opening a store is one step:** pick a store under Build and every empty or boarded-up storefront it fits in lights up with its price. Tap one, then Open. Fixing up a boarded-up unit is part of the price, so there's no separate renovate step. Tapping a boarded-up storefront in the mall lists the stores that fit, the same way.
+- **Storage clears as you build:** Build new puts up a storefront anywhere. If it lands on dusty storage, clearing that room is added to the price (shown before you confirm). Storage can still be cleared on its own from Fix up.
+- **Tips:** "Fix up a unit", "Open a store" and "Storage rooms" are replaced by one "Opening a store" tip that only shows until you've opened a store, plus an "Out of storefronts" tip once every storefront is taken.
+- **Prices you can't afford** are greyed out, and the bar says how much you need.
 
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
