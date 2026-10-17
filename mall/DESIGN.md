@@ -1,6 +1,6 @@
-# Mall Revival: Game Concept (working title)
+# Mall Revival: Game Concept
 
-> Concept draft v0.3. Sections marked **Open question** are decisions still to make. Sections marked **Decided** reflect the owner's choices. Everything else is a proposed default that can change.
+> Concept draft v0.4. Sections marked **Open question** are decisions still to make. Sections marked **Decided** reflect the owner's choices. Everything else is a proposed default that can change.
 
 ## 1. Pitch
 
@@ -37,71 +37,90 @@ Restoring an area clears all of it with a sparkle-and-poof transition. This is t
 The intro is told Stardew Valley-style: a handful of illustrated panels with short captions, then straight into play.
 
 1. **A gray city office.** Rain on the window and a mountain of paperwork. Your phone buzzes.
-2. **A letter from Grandma Rose,** written before she passed: *"Sweet pea, the mall is yours now. She's tired, and so was I at the end. But she has good bones. Gus will show you around. Give her a little love and she'll love you back."*
+2. **A letter from Grandma Rose,** written before she passed: *"Sweet pea, the mall is yours now. She's tired, and so was I at the end. But she has good bones. Give her a little love and she'll love you back. P.S. If you run into Gus, tell him I said hi."*
 3. **A bus ride** out of the city to the small town where you spent your summers as a kid.
-4. **Night at the mall.** The sign buzzes with half its letters dead: `SUN Y IDE  ALL`. A flashlight beam swings around, and an old man in a faded uniform says: *"You must be Rosie's grandkid. Name's Gus. I kept the lights on. Most of 'em."*
+4. **Night at the mall.** The sign buzzes with half its letters dead: `SUN Y IDE  ALL`. You're fumbling with Grandma's keys at the front doors when a flashlight beam hits you from inside. An old man in a faded teal work jacket, holding a thermos, says: *"Easy, I'm not a burglar. Name's Gus. Swept these floors for your grandma for twenty-seven years. Still come by to walk my laps."* He looks at the dust and the dark storefronts. *"She'd be glad it's you."*
 5. **Character creation:** your name, your look, and the mall's name.
-6. **Day 1:** the tutorial, with Gus.
+6. **Day 1:** Gus sticks around for the first morning to show you the basics, then heads home: *"I'll drop by. Don't let the pigeons win."*
 
 ### Gus
 
-**Who he is.** Gus has been the mall's janitor since opening day in 1989, when Rose hired him and nobody else would. He's around seventy, wears a faded teal uniform and cap, and carries a ring of about a hundred keys and a mop he calls Betsy. He practically lives in the janitor's closet, with a cot, a hot plate, a transistor radio playing oldies, and a wall of Polaroids from the mall's glory days. He's gruff, sweet, proud, and a big softie. He knows every inch of the building and every bit of town gossip, and he hates gum.
+**Who he is.** Gus was the mall's janitor from opening day in 1989 until 2016, when the last big store left and Rose had to let the staff go.
 
-**Why he stayed.** After the paychecks stopped, Gus kept cleaning, fixing things and chasing out pigeons, because he'd promised Rose he would keep the lights on until someone came.
+- He was the last person she let go, and she told him to keep his keys.
+- He's around seventy-two now, retired, and lives a few blocks away.
+- He still wears his old teal work jacket out of habit, and carries a flashlight, a thermos of coffee, and a pocketful of pretzel-cart napkins.
+- He's gruff, sweet, proud, and a big softie. He knows every inch of the building and every bit of town gossip, and he hates gum.
 
-**What he does in the game:**
+**Why he still comes by.** Mostly habit. For twenty-seven years his day started with laps around the concourse, and he never stopped.
 
-1. **Tutorial guide.** One-line tips in a speech bubble, never a wall of text.
-2. **Your first hire.** On night 1 he refuses pay: *"Pay me when the place can afford it."* At level 3 you can finally put him on payroll. In a small moment he puts on a fresh uniform. He becomes your first janitor, with a unique perk called **Old Reliable**: he cleans faster and never slacks.
-3. **Town gossip.** On a lease offer, tap Gus to reveal one of the tenant's hidden traits, once per night: *"That Discount Dan fella? Left boxes stacked to the ceiling at his last place."* This ties the story directly into the leasing system (see section 8).
-4. **Keeper of the scrapbook.** Restoring parts of the mall turns up old Polaroids and 90s relics, like a mixtape, a virtual pet keychain, or a movie poster. They go in Gus's scrapbook, and many of them unlock retro decor.
+- He walks the empty halls and sits at the dry fountain where he and his late wife Marlene ate lunch every day.
+- He remembers how loud and bright the place used to be.
+- He tells himself he's just checking for leaks.
+
+**A visitor, not an employee.**
+
+- **How often he comes:** at first, about once every 3–4 days. As the mall comes back to life he visits more often, until he's there almost every day (*"Can't stay away from the old girl"*). How often he shows up is a quiet sign of how far the mall has come.
+- **What he does there:** walks his laps, chats with customers, and sits by the fountain. Tap him for a one-line comment.
+- **He never gets in the way:** Gus never pauses the game or asks for your attention.
+
+**What he does.** Each ability is limited, so he helps without taking over:
+
+| Ability | How it works | Limit |
+|---|---|---|
+| Old habits | On his laps, he picks up any trash he walks past | Only what's on his path, a few pieces per visit. He never replaces a janitor |
+| Town gossip | Reveals one hidden trait on a lease offer: *"That Discount Dan fella? Left boxes stacked to the ceiling at his last place."* | Once per visit, and only on days he came by |
+| Memories | After you find an old Polaroid or restore a place he remembers, he stays after closing to tell you about it | At most one per night. Skippable, and it waits until you're ready |
+| Gus's Notebook | His old handwritten notebook of mall tips, which he gives you on night 1. It's where the tutorial tips live (see section 11) | One tip at a time, only when a mechanic first comes up |
+| A good word | At level 3 he recommends your first janitor, Dee, who he trained back in 2004. Dee starts out a little faster than a normal hire | Once |
+
+**Keeper of the scrapbook.** Restoring parts of the mall turns up old Polaroids and 90s relics, like a mixtape, a virtual pet keychain, or a movie poster. They go in Gus's scrapbook, and many of them unlock retro decor.
 
 ### Story pacing: Gus's memories
 
 **The rule:** story never interrupts the day.
 
-- Story beats happen only at night, after the report card.
-- There's at most one beat per night. Each one is 3–6 lines and can always be skipped.
-- When a beat is ready, a **"!"** appears over Gus's closet in night mode. You can tap it now or later, because it waits for you.
-- Beats are triggered by restoration milestones, so story progress is literally tied to bringing places back.
+- Gus's memories happen only after closing, and only on days he visited.
+- When he has a story, a small speech-bubble icon sits over him during the day. After the report card he's waiting by the fountain.
+- Tap to hear it (3–6 lines) or skip it. A memory you skip waits for his next visit.
+- Memories are triggered by restoration milestones, so story progress is literally tied to bringing places back.
 
 | Trigger | Memory | Reward |
 |---|---|---|
-| Night 1 | Why Gus stayed. He refuses to be paid. | — |
-| Reach level 3 | Gus goes on payroll. *"Rose would've liked this."* | Gus joins as janitor |
-| Restore the fountain | Rose tossed a penny in every morning "for one more good day." | **Daily Wish:** toss a coin each morning for a small random boost |
-| Open an arcade | Gus has held the high score on *Galaxy Pals* since 1994. A few days later a teen beats it. Gus sulks for a day, then you catch him coaching the kid. | Retro arcade cabinet decor |
-| Upgrade Pretzel Pals to ★3 | The recipe belonged to Marlene, Gus's late wife. He met her in line at that cart in 1990. | **Marlene's Cinnamon Twist:** a premium Pretzel Pals product |
-| Each wing restored | A memory about what used to be there. For example, the 1993 snow day when half the town slept in the mall, or the record store where your parent had their first job. | A Polaroid and a decor piece |
-| Reach 4★ | Gus finds Rose's old ledger, full of her notes on running the mall. | A small permanent bonus |
-| Reach Mega Mall (finale) | Gus leads you to the fountain. Underneath is a time capsule he and Rose buried on opening day, "to open when the mall is full again." Inside is a letter from young Rose to whoever kept her mall alive. Gus finally takes a vacation, and sends postcards. | The original neon sign is relit. Postcards bring occasional small gifts |
+| Night 1 | Why he still comes by: his laps, Marlene, and the keys Rose let him keep | Gus's Notebook |
+| Reach level 3 | *"You need a real janitor, and my knees aren't what they were."* He recommends Dee | Dee joins as your first janitor |
+| Restore the fountain | Rose tossed a penny in every morning "for one more good day." He and Marlene ate lunch on its edge for twenty years | **Daily Wish:** toss a coin each morning for a small random boost |
+| Open an arcade | Gus has held the high score on *Galaxy Pals* since 1994. Soon after, a teen beats it. Gus sulks through his next visit, then you catch him coaching the kid | Retro arcade cabinet decor |
+| Upgrade Pretzel Pals to ★3 | The recipe was Marlene's. He met her in line at that cart in 1990 | **Marlene's Cinnamon Twist:** a premium Pretzel Pals product |
+| Each wing restored | A memory about what used to be there. For example, the 1993 snow day when half the town slept in the mall, or the record store where your parent had their first job | A Polaroid and a decor piece |
+| Reach 4★ | Rose's old ledger, full of her notes on running the mall. Gus has kept it in his garage since 2016 | A small permanent bonus |
+| Reach Mega Mall (finale) | Gus leads you to the fountain. Underneath is a time capsule he and Rose buried on opening day, "to open when the mall is full again." Inside is a letter from young Rose to whoever kept her mall alive. Then Gus asks, a little embarrassed, whether you'd have him back on Saturdays | The original neon sign is relit. Gus works Saturdays as Head Janitor (semi-retired) |
 
-After the finale, Gus comes back as *Head of Maintenance (semi-retired)*. Players will want him around.
+The arc follows the game's theme: Gus left when the mall died, and the mall coming back gives him a reason to come back too.
 
-### A light rival (optional)
+### Saved for later: a rival
 
-Victor Sterling of Sterling Developments wants to bulldoze the mall for condos and a parking garage.
-
-- **Buyout letters:** at milestones he mails smug offers to buy the mall. Each one is a bit more desperate than the last, and you can frame it or tear it up. This is a comedy beat in the mailbox, never a real threat.
-- **Possible twist:** one of the shady tenants turns out to be working for him.
-- **The ending:** in the finale he gives up and asks to lease a unit for his condo sales office.
+A developer who wants to bulldoze the mall for condos and mails smug buyout offers you can tear up. This is parked for a future update.
 
 ## 4. Camera and art direction
 
-**Camera (leaning):** a **3/4 top-down view**, the Stardew Valley angle. You see the floor from above and the fronts of walls, people and props.
+**Orientation: landscape (Decided).** You see more of the mall at once, and since the mall grows outward, the extra width matters.
 
-- On a phone this is easier to read than FarmVille's diagonal view.
-- The square grid fills a portrait screen with no wasted corners.
+- **Top bar:** the clock with a small foot-traffic curve, money, and Mall Rating.
+- **Bottom right, under the thumb:** Build, Stores, Staff and Mailbox buttons.
+- **Menus slide in as a side panel,** so the mall stays visible behind them.
+- **Phone shapes:** design for widescreen phones (16:9 up to about 20:9) and keep clear of the notch and rounded corners.
+
+**Camera:** a **3/4 top-down view**, the Stardew Valley angle. You see the floor from above and the fronts of walls, people and props.
+
 - Controls: pinch to zoom, drag to pan.
 - **Cutaway interior:** there's no roof, and walls facing the camera are drawn as low knee walls, so you can see into every store.
 
-**Art style (leaning 2D, pending the mockup):** an interactive comparison is at `mall/mockups/art-styles.html`. It shows the same mall corner as flat 2D art drawn in code, and as low-poly 3D with toon shading and real shadows.
+**Art style: 2D drawn (Decided).** Clean vector cartoon art: bold outlines, flat colors and one shade tone, drawn in code and baked into sprites when the game loads.
 
-- **What "2D drawn" means here:** clean vector cartoon art. That means bold outlines, flat colors and one shade tone, drawn in code and baked into sprites when the game loads.
 - **Upsides:** it's sharp at any screen size, a tiny download, and consistent.
-- **Limitation:** it isn't painterly, textured hand-drawn art. That level needs a human artist or AI-generated sprite sheets.
-- **Art stays swappable:** every sprite is keyed by name, so an artist's work can replace any piece later without touching gameplay.
-- **3D's upsides:** lighting and shadows add polish automatically, and the camera can turn. The downsides are a diorama feel rather than a drawn one, wasted corners on a portrait screen, and heavier work for low-end phones.
+- **Art stays swappable:** every sprite is keyed by name, so a human artist's work can replace any piece later without touching gameplay.
+- **Reference:** `mall/mockups/art-styles.html` shows the look. The mockup is portrait, but the game is landscape.
 
 **Characters and feedback:**
 
@@ -129,7 +148,7 @@ Victor Sterling of Sterling Developments wants to bulldoze the mall for condos a
  └─────────────── NIGHT  (untimed build mode)
                   Renovate, place/move stores, decorate, hire,
                   read the mailbox (lease offers), restock,
-                  maybe a Gus memory → "Open Doors"
+                  maybe a Gus memory    → "Open Doors"
 ```
 
 **Meta loop:** profit pays for building, which raises ratings, which brings more (and richer) customers and better tenants, which earns more profit. XP raises your level, which unlocks new stores, staff and expansions.
@@ -226,7 +245,7 @@ Every unit is filled one of two ways. Both run side by side, and they connect in
   - The shop's name and the shopkeeper's portrait
   - Store type and size
   - A star rating ("word around town")
-  - Two traits: one visible, and one hidden (?) until they've been open a few days or Gus spills the beans
+  - Two traits: one visible, and one hidden (?) until they've been open a few days or Gus's gossip reveals it
   - The lease terms
 - **Terms take one tap:** **Flat Rent** (steady $/day) or **Revenue Share** (a cut of their sales, which pays more if they do well and less if they flop). Leases run 5, 10 or 20 days.
 - **Tenants run themselves:** no staffing and no restocking. Their store still counts toward Variety, draws its own customers, and affects its neighbors.
@@ -273,7 +292,7 @@ Every unit is filled one of two ways. Both run side by side, and they connect in
 **Dealing with a bad tenant:**
 
 - **Warning Letter:** free. It usually improves their behavior for a few days, but not always.
-- **Send Gus:** once a week. He resolves a feud or finds out what's going on.
+- **Ask Gus:** on a day he visits, and at most once a week, he has a word with them. It settles a feud or finds out what's going on.
 - **Evict:** immediate, but you pay off the rest of the lease, take a small rating hit, and the unit needs cleaning before anyone can use it again.
 - **Wait It Out:** decline to renew when the lease ends.
 
@@ -333,11 +352,45 @@ All customers are people for now (**Decided**).
 - **Owner upgrades:** Sneakers (walk faster), Big Broom (clean a wider area), Charm (bigger tips), Clipboard (queue more jobs).
 - **How the role changes:** early days work like Diner Dash, with one person juggling two registers and a growing pile of trash. As you hire staff, your role shrinks to handling emergencies and VIPs and making the big decisions. You can always step in to rush a register.
 
-## 11. Staff
+## 11. Tutorials: Gus's Notebook (Decided: gradual)
+
+Each mechanic is taught when it first matters, never all up front.
+
+**Day 1 teaches only the core, by doing,** with Gus beside you:
+1. A customer waits at Pretzel Pals. Tap them to ring them up.
+2. Someone drops a wrapper. Tap it to clean it up.
+3. The doors close and the report card appears, with one line explaining each row.
+
+That's all. Building, hiring and leasing wait until they're relevant.
+
+**After Day 1, tips appear just in time.** Each one is a small card in Gus's handwriting, 1–2 sentences long, with an optional **Show me** that highlights the button or spot.
+
+- **When they appear:** a tip shows up only the first time its situation happens.
+- **How many:** one at a time, and at most two per day.
+- **Never during a rush:** if a lot is going on, the tip waits for a calm moment or for night.
+- **Dismissing:** tap anywhere. Every tip is saved in the Notebook to reread later.
+- **Turning them off:** a setting turns tips off, and back on.
+
+| First time this happens | Gus's tip |
+|---|---|
+| First night | *"Nights are for building. Nothing's on the clock till you hit Open Doors."* |
+| Enough money to renovate | *"That old unit could be a shop again. Tap it to fix it up."* |
+| A customer walks out | *"Folks don't wait forever. Watch the ring around their bubble."* |
+| A grey wish bubble | *"Grey means we don't have what they want. The report card keeps a list."* |
+| Level 3 | Gus introduces Dee, and the Staff button lights up |
+| First lease offer | *"Somebody wants to rent a spot. Flat rent is steady. A cut of sales pays more if they're any good."* |
+| First bad-tenant trouble | *"Bob's music is chasing off the neighbors. Send a warning letter, or wait out the lease."* |
+| A store outgrows its spot | *"Store needs more room to grow. Move it at night. Moving's free."* |
+| First Mall Critic | *"Trench coat and notepad? That's a critic. Keep it clean and be quick."* |
+| First rainy day | *"Rain brings folks in, and wet floors. Keep the mop handy."* |
+
+The tips are written in Gus's voice, so they read like advice from a friend, not a manual.
+
+## 12. Staff
 
 | Role | Unlock | What they do | Upgrades |
 |---|---|---|---|
-| Janitor | Lv3 (Gus first) | Cleans an assigned zone or patrols the mall | Speed, zone size, mop for spills |
+| Janitor | Lv3 (Dee, recommended by Gus) | Cleans an assigned zone or patrols the mall | Speed, zone size, mop for spills |
 | Clerk | Lv4 | Staffs one of your stores' registers | Checkout speed, upselling |
 | Stocker | Lv12 | Restocks your stores during the day | Carry capacity |
 | Security Guard | Lv15 | Catches shoplifters and settles rowdy teens | Patrol radius |
@@ -349,7 +402,7 @@ All customers are people for now (**Decided**).
 - Staff earn a daily wage. Your level sets how many staff you can have.
 - Staff only work in your own stores. Tenants bring their own.
 
-## 12. Day/night and the report card
+## 13. Day/night and the report card
 
 - The mall is open **9:00 to 21:00**, which takes about **5 real minutes** (about 25 seconds per in-game hour). A 1×/2× speed toggle unlocks once you have staff.
 - A clock and a small foot-traffic curve sit at the top of the screen.
@@ -387,7 +440,7 @@ All customers are people for now (**Decided**).
 
 **Mall Rating** (1–5★) is your reputation: a rolling average of the last ~5 days. It sets how many visitors come, which customer types show up, and which tenants apply. Because it's an average, one bad day never sinks you.
 
-## 13. Progression
+## 14. Progression
 
 - **XP sources:** sales, happy customers, renovations, good day grades, and streaks.
 - **Levels** unlock stores, decor, staff roles and expansions. **Reputation** (Mall Rating) unlocks better lease offers.
@@ -404,25 +457,25 @@ All customers are people for now (**Decided**).
 - **Goals:** 3 rotating goals at a time, like Tiny Tower missions: *"Serve 30 customers in one day," "Open a pet shop," "Reach 4★ cleanliness."* These keep the player pointed somewhere.
 - **Gus's Scrapbook:** collects every Polaroid and relic you find, plus every store type, customer type and VIP you've met.
 
-## 14. Decor and ambience
+## 15. Decor and ambience
 
 Benches, potted palms, trash cans (less littering nearby), fountains (earn coins), skylights, neon signs, coin-op kiddie rides, vending machines, floor tile styles, holiday decorations, scrapbook relics, and a music selector (muzak, jazz or pop, each nudging customer mood slightly). Decor feeds the Ambience rating.
 
-## 15. Events
+## 16. Events
 
 - **Weekly rhythm:** busy Saturdays, shorter Sundays.
 - **Random days:** rain (more visitors and wet-floor spills), a school field trip (a busload of kids), a power flicker, a Mall Critic visit, a pigeon invasion, a celebrity book signing.
 - **Seasonal:** trick-or-treating at stores for Halloween, a Santa photo booth in winter, back-to-school, summer sales.
 - **Player-hosted (later):** pay to throw a Sale Day or an atrium concert.
 
-## 16. Away earnings (Decided)
+## 17. Away earnings (Decided)
 
 - Days only advance while you play. Your own stores are closed while you're away.
 - **Tenants keep paying a trickle:** about one-tenth of a day's tenant rent per hour away. It's capped at one day's worth no matter how long you're gone, and the cap is reached after about 10 hours.
-- **On return,** Gus leaves a note: *"Rent came in while you were gone: $340."*
+- **On return,** a welcome-back card shows what came in: *"Rent while you were away: $340."*
 - **Nothing bad happens while you're away:** no decay and no lost tenants.
 
-## 17. Monetization (later, light)
+## 18. Monetization (later, light)
 
 Leaning toward a small amount of ads. Nothing is final.
 
@@ -432,26 +485,27 @@ Leaning toward a small amount of ads. Nothing is final.
 - **Possible later purchases:** cosmetic decor packs. No pay-to-win and no energy timers.
 - **Tech:** AdMob through a Capacitor plugin.
 
-## 18. Multiplayer (later, but planned for now)
+## 19. Multiplayer (later, but planned for now)
 
 - **Visit a friend's mall:** load a snapshot of their layout, decor and ratings, and watch it run locally with simulated customers. Leave a like or send a gift (a shopper, a piece of decor).
 - **Leaderboards:** mall rating, daily visitors, best day grade streak.
 - **What this means for the code now:** keep the whole mall as plain serializable data (the grid plus entities), and keep the simulation separate from rendering. Saves go to local storage first. A backend added later only needs to store and fetch snapshots.
 
-## 19. Scope plan
+## 20. Scope plan
 
 **Milestone 1: playable prototype.** The goal is to find out whether one hands-on day is fun for 5 minutes.
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues
-- Janitor (Gus) and clerk hiring
+- Janitor and clerk hiring
 - Day/night cycle and the report card
-- Levels 1–8, local save, first-pass art in the chosen style
+- Levels 1–8, local save, first-pass 2D art, landscape layout
+- The Day 1 tutorial and the first few notebook tips
 - The test build pipeline: an HTML link plus an APK for every version
 
 **Milestone 2: content and feel.**
 - About 15 store types with size upgrades, decor, all customer types, wishes
 - Leasing: the mailbox, tenant cards, traits, buy-out and hand-off
-- Wing restoration, goals, Gus's memories and scrapbook
+- Wing restoration, goals, Gus's visits, memories and scrapbook, the rest of the notebook tips
 - The intro, art pass, sound and music
 
 **Milestone 3: shippable 1.0.**
@@ -462,10 +516,10 @@ Leaning toward a small amount of ads. Nothing is final.
 **Later:**
 - iOS release (via Capacitor)
 - Friend visits and leaderboards, seasonal events
-- A third floor and animal characters
+- A third floor, animal characters, and the rival developer
 - A prestige mode: open a second mall in a new town
 
-## 20. Platforms and test builds (Decided: Android first, iOS later)
+## 21. Platforms and test builds (Decided: Android first, iOS later)
 
 **Target:** a mobile game. Android ships first, and iOS follows from the same code.
 
@@ -486,12 +540,13 @@ Use **[Capacitor](https://capacitorjs.com)**. It wraps the same web build as a n
 
 ### What this means for the game
 
+- **Landscape only:** the app locks to landscape. The HTML test link shows a "rotate your phone" card in portrait.
 - **Touch-first controls:** tap, drag to pan, pinch to zoom. No hover states. Respect the safe-area insets around notches and the home bar.
 - **Make the web build a proper home-screen web app:** a manifest, icons, full-screen mode, no rubber-band scrolling or double-tap zoom.
 - **iOS Safari quirks:** sound only starts after the first tap. The browser has no vibration support, so haptics come from the Capacitor plugin in the real app. Safari can clear saved data for a site that hasn't been opened in a while, so web test builds should offer a save export/import code.
 - **Performance:** aim for 60 fps on a mid-range Android phone and an older iPhone. Bake sprites once when the game loads, and cap the number of on-screen characters.
 
-## 21. Tech approach (proposed)
+## 22. Tech approach (proposed)
 
 - **Pipeline:** JavaScript and esbuild produce a single-file web build (the HTML test link). Capacitor wraps that build as the Android app, and later the iOS app.
 - **Rendering (2D):**
@@ -503,10 +558,8 @@ Use **[Capacitor](https://capacitorjs.com)**. It wraps the same web build as a n
 - **Simulation:** runs on a fixed tick, separate from rendering. Customers find their way with grid pathfinding, using a cached flow field toward each store entrance.
 - **Save:** JSON in local storage.
 
-## 22. Open questions
+## 23. Open questions
 
-1. **Art style:** 2D drawn or 3D low-poly, after looking at the mockup (`mall/mockups/art-styles.html`)?
-2. **Orientation:** portrait (one-handed, like Tiny Tower) or landscape (more mall on screen)?
-3. **Monetization details:** rewarded ads only, or also a paid Remove Ads option?
-4. **Optional rival:** keep Victor Sterling, or keep the story all about Gus and Rose?
-5. **Name:** Mall Revival, Sunnyside Mall, Mallville, Tiny Plaza, Second Wind Mall, or something else?
+1. **Monetization details:** rewarded ads only, or also a paid Remove Ads option?
+2. **Day length:** is about 5 minutes per day right? This is easy to tune once the prototype is playable.
+3. **Final name:** *Mall Revival* for now. Revisit before the store listing.
