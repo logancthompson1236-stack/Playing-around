@@ -27,6 +27,7 @@ const STILL = {
   clerks: s => !s.staff.some(m => m.role === 'clerk'),
   litter: s => !s.decor.some(d => d.type === 'bin'),
   speed: s => s.staff.length > 0,
+  style: s => s.style.walls.length + s.style.floors.length <= 2,
 };
 // New day or new night: drop anything still waiting from the other half.
 export function resetTipBudget(){ shownThisPhase = 0; queue.length = 0; }

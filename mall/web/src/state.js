@@ -13,6 +13,7 @@ export function newSave(player){
     rating: 1, ratingHist: [],
     player,
     zones: {}, fountain: false, expansions: {},
+    style: newStyle(),
     units: [], decor: [], staff: [],
     nextId: 1,
     flags: { tutorial: 0, tips: {}, memories: {}, pending: [], tipsToday: 0, applicants: null, appDay: 0 },
@@ -27,6 +28,9 @@ export function newSave(player){
   }
   return save;
 }
+
+// The mall's wallpaper and concourse floor, plus every style bought so far.
+const newStyle = () => ({ wall: 'classic', floor: 'classic', walls: ['classic'], floors: ['classic'] });
 
 export function hasSave(){
   try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
@@ -43,6 +47,7 @@ export function loadSave(){
 // empty storefront of the same size (keeping its id, so clerks stay put), and anything that can't fit is refunded.
 function upgradeSave(s){
   s.expansions = s.expansions || {};
+  s.style = s.style || newStyle();
   if ((s.layout || 1) >= LAYOUT) return s;
   const old = s.units, units = [];
   for (const u of START_UNITS) units.push({ id: s.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.restroom ? 'restroom' : 'derelict', store: null, stock: 0 });

@@ -96,6 +96,57 @@ export function floor(kind, x, y, w, h, seed){
       else { g.beginPath(); g.moveTo(px - 0.08, py); g.quadraticCurveTo(px - 0.04, py - 0.07, px, py); g.quadraticCurveTo(px + 0.04, py + 0.07, px + 0.08, py); g.stroke(); }
     }
   }
+  else if (kind === 'diner'){ checker(1, '#fdf5e6', '#cdeee6'); grid(1, 'rgba(60,120,110,.16)', 0.025); }
+  else if (kind === 'terracotta'){
+    g.fillStyle = '#f6e9d6'; g.fillRect(x, y, w, h);
+    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){
+      const v = hash(i, j);
+      g.fillStyle = v < 0.33 ? '#efc1a2' : v < 0.66 ? '#ebba99' : '#f2c8aa'; g.fillRect(i + 0.04, j + 0.04, 0.92, 0.92);
+    }
+    for (let i = Math.floor(x); i <= x + w; i++) for (let j = Math.floor(y); j <= Math.ceil(y + h); j++){
+      if ((i + j) % 2) continue;
+      g.save(); g.translate(i, j); g.rotate(Math.PI / 4);
+      g.fillStyle = '#f7ead6'; g.fillRect(-0.13, -0.13, 0.26, 0.26); g.fillStyle = '#62bfb3'; g.fillRect(-0.065, -0.065, 0.13, 0.13);
+      g.restore();
+    }
+  }
+  else if (kind === 'flagstone'){
+    // Irregular pavers: a grid of jittered corners, each cell drawn as a stone shrunk toward its middle.
+    g.fillStyle = '#d2c5ae'; g.fillRect(x, y, w, h);
+    const st = 0.8, cols = ['#ede6d7', '#e6ddcb', '#dfd4c0', '#f1ebdf', '#e4d9c5'];
+    const P = (i, j) => [i * st + (hash(i, j, 1) - 0.5) * 0.34, j * st + (hash(i, j, 2) - 0.5) * 0.34];
+    g.lineJoin = 'round'; g.lineWidth = 0.06;
+    for (let i = Math.floor(x / st) - 1; i <= (x + w) / st; i++) for (let j = Math.floor(y / st) - 1; j <= (y + h) / st; j++){
+      const q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+      const cx = q.reduce((a, p) => a + p[0], 0) / 4, cy = q.reduce((a, p) => a + p[1], 0) / 4;
+      g.beginPath(); q.forEach(([px, py], k) => { const sx = cx + (px - cx) * 0.86, sy = cy + (py - cy) * 0.86; if (k) g.lineTo(sx, sy); else g.moveTo(sx, sy); }); g.closePath();
+      g.fillStyle = g.strokeStyle = cols[Math.floor(hash(i, j, 3) * cols.length)]; g.fill(); g.stroke();
+    }
+  }
+  else if (kind === 'herring'){
+    // Herringbone: planks two units long, u wide, in diagonal strips repeating every 4u.
+    const u = 0.25, X0 = Math.floor(x / u) - 6, X1 = Math.ceil((x + w) / u) + 2, Y0 = Math.floor(y / u) - 3, Y1 = Math.ceil((y + h) / u) + 1;
+    g.strokeStyle = 'rgba(120,78,40,.2)'; g.lineWidth = 0.018;
+    for (let n = Y0; n <= Y1; n++) for (let k = Math.ceil((X0 - n) / 4); k <= Math.floor((X1 - n) / 4); k++){
+      const px = n + 4 * k;
+      for (const [ax, ay, aw, ah, t] of [[px, n, 2, 1, 0], [px, n + 1, 1, 2, 1]]){
+        const v = hash(px, n, t);
+        g.fillStyle = t ? (v < 0.5 ? '#e3c091' : '#dfbb8b') : (v < 0.5 ? '#e9c898' : '#e6c494');
+        g.fillRect(ax * u, ay * u, aw * u, ah * u); g.strokeRect(ax * u, ay * u, aw * u, ah * u);
+      }
+    }
+  }
+  else if (kind === 'marble'){
+    // Big 2x2 slabs with soft veins and gold seams.
+    for (let i = Math.floor(x / 2) * 2; i < x + w; i += 2) for (let j = Math.floor(y / 2) * 2; j < y + h; j += 2){
+      g.fillStyle = ((i + j) / 2) % 2 ? '#ede8e2' : '#f7f4f0'; g.fillRect(i, j, 2, 2);
+      marbleVeins(mulberry(i * 131 + j * 977 + 5), i, j, 2);
+    }
+    g.strokeStyle = 'rgba(205,165,85,.7)'; g.lineWidth = 0.035; g.beginPath();
+    for (let i = Math.ceil(x / 2) * 2; i <= x + w; i += 2){ g.moveTo(i, y); g.lineTo(i, y + h); }
+    for (let j = Math.ceil(y / 2) * 2; j <= y + h; j += 2){ g.moveTo(x, j); g.lineTo(x + w, j); }
+    g.stroke();
+  }
   else if (kind === 'cinema'){ checker(0.5, '#5b2a3e', '#53263a'); grid(1, 'rgba(255,210,63,.12)', 0.02); }
   else if (kind === 'bounce'){ checker(1, '#e9f3ff', '#d9e8fb'); grid(1, 'rgba(90,141,238,.2)', 0.03); }
   else if (kind === 'mint'){ checker(1, '#e3f6ea', '#c9ecd8'); grid(1, 'rgba(60,140,100,.2)', 0.025); }
@@ -414,7 +465,7 @@ export function person(x, y, o){
     rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }
-  if (o.hold && !o.back) heldItem(o.hold, 0.235, -0.31, o.bagColor);
+  if (o.hold && !o.back) heldItem(o.hold, 0.235, -0.31, o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
@@ -436,7 +487,7 @@ export function person(x, y, o){
   g.restore();
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
-function heldItem(kind, hx, hy, color){
+function heldItem(kind, hx, hy, color, prize){
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -452,9 +503,19 @@ function heldItem(kind, hx, hy, color){
     case 'book': rr(hx - 0.07, hy - 0.12, 0.14, 0.17, 0.015); fs('#e07a5f', 0.025); g.fillStyle = '#f2e6c8'; g.fillRect(hx - 0.07, hy - 0.11, 0.025, 0.15); break;
     case 'record': rr(hx - 0.09, hy - 0.15, 0.18, 0.18, 0.015); fs('#ffd23f', 0.025); circ(hx + 0.02, hy - 0.06, 0.06); fs('#2b2d42', 0.015); break;
     case 'gadget': box(hx - 0.1, hy - 0.04, 0.2, 0.08, 0.15, '#c0f0ff', '#118ab2', 0, 0.02, 0.025); rr(hx - 0.06, hy - 0.15, 0.12, 0.07, 0.015); fs('#a8f0e6', 0.015); break;
-    case 'plush':
-      circ(hx - 0.05, hy - 0.17, 0.035); fs('#c98b55', 0.02); circ(hx + 0.05, hy - 0.17, 0.035); fs('#c98b55', 0.02);
-      circ(hx, hy - 0.1, 0.075); fs('#e0a96d', 0.025); circ(hx, hy - 0.08, 0.025); fs('#f2e3cf', 0); break;
+    case 'plush': {
+      // A claw-machine or arcade prize: bear, bunny, duck, alien or dino.
+      const pz = prize || { kind: 'bear', color: '#e0a96d' }, c = pz.color, dark = shade(c, -0.25);
+      if (pz.kind === 'bunny'){ for (const sx of [-1, 1]){ ell(hx + sx * 0.035, hy - 0.22, 0.022, 0.06); fs(c, 0.018); } }
+      else if (pz.kind === 'alien'){ g.beginPath(); g.moveTo(hx, hy - 0.16); g.lineTo(hx, hy - 0.24); g.strokeStyle = OUT; g.lineWidth = 0.015; g.stroke(); circ(hx, hy - 0.25, 0.02); fs('#ff5fa2', 0.012); }
+      else if (pz.kind === 'dino'){ for (let i = 0; i < 3; i++){ g.beginPath(); g.moveTo(hx - 0.05 + i * 0.04, hy - 0.16); g.lineTo(hx - 0.03 + i * 0.04, hy - 0.21); g.lineTo(hx - 0.01 + i * 0.04, hy - 0.16); fs(dark, 0.012); } }
+      else if (pz.kind === 'bear'){ circ(hx - 0.05, hy - 0.17, 0.032); fs(dark, 0.018); circ(hx + 0.05, hy - 0.17, 0.032); fs(dark, 0.018); }
+      circ(hx, hy - 0.1, 0.075); fs(c, 0.025);
+      if (pz.kind === 'duck'){ ell(hx, hy - 0.08, 0.035, 0.018); fs('#ff9f43', 0.012); }
+      else if (pz.kind === 'alien'){ ell(hx - 0.025, hy - 0.11, 0.018, 0.024); fs(OUT, 0); ell(hx + 0.025, hy - 0.11, 0.018, 0.024); fs(OUT, 0); }
+      else { circ(hx - 0.025, hy - 0.115, 0.01); fs(OUT, 0); circ(hx + 0.025, hy - 0.115, 0.01); fs(OUT, 0); circ(hx, hy - 0.08, 0.02); fs(shade(c, 0.4), 0); }
+      break;
+    }
     case 'bag':
       g.beginPath(); g.arc(hx, hy + 0.02, 0.05, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.025; g.stroke();
       rr(hx - 0.11, hy + 0.02, 0.22, 0.2, 0.03); fs(color || '#ff8fab', 0.03); break;
@@ -464,25 +525,117 @@ function heldItem(kind, hx, hy, color){
 export function family(x, y, o){
   const k = o.kid;
   const kx = x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + 0.12, { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68 });
+  person(kx, y + 0.12 + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay });
   person(x, y, o);
+}
+
+/* ---------- Mall styles ---------- */
+// Wallpaper palettes. face: the wall, dark: its pattern and shaded sides, cap: trim along the top, base: baseboard.
+export const WALLPAPER = {
+  classic: { face: '#e9dcf7', dark: '#cdb8e6', cap: '#f6efff', base: '#cdb8e6' },
+  retro:   { face: '#c8f0e8', dark: '#93d9cc', cap: '#fff3f8', base: '#7a5aa8' },
+  sunset:  { face: '#ffdcc4', dark: '#eea482', cap: '#fff3e4', base: '#c97a5c' },
+  garden:  { face: '#dcefd4', dark: '#a8cf9d', cap: '#f8fcf1', base: '#b98d5f' },
+  deco:    { face: '#2f6168', dark: '#244b51', cap: '#f2d68a', base: '#e2bb5e' },
+  luxe:    { face: '#f6f3ef', dark: '#d8d1c9', cap: '#ffffff', base: '#4d4752' },
+};
+const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble' };
+let style = { wall: 'classic', floor: 'classic' };
+export function setStyle(st){ if (st) style = st; }
+export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
+export const concourseFloor = (id = style.floor) => FLOOR_KIND[id] || 'concourse';
+// A repeatable 0..1 number for a tile, so patterns line up across separately drawn floor strips.
+const hash = (a, b, c = 0) => { let t = Math.imul(a | 0, 73856093) ^ Math.imul(b | 0, 19349663) ^ Math.imul(c | 0, 83492791); t = Math.imul(t ^ t >>> 13, 0x5bd1e995); return ((t ^ t >>> 15) >>> 0) / 4294967296; };
+
+// Two soft veins across a marble slab: a faint wide wash with a fine line down the middle.
+function marbleVeins(R, x, y, w, h = w){
+  g.lineCap = 'round';
+  for (let v = 0; v < 2; v++){
+    const ax = x + R() * w, bx = x + R() * w, c1 = x + R() * w, c2 = x + R() * w;
+    for (const [a, lw] of [[0.06, 0.08], [0.15, 0.016]]){
+      g.strokeStyle = `rgba(140,128,124,${a})`; g.lineWidth = lw;
+      g.beginPath(); g.moveTo(ax, y); g.bezierCurveTo(c1, y + h * 0.35, c2, y + h * 0.65, bx, y + h); g.stroke();
+    }
+  }
 }
 
 /* ---------- Mall structure ---------- */
 export const WALL_H = 1.25;
-export function mallBackWall(w){
-  g.fillStyle = '#e9dcf7'; g.fillRect(0, -WALL_H, w, WALL_H);
-  g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i += 1){ g.fillRect(i + 0.45, -WALL_H, 0.1, WALL_H); }
-  g.fillStyle = '#cdb8e6'; g.fillRect(0, -0.22, w, 0.22);
+export function mallBackWall(w, id = style.wall){
+  const P = wallpaper(id), top = -WALL_H;
+  g.save(); g.beginPath(); g.rect(0, top, w, WALL_H); g.clip();
+  g.fillStyle = P.face; g.fillRect(0, top, w, WALL_H);
+  wallPattern(id, P, w, top);
+  g.restore();
+  g.fillStyle = P.base; g.fillRect(0, -0.22, w, 0.22);
   g.fillStyle = 'rgba(45,30,40,.15)'; g.fillRect(0, -0.06, w, 0.06);
-  g.beginPath(); g.rect(0, -WALL_H, w, WALL_H); fs(null);
-  rr(-0.15, -WALL_H - 0.22, w + 0.3, 0.22, 0.04); fs('#f6efff');
+  g.beginPath(); g.rect(0, top, w, WALL_H); fs(null);
+  rr(-0.15, top - 0.22, w + 0.3, 0.22, 0.04); fs(P.cap);
+}
+// The pattern on the wall above the baseboard (from top down to y = -0.22).
+function wallPattern(id, P, w, top){
+  if (id === 'retro'){
+    // A pink zigzag band, little yellow triangles above it and purple dots below.
+    g.strokeStyle = '#ff8fb8'; g.lineWidth = 0.075; g.lineJoin = 'round'; g.beginPath();
+    for (let x = 0; x <= w + 0.5; x += 0.25) (x === 0 ? g.moveTo : g.lineTo).call(g, x, -0.62 + ((x * 4) % 2 ? -0.1 : 0.1));
+    g.stroke();
+    for (let i = 0; i < w; i++){
+      g.fillStyle = '#ffd23f'; g.beginPath(); g.moveTo(i + 0.25, top + 0.2); g.lineTo(i + 0.36, top + 0.38); g.lineTo(i + 0.14, top + 0.38); g.closePath(); g.fill();
+      g.strokeStyle = '#9b7bff'; g.lineWidth = 0.04; g.beginPath(); g.moveTo(i + 0.6, top + 0.3); g.quadraticCurveTo(i + 0.68, top + 0.18, i + 0.76, top + 0.3); g.quadraticCurveTo(i + 0.84, top + 0.42, i + 0.92, top + 0.3); g.stroke();
+      g.fillStyle = i % 2 ? '#9b7bff' : '#5cc8bf'; circ(i + 0.5, -0.36, 0.045); g.fill();
+    }
+  } else if (id === 'sunset'){
+    // A cream band along the top and a row of terracotta arches.
+    g.fillStyle = '#fff0dc'; g.fillRect(0, top, w, 0.14);
+    for (let i = 0; i < w; i += 2){
+      const ax = i + 0.35, aw = 1.3, ay = top + 0.32, ab = -0.3;
+      for (const [inset, col] of [[0, P.dark], [0.09, '#ffc7a6']]){
+        g.beginPath(); g.moveTo(ax + inset, ab); g.lineTo(ax + inset, ay + aw / 2); g.arc(ax + aw / 2, ay + aw / 2, aw / 2 - inset, Math.PI, 0); g.lineTo(ax + aw - inset, ab); g.closePath();
+        g.fillStyle = col; g.fill();
+      }
+      g.fillStyle = 'rgba(255,240,220,.7)'; g.fillRect(ax + 0.2, ab - 0.06, aw - 0.4, 0.06);
+    }
+  } else if (id === 'garden'){
+    // Oak wainscoting below, sage with leafy sprigs above.
+    for (let i = 0; i < w; i++){
+      const lx = i + 0.5, ly = top + (i % 2 ? 0.5 : 0.3);
+      g.strokeStyle = '#7fae74'; g.lineWidth = 0.03; g.beginPath(); g.moveTo(lx, ly + 0.22); g.lineTo(lx, ly - 0.12); g.stroke();
+      g.fillStyle = '#8fbf84';
+      for (const [dx, dy, r] of [[-0.09, 0.1, -0.7], [0.09, 0.02, 0.7], [-0.08, -0.07, -0.6], [0, -0.16, 0]]){ ell(lx + dx, ly + dy, 0.09, 0.045, r); g.fill(); }
+    }
+    g.fillStyle = '#c99a68'; g.fillRect(0, -0.66, w, 0.44);
+    g.fillStyle = '#b8895a'; for (let x = 0.16; x < w; x += 0.33) g.fillRect(x, -0.66, 0.025, 0.44);
+    g.fillStyle = '#a87a4c'; g.fillRect(0, -0.7, w, 0.07);
+  } else if (id === 'deco'){
+    // Gold pinstripes and sunburst fans sitting on the baseboard.
+    g.fillStyle = 'rgba(226,187,94,.55)'; for (let i = 0; i < w; i++) g.fillRect(i + 0.485, top, 0.03, WALL_H);
+    g.fillStyle = '#e2bb5e'; g.fillRect(0, top + 0.1, w, 0.04);
+    for (let i = 0; i < w; i += 2){
+      const cx = i + 1, cy = -0.22, r = 0.55;
+      g.beginPath(); g.arc(cx, cy, r, Math.PI, 0); g.closePath(); g.fillStyle = P.dark; g.fill();
+      g.strokeStyle = '#e2bb5e'; g.lineWidth = 0.035; g.stroke();
+      g.beginPath();
+      for (let k = 1; k < 6; k++){ const a = Math.PI + k * Math.PI / 6; g.moveTo(cx + Math.cos(a) * 0.12, cy + Math.sin(a) * 0.12); g.lineTo(cx + Math.cos(a) * (r - 0.06), cy + Math.sin(a) * (r - 0.06)); }
+      g.lineWidth = 0.025; g.stroke();
+    }
+  } else if (id === 'luxe'){
+    // Marble veining, faint panel seams and a thin gold line.
+    for (let i = 0; i < w; i += 2){
+      marbleVeins(mulberry(i * 97 + 11), i, top, 2, WALL_H);
+      g.fillStyle = 'rgba(80,70,70,.07)'; g.fillRect(i, top, 0.025, WALL_H);
+    }
+    g.fillStyle = '#d4b06a'; g.fillRect(0, -0.52, w, 0.035);
+  } else {
+    g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
+  }
 }
 export function sideWall(x, y0, y1){
-  box(x - 0.12, y0, 0.24, y1 - y0, WALL_H, '#f6efff', '#cdb8e6');
+  const P = wallpaper();
+  box(x - 0.12, y0, 0.24, y1 - y0, WALL_H, P.cap, P.dark);
 }
 export function frontWall(x0, x1, y){
-  box(x0, y - 0.1, x1 - x0, 0.2, 0.55, '#f6efff', '#cdb8e6', 0, 0.04);
+  const P = wallpaper();
+  box(x0, y - 0.1, x1 - x0, 0.2, 0.55, P.cap, P.dark, 0, 0.04);
 }
 export function entranceDoors(x, y, w, open){
   // Low sliding glass doors so the cutaway view stays clear.
@@ -506,7 +659,7 @@ export function doorX(u){ return u.x + Math.floor(u.w / 2); }
 const isOpen = u => u.state === 'store' || u.state === 'restroom';
 function unitWall(u, def){
   if (u.state === 'derelict') return ['#b5a996', '#a2967f'];
-  if (u.state === 'vacant') return ['#e9dcf7', '#cdb8e6'];
+  if (u.state === 'vacant'){ const P = wallpaper(); return [P.face, P.dark]; }
   return [shade(def.color, 0.55), shade(def.color, 0.25)];
 }
 
@@ -525,17 +678,18 @@ export function unitBack(u, def, t){
     }
     g.beginPath(); g.rect(u.x, u.y - H, u.w, H); fs(null);
     rr(u.x - 0.04, u.y - H - 0.14, u.w + 0.08, 0.14, 0.03); fs(wl);
-    if (isOpen(u)){
-      rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs('#fffaf3');
-      if (def.icon === 'joystick' || def.icon === 'film') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', u.w - 0.6);
-      else text(def.name, u.x + u.w / 2, u.y - 0.76, 0.27, shade(def.color, -0.3), 700, 'Fredoka', u.w - 0.6);
-    }
     if (u.state === 'vacant'){ forLease(u.x + u.w / 2, u.y - 0.6, -0.05, 0.9); }
     if (u.state === 'derelict'){ cobweb(u.x, u.y - H, 0.42, 1); cobweb(u.x + u.w, u.y - H, 0.36, -1); }
   } else {
     box(u.x - 0.04, u.y + u.h - 0.1, u.w + 0.08, 0.16, 0.42, wl, wd);
   }
   if (isOpen(u)) storeFurniture(u, def, t, 'back');
+  // The sign goes up last so tall back shelves and cabinets never cover the store's name.
+  if (u.face === 'down' && isOpen(u)){
+    rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs('#fffaf3');
+    if (def.icon === 'joystick' || def.icon === 'film') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', u.w - 0.6);
+    else text(def.name, u.x + u.w / 2, u.y - 0.76, 0.27, shade(def.color, -0.3), 700, 'Fredoka', u.w - 0.6);
+  }
   if (u.state === 'derelict') derelictJunk(u);
 }
 
@@ -654,16 +808,17 @@ export function storeFurniture(u, def, t, layer){
       box(x, y, sw, 0.4, 0.55, '#3d405b', '#2b2d42');
       const R = mulberry(u.id * 7);
       for (let px = x + 0.08; px < x + sw - 0.2; px += 0.2){ rr(px, y + 0.4 - 0.55 - 0.24, 0.17, 0.26, 0.02); fs(JAR[Math.floor(R() * JAR.length)], 0.02); circ(px + 0.085, y + 0.4 - 0.55 - 0.12, 0.05); fs('#2b2d42', 0); }
-      rr(x + 0.1, y - 1.05, 0.38, 0.42, 0.03); fs('#ffd23f', 0.03); circ(x + 0.29, y - 0.84, 0.12); fs('#2b2d42', 0.02);
-      if (sw > 0.9){ rr(x + 0.6, y - 1.0, 0.34, 0.36, 0.03); fs('#ef476f', 0.03); text('♪', x + 0.77, y - 0.82, 0.26, '#fff', 700); }
+      // Posters hang above the crates, except on a back wall that already holds the sign.
+      if (u.face !== 'down'){ rr(x + 0.1, y - 1.05, 0.38, 0.42, 0.03); fs('#ffd23f', 0.03); circ(x + 0.29, y - 0.84, 0.12); fs('#2b2d42', 0.02); }
+      if (sw > 0.9 && u.face !== 'down'){ rr(x + 0.6, y - 1.0, 0.34, 0.36, 0.03); fs('#ef476f', 0.03); text('♪', x + 0.77, y - 0.82, 0.26, '#fff', 700); }
     }
     else if (ic === 'tv'){
       // A wall of TVs, all showing the same flickering channel.
       const n = Math.max(1, Math.floor(sw / 0.62));
       for (let i = 0; i < n; i++) for (let row = 0; row < 2; row++){
-        const cx = x + 0.04 + i * (sw - 0.08) / n, bw = (sw - 0.08) / n - 0.06, by = y + 0.4 - row * 0.45;
-        box(cx, by - 0.4, bw, 0.4, 0.42, '#4a5058', '#2f343a');
-        rr(cx + 0.06, by - 0.4 - 0.36, bw - 0.12, 0.28, 0.05); fs(`hsl(${(t * 40 + i * 30 + row * 60) % 360},70%,${62 + Math.sin(t * 9 + i) * 6}%)`, 0.025);
+        const cx = x + 0.04 + i * (sw - 0.08) / n, bw = (sw - 0.08) / n - 0.06, by = y + 0.4 - row * 0.38;
+        box(cx, by - 0.4, bw, 0.4, 0.36, '#4a5058', '#2f343a');
+        rr(cx + 0.06, by - 0.4 - 0.31, bw - 0.12, 0.24, 0.05); fs(`hsl(${(t * 40 + i * 30 + row * 60) % 360},70%,${62 + Math.sin(t * 9 + i) * 6}%)`, 0.025);
       }
     }
     else if (ic === 'cup'){ box(x, y, sw, 0.36, 0.6, '#6b4a3a', '#8a5a44'); for (let i = 0; i < 3; i++){ rr(x + 0.08 + i * 0.18, y + 0.36 - 0.6 - 0.2, 0.12, 0.18, 0.03); fs('#ffe8c2', 0.02); } }
@@ -695,19 +850,28 @@ export function restroomSpots(u){
   const dl = doorX(u) - u.x + 0.5;
   return { stalls, sinks, aisle: (ly) => at(dl, ly), sinkY: H - 1.02 };
 }
+// A proper toilet in the 3/4 view: tank against the wall, lid up, seat ring, water, and a pedestal.
+function toilet(cx, backY, bowlY){
+  shadow(cx, bowlY + 0.2, 0.18, 0.06, 0.15);
+  box(cx - 0.17, backY, 0.34, 0.14, 0.4, '#ffffff', '#e8eef0', 0, 0.05, 0.035);
+  rr(cx - 0.19, backY - 0.3, 0.38, 0.06, 0.03); fs('#f4f8f9', 0.03);
+  rr(cx + 0.06, backY - 0.17, 0.08, 0.03, 0.015); fs('#a0a8b0', 0.015);
+  rr(cx - 0.13, backY - 0.12, 0.26, 0.24, 0.1); fs('#f0f5f6', 0.03);
+  g.beginPath(); g.moveTo(cx - 0.08, bowlY + 0.06); g.lineTo(cx - 0.06, bowlY + 0.21); g.lineTo(cx + 0.06, bowlY + 0.21); g.lineTo(cx + 0.08, bowlY + 0.06); g.closePath(); fs('#e8eef0', 0.03);
+  ell(cx, bowlY, 0.16, 0.12); fs('#ffffff', 0.035);
+  ell(cx, bowlY + 0.005, 0.11, 0.08); fs('#eef4f5', 0.02);
+  ell(cx, bowlY + 0.015, 0.07, 0.05); fs('#bfe7f7', 0);
+}
 function restroomFurniture(u, layer){
   const st = roomState.get(u), sp = restroomSpots(u), down = u.face === 'down';
   if (layer === 'back'){
     for (let i = 0; i < sp.stalls.length; i++){
-      const s0 = sp.stalls[i], taken = st && st.stalls && st.stalls[i];
+      const s0 = sp.stalls[i], taken = st && st.inside && st.inside[i];
       // Stalls stand a little off the back wall so their tops stay under the sign.
       const D = 1.0, [x, y] = local(u, s0.lx, 0.3, s0.sw, D);
       // Toilet: tank against the back of the stall, bowl in front of it.
-      const back = down ? y : y + D - 0.25, bowlY = down ? y + 0.5 : y + 0.45;
-      if (down || !taken){
-        box(x + s0.sw / 2 - 0.17, back, 0.34, 0.2, 0.42, '#ffffff', '#e4ecec');
-        ell(x + s0.sw / 2, bowlY, 0.17, 0.12); fs('#ffffff', 0.03); ell(x + s0.sw / 2, bowlY, 0.1, 0.07); fs('#cfe9f2', 0);
-      }
+      const back = down ? y : y + D - 0.25, bowlY = down ? y + 0.36 : y + 0.45;
+      if (down || !taken) toilet(x + s0.sw / 2, back, bowlY);
       // Partitions either side, and the door: shut (with a red light) when someone's in, swung open when free.
       box(x - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
       if (i === sp.stalls.length - 1) box(x + s0.sw - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
@@ -757,15 +921,19 @@ function attractionBack(u, def, t){
     g.restore();
     rr(x, top, sw, sh, 0.04); fs(null, 0.05);
   } else {
-    // Trampolines: a padded frame with a stretchy blue bed, plus foam mats along the walls.
-    const sp = attractionSpots(u, def);
+    // Foam mats along the back wall. The trampolines lie flat on the floor; when the back wall is at the bottom
+    // (doors facing up) the renderer draws them early instead, so jumpers aren't hidden under them.
     const [mx, my] = local(u, 0.08, 0.08, u.w - 0.16, 0.3); box(mx, my, u.w - 0.16, 0.3, 0.35, '#ffd23f', '#f4b942');
-    for (const s0 of sp.seats){
-      const cx = s0.at.x, cy = s0.at.y + 0.05;
-      ell(cx, cy, 0.55, 0.3); fs('#3d405b', 0.04);
-      ell(cx, cy, 0.44, 0.22); fs('#5a8dee', 0.025);
-      for (let a = 0; a < 6; a++){ circ(cx + Math.cos(a) * 0.5, cy + Math.sin(a) * 0.27, 0.035); fs('#ef476f', 0); }
-    }
+    if (u.face === 'down') trampolines(u, def);
+  }
+}
+// Trampolines: a padded frame with a stretchy blue bed.
+export function trampolines(u, def){
+  for (const s0 of attractionSpots(u, def).seats){
+    const cx = s0.at.x, cy = s0.at.y + 0.05;
+    ell(cx, cy, 0.55, 0.3); fs('#3d405b', 0.04);
+    ell(cx, cy, 0.44, 0.22); fs('#5a8dee', 0.025);
+    for (let a = 0; a < 6; a++){ circ(cx + Math.cos(a) * 0.5, cy + Math.sin(a) * 0.27, 0.035); fs('#ef476f', 0); }
   }
 }
 // One row of cinema seats (drawn separately so people sit in them properly).
@@ -872,8 +1040,10 @@ export function trashCan(x, y, full = 0){
 /* ---------- Decor with a facing: rot 0 faces the camera, 1 faces left, 2 faces away, 3 faces right ---------- */
 const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs: '#7a5a44', backH: 0.72, seatH: 0.32 };
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'] };
+// Live state for decor (is someone using it, and how far along), set by the renderer.
+export const decorState = new WeakMap();
 export function decor(d, t = 0){
-  const r = d.rot || 0, x = d.x, y = d.y;
+  const r = d.rot || 0, x = d.x, y = d.y, live = decorState.get(d);
   switch (d.type){
     case 'plant': palm(x + 0.5, y + 0.85); break;
     case 'bin': trashCan(x + 0.5, y + 0.8); break;
@@ -882,7 +1052,8 @@ export function decor(d, t = 0){
     case 'planter': planter(x, y, r); break;
     case 'lamp': lampPost(x + 0.5, y + 0.8); break;
     case 'vending': vending(x, y, r); break;
-    case 'ride': kiddieRide(x, y, r, t); break;
+    case 'ride': kiddieRide(x, y, r, t, live); break;
+    case 'claw': clawMachine(x, y, r, t, live); break;
     case 'gumball': gumball(x + 0.5, y + 0.8); break;
     case 'directory': directory(x, y, r); break;
     case 'tree': shadeTree(x + 0.5, y + 0.85); break;
@@ -955,12 +1126,15 @@ function vending(x, y, r){
     rr(ex, top + 0.08, 0.08, 1.0, 0.02); fs('rgba(200,235,250,.95)', 0.02);
   }
 }
-function kiddieRide(x, y, r, t){
-  const cx = x + 0.5, cy = y + 0.78, bob = Math.sin(t * 2.2) * 0.02;
+function kiddieRide(x, y, r, t, live){
+  // In use, it rocks side to side (the kid on it rocks with it; see the renderer).
+  const cx = x + 0.5, cy = y + 0.78, bob = live ? Math.abs(Math.sin(t * 4)) * 0.06 : Math.sin(t * 2.2) * 0.02, tilt = live ? Math.sin(t * 4) * 0.18 : 0;
   shadow(cx, cy, 0.42, 0.12);
   cylinder(cx, cy - 0.02, 0.38, 0.14, '#e0b52f', '#ffd23f');
   rr(cx - 0.03, cy - 0.4, 0.06, 0.26, 0.02); fs('#a0a8b0', 0.025);
-  const by = cy - 0.62 + bob;
+  const by = cy - 0.62 - bob;
+  g.save(); g.translate(cx, cy - 0.4); g.rotate(tilt); g.translate(-cx, -(cy - 0.4));
+  if (live){ for (let i = 0; i < 3; i++){ circ(cx - 0.3 + i * 0.3, cy - 0.06, 0.03); fs(`hsl(${(t * 300 + i * 120) % 360},90%,60%)`, 0); } }
   if (r === 1 || r === 3){
     // Drawn nose-right; turned to face left it's mirrored.
     g.save(); g.translate(cx, by); if (r === 1) g.scale(-1, 1);
@@ -977,6 +1151,7 @@ function kiddieRide(x, y, r, t){
     else { circ(cx, by + 0.02, 0.1); fs('#3d405b', 0.03); circ(cx, by + 0.02, 0.05); fs('#ff9f43', 0); }
     g.beginPath(); g.moveTo(cx - 0.1, by - 0.18); g.lineTo(cx, by - 0.42); g.lineTo(cx + 0.1, by - 0.18); fs('#ef476f', 0.03);
   }
+  g.restore();
 }
 // A leafy indoor shade tree in a round planter.
 function shadeTree(x, y){
@@ -986,6 +1161,27 @@ function shadeTree(x, y){
   rr(x - 0.07, y - 1.5, 0.14, 1.2, 0.05); fs('#8a6040');
   for (const [dx, dy, r, c] of [[-0.32, -1.55, 0.36, '#4fa85e'], [0.32, -1.6, 0.36, '#4fa85e'], [0, -1.95, 0.42, '#5bbf6a'], [-0.18, -1.75, 0.34, '#66c776'], [0.2, -1.8, 0.32, '#5bbf6a']]){ circ(x + dx, y + dy, r); fs(c); }
   for (const [dx, dy] of [[-0.1, -2.05], [0.18, -1.7], [-0.3, -1.6]]){ circ(x + dx, y + dy, 0.06); g.fillStyle = 'rgba(255,255,255,.35)'; g.fill(); }
+}
+// Claw machine: a glass case full of plushies, and a claw that drifts about (and dives when someone's playing).
+function clawMachine(x, y, r, t, live){
+  const cx = x + 0.5, base = y + 0.3;
+  shadow(cx, y + 0.84, 0.42, 0.1);
+  box(x + 0.12, base, 0.76, 0.52, 0.52, '#ff8fc8', r === 2 ? '#e8569b' : '#ff5fa2');
+  const top = base + 0.52 - 0.52 - 0.95;
+  rr(x + 0.14, top, 0.72, 0.95, 0.04); fs('rgba(205,238,255,.55)', 0.04);
+  const cols = ['#ffd23f', '#5cc8bf', '#e0a96d', '#ff8fab', '#7bd389', '#9b7bff'];
+  for (let i = 0; i < 9; i++){ circ(x + 0.24 + (i % 5) * 0.13 + (i > 4 ? 0.06 : 0), top + 0.86 - (i > 4 ? 0.1 : 0), 0.065); fs(cols[i % cols.length], 0.018); }
+  const k = live ? live.k : 0;
+  const sway = live ? Math.sin(k * 9) * 0.2 * (k < 0.7 ? 1 : 0) : Math.sin(t * 0.9) * 0.18;
+  const drop = live && k >= 0.7 ? Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.5 : 0;
+  const clx = cx + sway, cly = top + 0.22 + drop;
+  g.beginPath(); g.moveTo(clx, top + 0.05); g.lineTo(clx, cly); g.strokeStyle = '#7a8a8a'; g.lineWidth = 0.02; g.stroke();
+  rr(clx - 0.05, cly - 0.03, 0.1, 0.05, 0.02); fs('#a0a8b0', 0.015);
+  for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(clx + sx * 0.04, cly + 0.02); g.quadraticCurveTo(clx + sx * 0.1, cly + 0.08, clx + sx * 0.05, cly + 0.13); g.strokeStyle = '#a0a8b0'; g.lineWidth = 0.025; g.stroke(); }
+  rr(x + 0.1, top - 0.2, 0.8, 0.22, 0.05); fs('#7b2cbf', 0.035);
+  for (let i = 0; i < 5; i++){ circ(x + 0.22 + i * 0.14, top - 0.09, 0.025); fs(live ? `hsl(${(t * 400 + i * 70) % 360},95%,65%)` : '#ffe9a8', 0); }
+  if (r === 0){ rr(x + 0.3, base + 0.52 - 0.4, 0.4, 0.16, 0.03); fs('#3d2b35', 0.02); circ(x + 0.42, base + 0.52 - 0.34, 0.035); fs('#ef476f', 0.015); rr(x + 0.58, base + 0.52 - 0.37, 0.04, 0.1, 0.015); fs('#fff', 0.015); }
+  else if (r !== 2){ rr(r === 1 ? x + 0.14 : x + 0.8, base + 0.52 - 0.42, 0.06, 0.2, 0.02); fs('#3d2b35', 0.02); }
 }
 function gumball(x, y){
   shadow(x, y, 0.22, 0.07);

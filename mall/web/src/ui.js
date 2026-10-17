@@ -91,7 +91,8 @@ export function setToolDot(name, on){
   if (on && !dot) b.prepend(h('i', { class: 'dot' })); else if (!on && dot) dot.remove();
 }
 export function starsHtml(v){
-  const n = Math.max(1, Math.min(5, Math.round(v)));
+  // Stars are earned, not rounded up: 4.85 for five, 3.85 for four, and so on.
+  const n = Math.max(1, Math.min(5, Math.floor(v + 0.15)));
   return '★'.repeat(n) + `<span class="off">${'★'.repeat(5 - n)}</span>`;
 }
 export function updateHud(night){
@@ -467,6 +468,7 @@ export function unlockList(levels){
       const more = Object.entries(C.STAFF_LIMITS).map(([role, L]) => [role, L[lv] - L[lv - 1]]).filter(([, d]) => d > 0);
       where = more.length ? `${more.map(([role, d]) => `${d} more ${(d > 1 ? C.ROLES[role].plural : C.ROLES[role].name).toLowerCase()}`).join(', ')}.` : 'More hands on deck.';
     }
+    else if (u.style){ paint = () => { A.g.save(); A.rr(0.05, 0.05, 0.9, 0.9, 0.16); A.g.clip(); A.g.scale(0.5, 0.5); A.g.translate(0, 1.5); A.mallBackWall(2, 'sunset'); A.floor('terracotta', 0, 0, 2, 0.6, 1); A.g.restore(); }; title = 'Mall styles'; where = 'New wallpaper and flooring for the whole mall. Build, then Style.'; }
     else if (u.done){ paint = () => A.sparkle(0.5, 0.5, 1.3, 1, '#ffd23f'); title = 'Top level for this test version'; where = 'Thanks for playing!'; }
     rows.push(h('div', { class: 'unlock' }, iconCanvas(paint, 36), h('div', {}, h('b', {}, title), h('span', {}, where))));
   }

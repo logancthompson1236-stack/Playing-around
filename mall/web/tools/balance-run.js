@@ -7,6 +7,7 @@ import { mulberry } from '../src/art.js';
 
 const DAYS = +(process.argv[2] || 15), SEED = +(process.argv[3] || 7), DUMP = process.argv[4];
 setRandom(mulberry(SEED));
+const botRand = mulberry(SEED * 7919 + 1);   // the bot's own choices, seeded so runs are repeatable
 S.save = newSave({ name: 'Bot', mall: 'Bot Mall', look: {} });
 S.save.flags.tutorial = 1;
 rebuildMap(S.save);
@@ -33,7 +34,7 @@ function player(){
   const o = sim.owner;
   // An attentive player: nudges staff off their phones, mops a filthy restroom nobody's handling.
   const slacker = sim.people.find(p => p.slacking && p.breakT < p.breakMax - 4);
-  if (slacker && Math.random() < 0.5){ addJob({ type: 'nudge', staffId: slacker.id }); return; }
+  if (slacker && botRand() < 0.5){ addJob({ type: 'nudge', staffId: slacker.id }); return; }
   const gross = S.save.units.find(u => u.state === 'restroom' && roomInfo(u).dirt >= 70 && !roomInfo(u).claimed);
   if (gross){ addJob({ type: 'restroom', unitId: gross.id }); return; }
   let best = null, bq = 0;
@@ -89,7 +90,8 @@ function night(){
     break;
   }
   // Hire help when allowed.
-  const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(Math.random() * 4)], ...extra });
+  const saving = stores(s).length < 8 && s.money < 1500;   // like a sensible player: stores first, frills later
+  const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(botRand() * 4)], ...extra });
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 4){
     for (const u of stores(s).filter((_, i) => i % 2 === 0)){
@@ -98,10 +100,10 @@ function night(){
     }
   }
   if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) hire('janitor');
-  for (const role of ['stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && s.money > 900) hire(role);
+  for (const role of ['stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
   // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
-  for (let n = 0; n < 2 && s.money > 500 && s.decor.length < 26; n++){
+  for (let n = 0; n < 2 && !saving && s.money > 500 && s.decor.length < 26; n++){
     const bins = s.decor.filter(d => d.type === 'bin').length;
     const pool = Object.entries(C.DECOR).filter(([k, d]) => d.level <= s.level && k !== 'bin').map(([k]) => k);
     const type = bins < 4 ? 'bin' : pool[(s.decor.length * 7) % pool.length];
@@ -111,12 +113,17 @@ function night(){
     if (!spot) break;
     s.decor.push({ id: s.nextId++, type, x: spot.x, y: spot.y, rot: 0 }); s.money -= def.cost; gain(5); rebuildMap(s);
   }
+  // Mall styles: the cheapest new wallpaper or floor, once there's money to spare.
+  if (s.level >= C.STYLE_LEVEL && !saving){
+    const next = [['wall', C.WALLPAPERS], ['floor', C.FLOORS]].flatMap(([slot, T]) => Object.entries(T).filter(([id]) => !s.style[slot + 's'].includes(id)).map(([id, d]) => ({ slot, id, d }))).sort((a, b) => a.d.cost - b.d.cost)[0];
+    if (next && s.money > next.d.cost + 2500){ s.money -= next.d.cost; s.style[next.slot + 's'].push(next.id); s.style[next.slot] = next.id; gain(C.STYLE_XP); }
+  }
   for (const z of C.ZONES) if (!s.zones[z.id] && s.level >= z.level && s.money > z.cost + 800){ s.money -= z.cost; s.zones[z.id] = true; gain(60); }
   C.EXPANSIONS.forEach((e, i) => {
     if (s.expansions[e.id] || (i && !s.expansions[C.EXPANSIONS[i - 1].id]) || s.level < e.level || s.money < e.cost + 1500) return;
     s.money -= e.cost; s.expansions[e.id] = true; gain(e.xp);
     for (const l of e.lots) s.units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
-    if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: 2, h: 2, face: 'up', state: 'restroom', store: null, stock: 0 });
+    if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
     for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
     console.log(`      (day ${s.day}: opened the ${e.name})`);
   });

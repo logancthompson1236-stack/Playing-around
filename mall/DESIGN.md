@@ -564,6 +564,18 @@ v0.8.0 changes, from playtest feedback:
 - **Pacing:** levels 10–18 need less XP to make up for the smaller crowds. The balance bot reaches level 18 around day 38–42 and opens the East Wing around day 42, with money staying tight rather than piling up.
 - **Room to grow:** the map now reserves 58 columns for wings, so more expansions can be added later.
 
+v0.9.0 changes, from playtest feedback:
+- **Toilets look like toilets:** each stall has a tank, seat and bowl, and its door now stays open until the shopper has stepped inside, then shuts behind them.
+- **Closing-time freeze fixed:** a v0.8.0 rewrite had dropped the code that walks shoppers out of the mall, so anyone who finished shopping froze in place (most visible at closing). They walk out again, and big malls get a little more closing time so far-off shoppers make it to the doors.
+- **Claw machine (level 6, $350):** shoppers pay $2–3 for a try and win about a third of the time. Winners walk off hugging a random plush (bear, bunny, duck, alien or dino).
+- **Kids play:** they rock on the kiddie ride (it tilts and its lights blink), bounce in the Bounce Zone, and play at the arcade cabinets and claw machine while the grown-up waits.
+- **Supervisor from level 5, toned down:** one supervisor at level 5, two from level 12, with wages of $48/$62/$80 by stars. Staff within 3–5 tiles work 5–13% faster and take breaks a quarter less often (it was 18% faster and half as many breaks). They still walk the mall and get people off their phones.
+- **More window shopping later on:** from level 8 to level 18, shoppers get up to 25% less likely to buy on a given visit, and browsers (who mostly look) make up more of the crowd.
+- **Stricter report card:** cleanliness counts trash and restroom grime harder, service punishes waits more, variety needs more kinds of stores, and ambience needs more decor. Grades need 4.7 for S, 4.1 for A, 3.3 for B and 2.4 for C, and the star display rounds down, so five stars takes a really well run mall. The balance bot tops out around 4.3.
+- **Mall styles (level 10):** Build → Style has five new wallpapers (Retro Wave, Sunset Plaza, Greenhouse, Art Deco, Modern Luxe) and five new concourse floors (Diner Checker, Terracotta Tile, Garden Flagstone, Herringbone Oak, Marble Hall), from $1,200 to $4,000, plus the original lilac and terrazzo. Tap one to see it on your mall, tap Next to flip through the rest, then Buy (or Use it for one you already own). Styles add to ambience and give a little XP the first time you buy one. The camera can now scroll a bit higher so the back wall shows clear of the top bar.
+- **Polish:** store signs on the back wall are drawn above tall shelves and arcade cabinets so the names stay readable, and the record store's posters moved off the sign.
+- **Pacing:** the balance bot reaches level 7 around day 11–12 (same as v0.8.0) and level 16–17 by day 43, with money staying tight.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

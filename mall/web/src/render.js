@@ -11,10 +11,11 @@ export const view = {
   mode: 'day', night: 0,            // night: 0 day … 1 full night tint
   ghost: null, highlight: null, selected: null, spots: null,
   cache: null, cacheRev: -1, cachePPT: 0, dirty: true,
-  poofs: [],
+  poofs: [], stylePreview: null, styleKey: '',
 };
 // World bounds the camera can see. The right edge follows the building as wings are added.
-const X0 = -1.5, Y0 = -2.2, Y1 = GH + 0.6;
+// Extra room above the back wall so it can be scrolled out from under the top bar.
+const X0 = -1.5, Y0 = -3.0, Y1 = GH + 0.6;
 const X1 = () => map.w + 1.5;
 let canvas, ctx;
 
@@ -69,7 +70,7 @@ function buildCache(){
     while (x < map.w){
       const f = map.floor[idx(x, y)], gd = map.garden[idx(x, y)];
       let x2 = x; while (x2 < map.w && map.floor[idx(x2, y)] === f && map.garden[idx(x2, y)] === gd) x2++;
-      A.floor(gd ? 'grass' : f === FLOOR_DUST ? 'dust' : 'concourse', x, y, x2 - x, 1, 11 + y * 31 + x);
+      A.floor(gd ? 'grass' : f === FLOOR_DUST ? 'dust' : A.concourseFloor(), x, y, x2 - x, 1, 11 + y * 31 + x);
       x = x2;
     }
   }
@@ -103,6 +104,9 @@ function buildCache(){
 export function render(t){
   const s = S.save; if (!s) return;
   const { dpr, cam } = view;
+  // The mall's style, or one being previewed from the Build panel.
+  const st = view.stylePreview || s.style, key = st ? st.wall + '/' + st.floor : '';
+  if (key !== view.styleKey){ view.styleKey = key; A.setStyle(st); view.cacheRev = -1; }
   const want = dpr * cam.s;
   if (view.cacheRev !== map.rev || !view.cache || (view.cachePPT < 112 && want > view.cachePPT * 1.25) || want < view.cachePPT * 0.45) buildCache();
   const ppt = dpr * cam.s;
@@ -128,6 +132,7 @@ export function render(t){
     if (def && def.attraction){
       // Attractions: no counter. Cinema seat rows are sorted one by one so people sit in them, not on top.
       add(u.face === 'down' ? u.y + 0.48 : u.y + u.h, () => A.unitBack(u, def, t));
+      if (def.attraction === 'jump' && u.face !== 'down') add(u.y, () => A.trampolines(u, def));
       if (def.attraction === 'theater') for (const row of [0, 1]){
         const s0 = A.attractionSpots(u, def).seats.find(q => q.row === row);
         add(u.face === 'down' ? s0.at.y + 0.2 : s0.at.y - 0.3, () => A.theaterRow(u, def, row));
@@ -147,7 +152,14 @@ export function render(t){
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
-  for (const d of s.decor) add(decorSortY(d), () => A.decor(d, t));
+  // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are.
+  const users = new Map();
+  for (const p of sim.people) if (p.state === 'useMachine' && p.machine) users.set(p.machine, p);
+  for (const d of s.decor){
+    const u = users.get(d), c = C.DECOR[d.type].coin;
+    if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))) }); else A.decorState.delete(d);
+    add(decorSortY(d), () => A.decor(d, t));
+  }
   add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
   add(C.MAP_H, () => { A.sideWall(0, 0, C.MAP_H); A.sideWall(map.w, 0, C.MAP_H); });
   add(C.MAP_H + 0.1, () => {
@@ -181,23 +193,31 @@ function drawPerson(p, t){
     if (p.state === 'queue' && p.patience / p.patienceMax < 0.3) o.mood = 'wait';
     else if (p.mood > 0.8) o.mood = 'happy';
     if (p.type === 'teen' && L.hood) o.hood = false;
-    if (L.kid) return A.family(p.x, p.y, o);
   }
   if (p.kind === 'gus') o.mood = 'happy';
   if (L.costume) return A.mascot(p.x, p.y, o);
   // Bouncing on a trampoline: up and down, arms out.
-  if (p.bouncing){ const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true; if (L.kid) return A.family(p.x, p.y - b, o); return A.person(p.x, p.y - b, o); }
+  if (p.bouncing){
+    const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true;
+    // Kids bounce higher, on their own rhythm.
+    if (L.kid){ o.kidBob = b - Math.abs(Math.sin(t * 6.5 + p.id + 1.7)) * 0.6; return A.family(p.x, p.y - b, o); }
+    return A.person(p.x, p.y - b, o);
+  }
   if (p.faceBack) o.back = true;
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
   if (p.slacking) o.phone = true;
   if (p.mopT > 0) o.mop = p.t * 6;
-  if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; }
-  // On the kiddie ride, the kid hops on and the grown-up waits beside it.
-  if (L.kid && p.state === 'useMachine' && p.machine && p.machine.type === 'ride'){
-    const m = p.machine, bob = Math.sin(t * 5) * 0.04;
+  if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
+  // Playing a machine: hands on the controls (a kid along for the trip joins in).
+  const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
+  if (machine && machine !== 'ride' && machine !== 'vending') o.play = true;
+  if (L.kid){
+    if (machine !== 'ride') return A.family(p.x, p.y, o);
+    // On the kiddie ride the kid hops on, rocking with the rocket and cheering, while the grown-up watches.
+    const m = p.machine, sway = Math.sin(t * 4) * 0.12, bob = Math.abs(Math.sin(t * 4)) * 0.06;
     A.person(p.x, p.y, { ...o, kid: undefined });
-    A.person(m.x + 0.5, m.y + 0.42 + bob, { ...L.kid, t: p.t + 0.3, s: 0.68 });
+    A.person(m.x + 0.5 + sway, m.y + 0.36 - bob, { ...L.kid, t: p.t + 0.3, s: 0.68, play: true, mood: 'happy' });
     return;
   }
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;

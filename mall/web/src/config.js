@@ -4,6 +4,7 @@ export const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev';
 export const DAY_SECONDS = 150;        // real seconds for 9:00–21:00 at 1x speed
 export const VISITOR_SCALE = 0.72;     // keeps shoppers per minute about the same as the old 4-minute days
 export const VISITOR_TAPER = [4, 12, 0.2];   // from level 4 to 12, crowds grow 20% slower than the mall does
+export const WINDOW_SHOP = [8, 18, 0.25];    // from level 8 to 18, shoppers grow up to 25% pickier about buying
 export const LITTER_SCALE = 0.25;      // overall litter rate (each store and shopper type has its own weight)
 export const BIN_USE = 0.9;            // chance a shopper near a trash can uses it instead of the floor
 export const OPEN_HOUR = 9;
@@ -111,6 +112,27 @@ export const STORES = {
   jumppark: { name: 'Bounce Zone',      w: 5, h: 4, attraction: 'jump',    cat: 'Fun', level: 15, cost: 15000, price: [20, 32], seats: 6, show: [10, 14], upkeep: 130, stock: 0, icon: 'bounce', litter: 0.12, color: '#ff6b35', trim: '#ffd23f', floor: 'bounce' },
 };
 
+// Mall styles (level 10): a wallpaper for the mall's walls and a floor for the concourse.
+// Each is bought once, then you can switch between the ones you own for free. ambience: points toward the rating, like decor.
+export const STYLE_LEVEL = 10;
+export const WALLPAPERS = {
+  classic: { name: 'Classic Lilac',   cost: 0,    ambience: 0, sub: 'The lilac stripes Gus picked out back in the day' },
+  retro:   { name: 'Retro Wave',      cost: 1200, ambience: 3, sub: 'Mint walls with pink zigzags, straight out of the 80s' },
+  sunset:  { name: 'Sunset Plaza',    cost: 1600, ambience: 3, sub: 'Warm peach stucco and terracotta arches' },
+  garden:  { name: 'Greenhouse',      cost: 2000, ambience: 4, sub: 'Sage leaves over oak paneling' },
+  deco:    { name: 'Art Deco',        cost: 2600, ambience: 4, sub: 'Deep teal with golden fans' },
+  luxe:    { name: 'Modern Luxe',     cost: 3200, ambience: 5, sub: 'White marble with a thin gold line' },
+};
+export const FLOORS = {
+  classic:    { name: 'Classic Terrazzo', cost: 0,    ambience: 0, sub: 'Speckled cream tile with pink and teal diamonds' },
+  diner:      { name: 'Diner Checker',    cost: 1800, ambience: 3, sub: 'Big cream and mint checkerboard' },
+  terracotta: { name: 'Terracotta Tile',  cost: 2200, ambience: 3, sub: 'Sun-baked clay tiles with little inlays' },
+  flagstone:  { name: 'Garden Flagstone', cost: 2600, ambience: 4, sub: 'Sandy stone pavers, like a garden path' },
+  herring:    { name: 'Herringbone Oak',  cost: 3000, ambience: 4, sub: 'Honey oak planks in a herringbone' },
+  marble:     { name: 'Marble Hall',      cost: 4000, ambience: 5, sub: 'Big marble slabs with gold seams' },
+};
+export const STYLE_XP = 30;
+
 // rot: can be turned to face four ways. seat: shoppers sit on it. coin: a coin-op machine shoppers pay to use.
 export const DECOR = {
   bin:       { name: 'Trash can',       w: 1, h: 1, cost: 50,  ambience: 0, level: 1, bin: true, sub: 'Shoppers nearby toss trash in it' },
@@ -122,6 +144,7 @@ export const DECOR = {
   sofa:      { name: 'Comfy sofa',      w: 2, h: 1, cost: 160, ambience: 3, level: 11, seat: true, comfy: true, rot: true, sub: 'A long, happy sit · +ambience' },
   ride:      { name: 'Kiddie ride',     w: 1, h: 1, cost: 400, ambience: 1, level: 12, rot: true, coin: { price: [4, 7], who: ['family'], chance: 0.35, secs: 3.2 }, sub: 'Families pay for a ride' },
   gumball:   { name: 'Gumball machine', w: 1, h: 1, cost: 120, ambience: 1, level: 13, coin: { price: [1, 2], who: ['family', 'teen'], chance: 0.2, secs: 1.0 }, sub: 'Kids and teens love it' },
+  claw:      { name: 'Claw machine',    w: 1, h: 1, cost: 350, ambience: 1, level: 6, rot: true, coin: { price: [2, 3], who: ['family', 'teen', 'browser'], chance: 0.22, secs: 3.4 }, sub: 'Shoppers try to grab a plush prize' },
   directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 13, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
   tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 13, sub: 'A real tree, right indoors · +ambience' },
 };
@@ -148,7 +171,7 @@ export const ROLES = {
   stocker: { name: 'Stocker', plural: 'Stockers', level: 10, wage: [0, 34, 44, 56], desc: 'Restocks stores during the day so shelves never run dry.' },
   greeter: { name: 'Greeter', plural: 'Greeters', level: 12, wage: [0, 30, 38, 48], desc: 'Welcomes shoppers at the door. Happier, more patient customers.' },
   mascot:  { name: 'Mascot',  plural: 'Mascots',  level: 15, wage: [0, 40, 52, 66], desc: 'Sunny the mascot draws a bigger crowd and cheers folks up.' },
-  supervisor: { name: 'Supervisor', plural: 'Supervisors', level: 14, wage: [0, 60, 76, 96], desc: 'Makes the rounds, gets anyone on their phone back to work, and staff near them work faster.' },
+  supervisor: { name: 'Supervisor', plural: 'Supervisors', level: 5, wage: [0, 48, 62, 80], desc: 'Makes the rounds, gets anyone on their phone back to work, and staff near them work faster.' },
 };
 export const WAGES = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.wage]));
 // How many of each role you can employ at each level (index = level).
@@ -158,10 +181,11 @@ export const STAFF_LIMITS = {
   stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
   greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
   mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2],
-  supervisor: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2],
+  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2],
 };
-export const SUPERVISOR_RADIUS = [0, 4, 5, 6];      // tiles they keep an eye on
-export const SUPERVISOR_BOOST = 1.18;               // staff in range work this much faster, and break half as often
+export const SUPERVISOR_RADIUS = [0, 3, 4, 5];      // tiles they keep an eye on
+export const SUPERVISOR_BOOST = [0, 1.05, 1.09, 1.13];   // staff in range work this much faster (by the supervisor's stars)…
+export const SUPERVISOR_BREAKS = 0.75;              // …and their break clock runs this much slower
 // Staff are rated 1–3 stars (index = stars). Better staff work faster and cost more.
 export const JANITOR_SPEED = [0, 1.25, 1.75, 2.0];  // tiles per second (one-stars dawdle)
 export const JANITOR_CLEAN = [0, 1.9, 1.2, 0.95];   // seconds per sweep
@@ -181,16 +205,16 @@ export const LEVEL_UNLOCKS = {
   2: [{ store: 'coffee' }, { zone: 'nw' }],
   3: [{ store: 'arcade' }, { hire: 'janitor' }, { zone: 'ne' }],
   4: [{ store: 'boutique' }, { hire: 'clerk' }, { zone: 'sw' }],
-  5: [{ store: 'pets' }, { zone: 'se' }, { staffSlots: true }],
-  6: [{ store: 'books' }, { staffSlots: true }],
+  5: [{ store: 'pets' }, { hire: 'supervisor' }, { zone: 'se' }, { staffSlots: true }],
+  6: [{ store: 'books' }, { decor: 'claw' }, { staffSlots: true }],
   7: [{ staffSlots: true }],
   8: [{ staffSlots: true }],
   9: [{ store: 'scoops' }, { decor: 'planter' }, { decor: 'lamp' }, { staffSlots: true }],
-  10: [{ hire: 'stocker' }, { decor: 'vending' }],
+  10: [{ hire: 'stocker' }, { decor: 'vending' }, { style: true }],
   11: [{ store: 'music' }, { decor: 'sofa' }, { staffSlots: true }],
   12: [{ hire: 'greeter' }, { store: 'theater' }, { decor: 'ride' }],
   13: [{ decor: 'gumball' }, { decor: 'directory' }, { staffSlots: true }],
-  14: [{ store: 'gadgets' }, { hire: 'supervisor' }, { staffSlots: true }],
+  14: [{ store: 'gadgets' }, { staffSlots: true }],
   15: [{ hire: 'mascot' }, { store: 'jumppark' }, { staffSlots: true }],
   16: [{ staffSlots: true }],
   17: [{ staffSlots: true }],

@@ -61,10 +61,11 @@ export const isAttraction = u => u.state === 'store' && !!C.STORES[u.store].attr
 export function spotsFor(u){ return u.kiosk ? kioskSpots(u) : isAttraction(u) ? attractionSpots(u, C.STORES[u.store]) : storeSpots(u); }
 export function roomInfo(u){
   let r = sim.rooms.get(u.id);
-  if (!r){ r = { dirt: 0, claimed: null, stalls: restroomSpots(u).stalls.map(() => null) }; sim.rooms.set(u.id, r); }
+  // stalls: who's headed for or using each stall; inside: whether they've stepped in (that's when the door shuts).
+  if (!r){ const n = restroomSpots(u).stalls.length; r = { dirt: 0, claimed: null, stalls: Array(n).fill(null), inside: Array(n).fill(false) }; sim.rooms.set(u.id, r); }
   return r;
 }
-function freeStall(p){ for (const r of sim.rooms.values()) r.stalls = r.stalls.map(id => id === p.id ? null : id); }
+function freeStall(p){ for (const r of sim.rooms.values()) r.stalls.forEach((id, i) => { if (id === p.id){ r.stalls[i] = null; r.inside[i] = false; } }); }
 const restrooms = () => S.save.units.filter(u => u.state === 'restroom');
 // What shoppers walk out holding. Food and drinks get finished after a while; bags and boxes go home.
 const HOLD_FROM = {
@@ -72,6 +73,9 @@ const HOLD_FROM = {
   dollar: ['bag', '#ffd23f'], boutique: ['bag', '#ff8fab'], pets: ['bag', '#06a77d'],
 };
 const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum']);
+// Claw machine prizes: a random plush, about one try in three.
+const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
+const CLAW_WIN = 0.32;
 function queueSpot(u, i){
   const sp = spotsFor(u);
   if (i < sp.queue.length) return sp.queue[i];
@@ -197,7 +201,8 @@ function spawnCustomer(forceType, forceWish){
   const h = Math.floor(clockHour());
   let type = forceType;
   if (!type){
-    const entries = Object.entries(C.CUSTOMERS).map(([k, d]) => [k, d.weight * (h >= d.hours[0] && h < d.hours[1] ? 1 : 0.2)]);
+    const browsers = 1 + 0.75 * clamp((S.save.level - C.WINDOW_SHOP[0]) / (C.WINDOW_SHOP[1] - C.WINDOW_SHOP[0]), 0, 1);
+    const entries = Object.entries(C.CUSTOMERS).map(([k, d]) => [k, d.weight * (h >= d.hours[0] && h < d.hours[1] ? 1 : 0.2) * (k === 'browser' ? browsers : 1)]);
     let r = rand() * entries.reduce((a, e) => a + e[1], 0);
     type = entries.find(e => (r -= e[1]) <= 0)[0];
   }
@@ -277,7 +282,9 @@ function updateCustomer(p, dt){
         if (!sim.stats.stockouts[u.id]){ sim.stats.stockouts[u.id] = true; emit('stockout', { name: C.STORES[u.store].name }); }
         leaveStore(p, u); break;
       }
-      const chance = def.buy * (0.7 + 0.6 * p.mood) * (sim.boost === 'buy' ? 1.15 : 1);
+      // Bigger, busier malls draw more people who are just looking.
+      const [w0, w1, wcut] = C.WINDOW_SHOP, picky = 1 - wcut * clamp((S.save.level - w0) / (w1 - w0), 0, 1);
+      const chance = def.buy * (0.7 + 0.6 * p.mood) * (sim.boost === 'buy' ? 1.15 : 1) * picky;
       if (p.tutorial || rand() < chance){
         const st = storeInfo(u); st.queue.push(p.id);
         p.state = 'queue'; p.patienceMax = C.BASE_PATIENCE * def.patience * (sim.boost === 'patience' ? 1.3 : 1) * (p.patienceMul || 1); p.patience = p.patienceMax;
@@ -389,7 +396,10 @@ function updateCustomer(p, dt){
       break;
     }
     case 'toStall':
-      if (runPath(p, dt)){ p.state = 'inStall'; p.timer = 2.4 + rand() * 1.8; p.hidden = true; }
+      if (runPath(p, dt)){
+        p.state = 'inStall'; p.timer = 2.4 + rand() * 1.8; p.hidden = true;
+        const u = S.save.units.find(v => v.id === p.storeId); if (u) roomInfo(u).inside[p.stall] = true;
+      }
       break;
     case 'inStall': {
       p.walking = false;
@@ -420,6 +430,17 @@ function updateCustomer(p, dt){
       p.exit = [sp.aisle(sp.sinkY), d.door, d.front]; p.state = 'leave';
       break;
     }
+    case 'exit': {
+      dropLitter(p, def);
+      const ex = C.ENTRANCE.x + 0.5 + (p.id % 2), ey = C.MAP_H - 0.5;
+      if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 2 : 1)){ p.state = 'out'; }
+      break;
+    }
+    case 'out':
+      if (moveDirect(p, p.x, C.MAP_H + 1.8, dt, sim.phase === 'closing' ? 2 : 1)){
+        p.gone = true; sim.stats.moodSum += p.mood; sim.stats.moodN++;
+      }
+      break;
   }
 }
 function decide(p){
@@ -482,7 +503,9 @@ function findMachine(p){
     const c = C.DECOR[d.type].coin; if (!c || (c.who && !c.who.includes(p.type))) continue;
     const a = decorAccess(d); if (!isWalk(a.x, a.y) || rand() >= c.chance) continue;
     const dist = Math.hypot(a.x + 0.5 - p.x, a.y + 0.5 - p.y);
-    if (dist < bd){ bd = dist; best = { d, at: { x: a.x + 0.5, y: a.y + 0.5 } }; }
+    // At a kiddie ride facing down, the grown-up waits off to one side so the kid riding it stays in view.
+    const side = d.type === 'ride' && !d.rot ? 0.42 : 0;
+    if (dist < bd){ bd = dist; best = { d, at: { x: a.x + 0.5 + side, y: a.y + 0.5 + side * 0.5 } }; }
   }
   return best;
 }
@@ -521,6 +544,10 @@ function useMachine(p){
   p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
   if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; }
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
+  if (d.type === 'claw'){
+    if (rand() < CLAW_WIN){ p.holding = 'plush'; p.prize = pick(PRIZES); p.mood = Math.min(1, p.mood + 0.1); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.4, text: 'WIN!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 0.9 }); }
+    else sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.2, text: 'So close!' });
+  }
   sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 1.1, text: `+$${price}` });
   emit('sale', { amount: price, store: d.type });
 }
@@ -588,7 +615,7 @@ function updateStores(dt){
     if (Math.hypot(front.x - spot.x, front.y - spot.y) > 0.2){ st.serveT = 0; continue; }
     front.served = true;
     st.serveT += dt;
-    const need = server.kind === 'owner' ? C.OWNER_SERVE : C.CLERK_SERVE[server.skill] * (server.dream === u.store ? C.DREAM_SERVE : 1) / (server.boosted ? C.SUPERVISOR_BOOST : 1);
+    const need = server.kind === 'owner' ? C.OWNER_SERVE : C.CLERK_SERVE[server.skill] * (server.dream === u.store ? C.DREAM_SERVE : 1) / (server.boost || 1);
     server.serving = st.serveT / need;
     if (st.serveT >= need){ st.serveT = 0; server.serving = 0; completeSale(u, st, front); }
   }
@@ -732,8 +759,8 @@ function updateStaff(p, dt){
   p.t += dt;
   // Phone breaks. Clerks stay put but stop ringing people up; everyone else just stands there.
   if (p.breakT > 0){ p.breakT -= dt; p.walking = false; if (p.breakT <= 0) backToWork(p); return; }
-  if (p.role !== 'supervisor' && sim.phase === 'day' && !(p.broomT > 0 || p.mopT > 0 || p.restockT > 0) && (p.workT -= dt * (p.boosted ? 0.5 : 1)) <= 0){ startBreak(p); return; }
-  p.speed = p.baseSpeed * (p.boosted ? C.SUPERVISOR_BOOST : 1);
+  if (p.role !== 'supervisor' && sim.phase === 'day' && !(p.broomT > 0 || p.mopT > 0 || p.restockT > 0) && (p.workT -= dt * (p.boost ? C.SUPERVISOR_BREAKS : 1)) <= 0){ startBreak(p); return; }
+  p.speed = p.baseSpeed * (p.boost || 1);
   if (p.role === 'clerk'){
     if (p.storeId){ p.atRegisterId = p.storeId; p.walking = false; }
     return;
@@ -832,7 +859,10 @@ function updateSupervisor(p, dt){
   const R = C.SUPERVISOR_RADIUS[p.skill];
   if ((p.scanT = (p.scanT || 0) - dt) <= 0){
     p.scanT = 0.5;
-    for (const q of sim.people) if (q.kind === 'staff' && q !== p) q.boosted = sim.people.some(v => v.role === 'supervisor' && Math.hypot(v.x - q.x, v.y - q.y) < C.SUPERVISOR_RADIUS[v.skill]);
+    for (const q of sim.people) if (q.kind === 'staff' && q.role !== 'supervisor'){
+      q.boost = 0;
+      for (const v of sim.people) if (v.role === 'supervisor' && Math.hypot(v.x - q.x, v.y - q.y) < C.SUPERVISOR_RADIUS[v.skill]) q.boost = Math.max(q.boost, C.SUPERVISOR_BOOST[v.skill]);
+    }
     if (!p.catching){ const lazy = sim.people.find(q => q.slacking && Math.hypot(q.x - p.x, q.y - p.y) < R); if (lazy) p.catching = lazy.id; }
   }
   if (p.catching){
@@ -925,7 +955,8 @@ export function step(realDt){
   if (sim.phase === 'closing'){
     sim.closeT += dt;
     const left = sim.people.some(p => p.kind === 'customer');
-    if (!left || sim.closeT > 10) sim.phase = 'done';
+    // Everyone heads out at closing; a bigger mall gets a little longer before the lights go off.
+    if (!left || sim.closeT > 8 + map.w * 0.3) sim.phase = 'done';
   }
   for (const p of sim.people){
     if (p.kind === 'customer') updateCustomer(p, dt);
@@ -990,20 +1021,23 @@ export function buildReport(){
   const walk = Math.max(20, map.walkCount);
   const avgDirt = st.dirtN ? st.dirtSum / st.dirtN : 0;
   const roomDirt = st.roomDirtN ? st.roomDirtSum / st.roomDirtN : 0;
-  const clean = clamp(5 - avgDirt / (walk / 40) * 1.4 - sim.trash.length * 0.06 - roomDirt / 100 * 1.6, 1, 5);
+  const clean = clamp(5 - avgDirt / (walk / 40) * 1.7 - sim.trash.length * 0.07 - roomDirt / 100 * 1.8, 1, 5);
   const total = st.served + st.walkouts;
   const rate = total ? st.served / total : 1;
   const waitF = st.waitN ? st.waitFrac / st.waitN : 0;
-  const service = total ? clamp(1 + 4 * rate - 1.4 * waitF, 1, 5) : 3;
+  const service = total ? clamp(1 + 4 * Math.pow(rate, 1.6) - 2 * waitF, 1, 5) : 3;
   const types = new Set(open.map(u => u.store)).size;
-  const variety = clamp(1 + (types - 1) * 0.8, 1, 5);
+  const variety = clamp(1 + (types - 1) * 0.5, 1, 5);
   const derelict = s.units.filter(u => u.state === 'derelict').length;
   const dusty = C.ZONES.filter(z => !s.zones[z.id]).length;
   const decorPts = s.decor.reduce((a, d) => a + C.DECOR[d.type].ambience, 0) + (s.fountain ? C.FOUNTAIN.ambience : 0);
-  const ambience = clamp(1.6 + (decorPts + open.length * 1.5 - derelict * 0.55 - dusty * 1.2) / 6, 1, 5);
+  const amb = (T, id) => (T[id] && T[id].ambience) || 0;
+  const stylePts = s.style ? amb(C.WALLPAPERS, s.style.wall) + amb(C.FLOORS, s.style.floor) : 0;
+  const ambience = clamp(1.6 + (decorPts + stylePts + open.length * 1.5 - derelict * 0.55 - dusty * 1.2) / 8, 1, 5);
   const happy = st.moodN ? st.moodSum / st.moodN : 0.6;
-  const overall = (clean + service + variety + ambience) / 4 * 0.85 + happy * 5 * 0.15;
-  const grade = overall >= 4.6 ? 'S' : overall >= 3.9 ? 'A' : overall >= 3.1 ? 'B' : overall >= 2.3 ? 'C' : 'D';
+  // A five-star mall needs everything going right: clean, quick, varied, pretty, and happy shoppers.
+  const overall = (clean + service + variety + ambience) / 4 * 0.8 + happy * 5 * 0.2;
+  const grade = overall >= 4.7 ? 'S' : overall >= 4.1 ? 'A' : overall >= 3.3 ? 'B' : overall >= 2.4 ? 'C' : 'D';
   s.ratingHist.push(overall); if (s.ratingHist.length > 5) s.ratingHist.shift();
   s.rating = s.ratingHist.reduce((a, b) => a + b, 0) / s.ratingHist.length;
   const levelBefore = s.level;

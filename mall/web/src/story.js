@@ -100,6 +100,7 @@ export const TIPS = {
   newshell: { title: 'Out of storefronts', text: 'Every storefront’s taken. Pick a store under Build and tap Build new to put one up. Old storage gets cleared out as part of the job.' },
   walkout: { title: 'Folks don’t wait forever', text: 'Watch the ring around their bubble. When it runs out, they leave grumpy.' },
   wish: { title: 'Grey bubbles', text: 'Grey means we don’t have what they want. The report card keeps a list of what folks wished for.' },
+  style: { title: 'A fresh look', text: 'The old lilac walls have had a good run. Under Build, then Style, you can pick new wallpaper and flooring for the whole mall. A fresh look brightens the ambience, too.' },
   litter: { title: 'Trash cans', text: 'Put a trash can out and most folks nearby will toss their trash in it instead of on the floor. Build, then Decor.' },
   staff: { title: 'Hiring help', text: 'You can hire staff now. Open Staff at night. Janitors sweep, clerks run a register for you.' },
   clerks: { title: 'Clerks', text: 'Clerks can run a register for you now. Hire one under Staff and pick their store. Put them in their dream job (♥) and folks spend more.' },

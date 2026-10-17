@@ -14,7 +14,7 @@ const money = n => `$${Math.round(n).toLocaleString()}`;
 // Fixing up a boarded-up storefront is folded into the price of opening a store in it.
 const fixCost = u => u.state === 'derelict' ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
 const shellCost = (w, h) => w * h * C.BUILD_PER_TILE;
-let place = null, pick = null;
+let place = null, pick = null, styling = null;
 export let onLevelUp = () => {};
 export function setLevelUpHandler(fn){ onLevelUp = fn; }
 export function panTo(x, y){ view.camTarget = { x, y }; }
@@ -31,6 +31,7 @@ function spend(cost){
 
 /* ---------- Tapping at night ---------- */
 export function nightTap(wx, wy){
+  if (styling) return;
   if (pick) return pickTap(wx, wy);
   if (place){ moveGhostTo(wx - place.w / 2 + 0.5, wy - place.h / 2 + 0.5); return; }
   const tx = Math.floor(wx), ty = Math.floor(wy);
@@ -172,8 +173,8 @@ function zoneCard(z){
 
 /* ---------- Build panel ---------- */
 export function openBuild(startTab = 0){
-  endPick(); endPlacement(); hideCard(); view.selected = null;
-  openPanel({ title: 'Build', tabs: ['Stores', 'Decor', 'Fix up'], tab: startTab, render: (body, tab) => {
+  endPick(); endPlacement(); endStyle(); hideCard(); view.selected = null;
+  openPanel({ title: 'Build', tabs: ['Stores', 'Decor', 'Fix up', 'Style'], tab: startTab, render: (body, tab) => {
     const s = S.save;
     if (tab === 0){
       body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, 'Pick a store, then tap a glowing storefront to open it there.'));
@@ -191,6 +192,8 @@ export function openBuild(startTab = 0){
           h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(def.cost)));
         body.append(b);
       }
+    } else if (tab === 3){
+      styleTab(body);
     } else {
       body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, 'Storage clears out by itself when you build a store in it. You can also clear it here.'));
       const f = C.FOUNTAIN;
@@ -214,6 +217,64 @@ function fixItem(name, sub, price, dim, onClick, icon = 'broom'){
     h('span', { class: 'info' }, h('span', { class: 'name' }, name), h('span', { class: 'sub' }, sub)),
     h('span', { class: 'price' }, price));
 }
+
+/* ---------- Mall styles: tap one to see it on the mall, then keep it or go back ---------- */
+const STYLE_SLOTS = { wall: { table: C.WALLPAPERS, label: 'Wallpaper', noun: 'wallpaper' }, floor: { table: C.FLOORS, label: 'Flooring', noun: 'floor' } };
+const ownsStyle = (slot, id) => S.save.style[slot + 's'].includes(id);
+function styleTab(body){
+  const s = S.save, locked = s.level < C.STYLE_LEVEL;
+  body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, locked ? `Unlocks at level ${C.STYLE_LEVEL}: new wallpaper and flooring for the whole mall.` : 'Tap a style to see it on your mall. Ones you own are free to switch back to.'));
+  for (const [slot, { table, label }] of Object.entries(STYLE_SLOTS)){
+    body.append(h('div', { class: 'section-label' }, label));
+    for (const [id, d] of Object.entries(table)){
+      const have = ownsStyle(slot, id), inUse = s.style[slot] === id;
+      body.append(h('button', { class: `item ${locked && !have ? 'locked' : !inUse && (have || s.money >= d.cost) ? 'can' : ''}`, disabled: locked && !have, onclick: () => { sfx('tap'); closePanel(); startStyle(slot, id); } },
+        iconCanvas(() => styleSwatch(slot, id)),
+        h('span', { class: 'info' }, h('span', { class: 'name' }, d.name), h('span', { class: 'sub' }, d.sub + (d.ambience ? ' · +ambience' : ''))),
+        h('span', { class: 'price' }, inUse ? 'In use' : have ? 'Owned' : locked ? `Level ${C.STYLE_LEVEL}` : money(d.cost))));
+    }
+  }
+}
+// A little square of wall over floor (wallpaper), or just floor.
+export function styleSwatch(slot, id){
+  const g = A.g;
+  g.save(); A.rr(0.05, 0.05, 0.9, 0.9, 0.16); g.clip(); g.scale(0.5, 0.5);
+  if (slot === 'wall'){ g.translate(0, 1.5); A.mallBackWall(2, id); A.floor(A.concourseFloor(S.save.style.floor), 0, 0, 2, 0.6, 1); }
+  else A.floor(A.concourseFloor(id), 0, 0, 2, 2, 1);
+  g.restore();
+  A.rr(0.05, 0.05, 0.9, 0.9, 0.16); A.fs(null, 0.035);
+}
+function startStyle(slot, id){
+  hideCard(); view.selected = null;
+  styling = { slot, id };
+  // Wallpaper runs along the top of the mall; floors show best in the middle of the concourse.
+  view.camTarget = slot === 'wall' ? { x: view.cam.x, y: -3, s: view.minS * 1.8 } : { x: view.cam.x, y: 8.5, s: view.minS * 1.5 };
+  showStyleBar();
+}
+function showStyleBar(){
+  const { slot, id } = styling, { table, noun } = STYLE_SLOTS[slot], d = table[id], s = S.save;
+  const have = ownsStyle(slot, id), short = !have && s.money < d.cost;
+  view.stylePreview = { ...s.style, [slot]: id };
+  const bar = showPlacementBar({ label: `${d.name} ${noun}`, confirmLabel: s.style[slot] === id ? 'Keep' : have ? 'Use it' : `Buy · ${money(d.cost)}`,
+    onCancel: () => { endStyle(); openBuild(3); }, onConfirm: confirmStyle,
+    extra: { label: 'Next ›', onClick: () => {
+      const ids = Object.keys(table).filter(k => s.level >= C.STYLE_LEVEL || ownsStyle(slot, k));
+      styling.id = ids[(ids.indexOf(styling.id) + 1) % ids.length]; showStyleBar();
+    } } });
+  if (short){ bar.info.textContent = `${d.name}: need ${money(d.cost)}`; bar.info.style.color = '#b3263e'; bar.confirm.disabled = true; }
+}
+function confirmStyle(){
+  const { slot, id } = styling, { table, noun } = STYLE_SLOTS[slot], d = table[id], s = S.save;
+  const fresh = !ownsStyle(slot, id);
+  if (fresh && !spend(d.cost)) return;
+  if (fresh) s.style[slot + 's'].push(id);
+  const was = s.style[slot];
+  s.style[slot] = id;
+  endStyle();
+  if (was !== id){ sfx('build'); toast(fresh ? `New ${noun}: ${d.name}! Shoppers will love it.` : `Switched to ${d.name}.`); }
+  changed(fresh ? C.STYLE_XP : 0);
+}
+function endStyle(){ if (!styling) return; styling = null; view.stylePreview = null; hidePlacementBar(); }
 
 /* ---------- Expansions ---------- */
 async function buyExpansion(e){
@@ -282,7 +343,7 @@ function confirmPick(){
 export function endPick(){ if (!pick) return; pick = null; view.spots = null; hidePlacementBar(); }
 
 /* ---------- Placement ---------- */
-export const placing = () => !!place || !!pick;
+export const placing = () => !!place || !!pick || !!styling;
 function startPlacement(p){
   hideCard(); view.selected = null;
   place = { ...p };
@@ -335,7 +396,7 @@ function refreshGhost(){
   const access = accessFor(place.x, place.y, place.face), cost = placeCost(v);
   const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: place.restroom ? 'restroom' : 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
   view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
-    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
+    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
     else A.decor({ type: place.decor, x: place.x, y: place.y, rot: place.face || 0 }, t);
   } };
@@ -489,5 +550,6 @@ export function nightTips(report){
   if (s.level >= 4) tip('clerks');
   if (!s.fountain && s.level >= 2 && s.money >= C.FOUNTAIN.cost) tip('fountain', () => { panTo(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1); view.highlight = { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y, w: 2, h: 2 }; setTimeout(() => { view.highlight = null; }, 4000); });
   if (report && s.day >= 2 && !s.decor.some(d => d.type === 'bin')) tip('litter', () => openBuild(1));
+  if (s.level >= C.STYLE_LEVEL) tip('style', () => openBuild(3));
 }
-export function closeNightUi(){ hideCard(); closePanel(); endPick(); endPlacement(); view.selected = null; }
+export function closeNightUi(){ hideCard(); closePanel(); endPick(); endPlacement(); endStyle(); view.selected = null; }
