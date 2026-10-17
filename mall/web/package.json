@@ -1,0 +1,21 @@
+{
+  "name": "mall-revival",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cozy 2D mall sim for Android and iPhone",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --serve",
+    "balance": "node tools/balance.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "@fontsource/fredoka": "5.1.0",
+    "@fontsource/nunito": "5.1.0",
+    "esbuild": "0.24.0"
+  }
+}

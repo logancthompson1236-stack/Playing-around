@@ -493,7 +493,13 @@ Leaning toward a small amount of ads. Nothing is final.
 
 ## 20. Scope plan
 
-**Milestone 1: playable prototype.** The goal is to find out whether one hands-on day is fun for 5 minutes.
+**Milestone 1: playable prototype (v0.1.0, built).** The goal is to find out whether one hands-on day is fun for 5 minutes.
+
+v0.1.0 notes:
+- **Stores:** 8 store types unlock across levels 1–6. Sweet Tooth is available from level 1 and Bean There at level 2, so the first night has something affordable to open.
+- **Gus:** his visits, the first memories and the scrapbook text are already in, ahead of Milestone 2.
+- **Not yet:** leasing and tenants.
+- **Tuning:** the live numbers are in `mall/web/src/config.js`. The catalog table above is the long-term plan.
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues
 - Janitor and clerk hiring

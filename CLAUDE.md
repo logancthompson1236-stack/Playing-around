@@ -15,4 +15,11 @@ Every version also needs:
 ## Projects
 
 - `web/`, `android/`: **Shardfall**, a 3D space shooter (see README.md).
-- `mall/`: **Mall Revival** (working title), a mall sim for Android and iPhone. The design lives in `mall/DESIGN.md`. Read it before working on the game.
+- `mall/`: **Mall Revival**, a mall sim for Android and iPhone. The design lives in `mall/DESIGN.md`; build and layout notes are in `mall/README.md`. Read both before working on the game.
+
+## Mall Revival builds
+
+- Bump `mall/web/package.json` `version` for each new playable version. The APK's versionCode/versionName are derived from it, and the title screen shows it.
+- Pushing changes under `mall/` runs `.github/workflows/mall-build.yml`, which publishes the HTML to GitHub Pages (`/Playing-around/mall/` and `/mall/vX.Y.Z/`) and the APK to the GitHub Release `mall-vX.Y.Z`.
+- For the chat copy of the APK, build locally: `mall/build-apk.sh` (needs the Android SDK; in a fresh cloud container install it under `/root/android-sdk`). If Maven Central rate-limits the container, add a local Gradle init script pointing at `https://maven-central.storage-download.googleapis.com/maven2/`; don't commit it.
+- Run `npm run balance` in `mall/web` after tuning changes to check pacing.

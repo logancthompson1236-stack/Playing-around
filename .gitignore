@@ -13,3 +13,8 @@ android/app/src/main/assets/www/
 .idea/
 *.iml
 .DS_Store
+
+# Mall Revival
+mall/web/node_modules/
+mall/web/dist/
+mall/web/out/

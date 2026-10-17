@@ -1,0 +1,8 @@
+{
+  "appId": "com.mallrevival.game",
+  "appName": "Mall Revival",
+  "webDir": "dist",
+  "android": {
+    "path": "../android"
+  }
+}

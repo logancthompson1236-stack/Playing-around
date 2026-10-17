@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mall Revival</string>
+    <string name="title_activity_main">Mall Revival</string>
+    <string name="package_name">com.mallrevival.game</string>
+    <string name="custom_url_scheme">com.mallrevival.game</string>
+</resources>
