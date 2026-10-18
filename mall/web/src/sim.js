@@ -81,8 +81,9 @@ const HOLD_FROM = {
   pretzel: 'pretzel', candy: 'lolly', coffee: 'coffee', scoops: 'cone', arcade: 'plush', books: 'book', music: 'record', gadgets: 'gadget',
   dollar: ['bag', '#ffd23f'], boutique: ['bag', '#ff8fab'], pets: ['bag', '#06a77d'],
   toys: 'toy', perfume: ['bag', '#c77dff'], gaming: 'game', shoes: 'shoebox', burger: 'burger', hotdog: 'hotdog', pizza: 'pizza',
+  plants: 'plant', jewelry: ['bag', '#1d3557'], boba: 'boba', vr: ['bag', '#240046'], bakery: 'cupcake', comics: 'comic',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -323,12 +324,14 @@ function updateCustomer(p, dt){
         // At the arcade they play a game or two first, back to us, facing the cabinet.
         const u = S.save.units.find(v => v.id === p.storeId);
         if (u && u.store === 'arcade'){ p.playing = true; p.faceBack = u.face === 'down'; p.timer = 3 + rand() * 2.5; }
+        // At the VR place they try a headset on first, waving at things only they can see.
+        else if (u && C.STORES[u.store].play){ p.playing = true; p.vr = true; p.timer = 3.5 + rand() * 2.5; }
       }
       break;
     case 'browse': {
       p.walking = false;
       if ((p.timer -= dt) > 0) break;
-      p.playing = false; p.faceBack = false;
+      p.playing = false; p.faceBack = false; p.vr = false;
       const u = S.save.units.find(v => v.id === p.storeId);
       if (!u || u.state !== 'store'){ leaveStore(p, u); break; }
       if (u.stock <= 0){
@@ -796,6 +799,7 @@ const TRASH_FROM = {
   scoops: ['cone', 'cup'], music: ['paper', 'bag'], gadgets: ['bag', 'paper'], theater: ['popcorn', 'cup'], jumppark: ['can', 'cup'],
   toys: ['paper', 'bag'], perfume: ['paper'], gaming: ['bag', 'paper'], shoes: ['paper', 'bag'], burger: ['wrapper', 'cup'],
   hotdog: ['wrapper', 'cup'], pizza: ['paper', 'cup'],
+  plants: ['paper'], jewelry: ['paper'], boba: ['cup'], vr: ['paper', 'can'], bakery: ['wrapper', 'paper'], comics: ['paper', 'bag'],
 };
 
 /* ---------- Owner and jobs ---------- */
@@ -1262,7 +1266,7 @@ function beginClosing(){
   for (const st of sim.storeState.values()) st.queue = [];
   for (const p of sim.people) if (p.kind === 'customer'){
     p.bubble = null; p.served = false; p.closeDelay = rand() * 5;
-    p.hidden = false; p.playing = false; freeStall(p);
+    p.hidden = false; p.playing = false; p.vr = false; freeStall(p);
     if (p.state === 'show' || p.state === 'toShow'){ leaveShow(p, S.save.units.find(v => v.id === p.storeId)); continue; }
     p.faceBack = false; p.play = null;
     if (p.state === 'line'){ p.state = 'exit'; continue; }

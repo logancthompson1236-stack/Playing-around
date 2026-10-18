@@ -99,7 +99,9 @@ function night(){
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 1){
     const firstTwo = s.day <= 2;
-    for (const u of stores(s).filter((_, i) => firstTwo || i % 2 === 0)){
+    // Like a player: a clerk for every register once the mall is going (half of them early on).
+    for (const u of stores(s).filter((v, i) => firstTwo || s.level >= 8 || i % 2 === 0)){
+      if (C.STORES[u.store].attraction) continue;
       if (has('clerk') >= lim('clerk') || s.money < 600 || (!firstTwo && saving && has('clerk') >= 2)) break;
       if (!s.staff.some(m => m.storeId === u.id)) hire('clerk', { storeId: u.id });
     }

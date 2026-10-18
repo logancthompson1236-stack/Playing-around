@@ -475,9 +475,11 @@ function applicants(){
   // New applicants each day, and right away when a level unlocks a new role.
   const key = `3:${s.day}:${s.level}`;
   if (f.appDay !== key || !f.applicants){
-    // Three clerks to choose from, and one of every other role you can hire.
+    // Enough clerks to staff every register that needs one (three at least, up to eight), one of every other role.
+    const unstaffed = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(m => m.storeId === u.id)).length;
+    const clerks = Math.max(3, Math.min(8, unstaffed + 1));
     const roles = [];
-    for (const [role, r] of Object.entries(C.ROLES)) if (s.level >= r.level) roles.push(...(role === 'clerk' ? ['clerk', 'clerk', 'clerk'] : [role]));
+    for (const [role, r] of Object.entries(C.ROLES)) if (s.level >= r.level) roles.push(...(role === 'clerk' ? Array(clerks).fill('clerk') : [role]));
     const list = [], used = new Set(['Dee', ...s.staff.map(m => m.name)]);
     roles.forEach((role, i) => {
       const seed = s.day * 31 + i * 7 + s.level * 101 + s.nextId;

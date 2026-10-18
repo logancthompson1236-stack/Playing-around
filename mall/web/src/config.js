@@ -130,8 +130,15 @@ export const STORES = {
   shoes:    { name: 'Sole Mates',     w: 2, h: 3, cat: 'Fashion', level: 9,  cost: 1600, price: [40, 85], stock: 35, icon: 'shoe',       litter: 0.04, color: '#e76f51', trim: '#ffe8d6', floor: 'wood' },
   burger:   { name: 'Big Bite Burgers', w: 3, h: 3, cat: 'Food',  level: 10, cost: 2200, price: [14, 24], stock: 70, icon: 'burger',     litter: 0.35, color: '#d62828', trim: '#fcbf49', floor: 'diner', dine: true },
   // v0.12: a hot dog stand on the concourse and a sit-down pizzeria.
-  hotdog:   { name: 'Top Dog',        w: 2, h: 1, kiosk: true, cat: 'Food', level: 19, cost: 3200, price: [13, 21], stock: 70, icon: 'hotdog', litter: 0.32, color: '#ffbe0b', trim: '#d62828' },
+  hotdog:   { name: 'Top Dog',        w: 2, h: 1, kiosk: true, cat: 'Food', level: 18, cost: 3200, price: [13, 21], stock: 70, icon: 'hotdog', litter: 0.32, color: '#ffbe0b', trim: '#d62828' },
   pizza:    { name: 'Slice Society',  w: 3, h: 3, cat: 'Food',    level: 22, cost: 6500, price: [20, 34], stock: 70, icon: 'pizza',      litter: 0.3,  color: '#2a9d8f', trim: '#e63946', floor: 'pizzeria', dine: true },
+  // v0.14: six more, spread through the later levels. play: shoppers try things out inside before buying (VR).
+  plants:   { name: 'Leaf & Bloom',     w: 2, h: 2, cat: 'Home',    level: 13, cost: 2000, price: [24, 52], stock: 40, icon: 'leaf',    litter: 0.06, color: '#52b788', trim: '#fefae0', floor: 'wood' },
+  jewelry:  { name: 'Sparkle Jewelers', w: 2, h: 3, cat: 'Fashion', level: 16, cost: 3800, price: [90, 180], stock: 25, icon: 'ring',   litter: 0.02, color: '#1d3557', trim: '#f2d68a', floor: 'royal' },
+  boba:     { name: 'Boba Bliss',       w: 2, h: 1, kiosk: true, cat: 'Food', level: 20, cost: 3600, price: [12, 19], stock: 70, icon: 'boba', litter: 0.3, color: '#b388eb', trim: '#6d4c41' },
+  vr:       { name: 'Virtual Voyage',   w: 3, h: 3, cat: 'Fun',     level: 25, cost: 7500, price: [38, 62], stock: 60, icon: 'vr',      litter: 0.08, color: '#240046', trim: '#00f5d4', floor: 'neon', play: true },
+  bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'cafe' },
+  comics:   { name: 'Comic Vault',      w: 2, h: 3, cat: 'Fun',     level: 31, cost: 6800, price: [32, 66], stock: 40, icon: 'comic',   litter: 0.04, color: '#e63946', trim: '#ffd23f', floor: 'carpet' },
 };
 // Prices went up 5% in v0.10 (the ranges above are the old ones).
 export const PRICE_SCALE = 1.05;
@@ -208,11 +215,11 @@ export const BIN_RADIUS = 4;
 
 // Who shops here. `wants` weights which stores they wish for; hours are when they mostly show up.
 export const CUSTOMERS = {
-  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
-  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
-  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
-  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
-  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
+  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2, plants: 3, bakery: 3, jewelry: 1 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
+  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4, boba: 5, vr: 5, comics: 4 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
+  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
+  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
+  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
 };
 
 // Relative arrivals per hour, 9:00 through 20:00.
@@ -220,7 +227,7 @@ export const HOURLY = [0.9, 0.8, 1.0, 1.6, 1.4, 0.9, 1.3, 1.3, 1.2, 1.4, 1.1, 0.
 
 export const LEVEL_XP = [0, 0, 85, 255, 550, 980, 1530, 2300, 3230, 4760, 6460, 11000, 14100, 17600, 21500, 25900, 30800, 36300, 42400,
   48000, 54100, 60700, 67800, 75400, 83500, 92100, 101200, 110800, 120900,
-  131500, 142600, 154200, 166300, 178900, 192000, 205600];   // XP needed to reach level n
+  133000, 147000, 162000, 178000, 195000, 213000, 232000];   // XP needed to reach level n
 export const MAX_LEVEL = 35;
 // Staff roles. Wages are per day, indexed by star rating (1–3).
 export const ROLES = {
@@ -236,7 +243,7 @@ export const WAGES = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k
 // How many of each role you can employ at each level (index = level).
 export const STAFF_LIMITS = {
   janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10],
-  clerk:   [0, 2, 2, 2, 3, 3, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 21, 21, 22, 23, 23, 24, 25],
+  clerk:   [0, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
   stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7],
   greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
   mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4],
@@ -273,25 +280,25 @@ export const LEVEL_UNLOCKS = {
   10: [{ store: 'burger' }, { hire: 'stocker' }, { hire: 'guard' }, { decor: 'vending' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
   11: [{ store: 'music' }, { decor: 'sofa' }, { style: 'wall:sunset' }, { staffSlots: true }],
   12: [{ hire: 'greeter' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
-  13: [{ decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
+  13: [{ store: 'plants' }, { decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
   14: [{ store: 'gadgets' }, { style: 'floor:flagstone' }, { staffSlots: true }],
   15: [{ hire: 'mascot' }, { store: 'jumppark' }, { decor: 'playarea' }, { style: 'wall:deco' }, { staffSlots: true }],
-  16: [{ style: 'floor:herring' }, { staffSlots: true }],
+  16: [{ store: 'jewelry' }, { style: 'floor:herring' }, { staffSlots: true }],
   17: [{ style: 'wall:luxe' }, { staffSlots: true }],
-  18: [{ style: 'floor:marble' }, { staffSlots: true }],
-  19: [{ store: 'hotdog' }, { decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
-  20: [{ decor: 'photobooth' }, { style: 'floor:mosaic' }, { staffSlots: true }],
+  18: [{ store: 'hotdog' }, { style: 'floor:marble' }, { staffSlots: true }],
+  19: [{ decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
+  20: [{ store: 'boba' }, { decor: 'photobooth' }, { style: 'floor:mosaic' }, { staffSlots: true }],
   21: [{ decor: 'aquarium' }, { style: 'wall:starry' }, { staffSlots: true }],
   22: [{ store: 'pizza' }, { staffSlots: true }],
   23: [{ decor: 'massage' }, { style: 'floor:starlight' }, { staffSlots: true }],
   24: [{ style: 'wall:tropic' }, { staffSlots: true }],
-  25: [{ decor: 'piano' }, { staffSlots: true }],
+  25: [{ store: 'vr' }, { decor: 'piano' }, { staffSlots: true }],
   26: [{ style: 'floor:bamboo' }, { staffSlots: true }],
   27: [{ decor: 'arch' }, { style: 'wall:gala' }, { staffSlots: true }],
-  28: [{ style: 'floor:gold' }, { staffSlots: true }],
+  28: [{ store: 'bakery' }, { style: 'floor:gold' }, { staffSlots: true }],
   29: [{ decor: 'balloons' }, { staffSlots: true }],
   30: [{ decor: 'statue' }, { style: 'wall:sakura' }, { staffSlots: true }],
-  31: [{ style: 'floor:ocean' }, { staffSlots: true }],
+  31: [{ store: 'comics' }, { style: 'floor:ocean' }, { staffSlots: true }],
   32: [{ decor: 'arcadecab' }, { staffSlots: true }],
   33: [{ decor: 'bubbles' }, { style: 'wall:waves' }, { staffSlots: true }],
   34: [{ decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],

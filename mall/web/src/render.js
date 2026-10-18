@@ -298,6 +298,7 @@ function drawPersonAt(p, t){
   if (p.state === 'dine'){ o.sit = true; o.sitSide = true; }
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
+  if (p.vr) o.vr = true;
   if (p.slacking) o.phone = true;
   if (p.mopT > 0) o.mop = p.t * 6;
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }

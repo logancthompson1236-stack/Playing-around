@@ -629,6 +629,12 @@ v0.13.0 changes, from playtest feedback:
 - **Levels 29–35:** balloon cart (29, kids get a balloon), wishing fountain (30), arcade cabinet (32), bubble machine (33), koi pond (34); wallpapers Cherry Blossom (30), Ocean Waves (33), Crystal Palace (35); floors Seaside Tile (31), Royal Carpet (34), Crystal Marble (35). More staff slots each level. The balance bot reaches level 28 around day 85 and level 35 around day 115.
 - **Evening light:** the end-of-day wash is about half as strong (warm gold turning to dusk) and stores start to glow from 7 PM, so the mall stays easy to see. Night mode is a little lighter too.
 
+v0.14.0 changes, from playtest feedback:
+- **Six more stores:** Leaf & Bloom plant shop (2×2, level 13: stepped plant stands; shoppers carry home a potted plant), Sparkle Jewelers (2×3, level 16: velvet display cabinets, the priciest goods in the mall), Boba Bliss (kiosk, level 20: tea dispensers; boba to sip), Virtual Voyage (3×3, level 25: a big game screen and glowing play pads; shoppers try a headset on before buying), Bake My Day bakery (2×2, level 28: a pastry case and an oven; cupcakes to go) and Comic Vault (2×3, level 31: racks of comics, covers out).
+- **Store unlocks spread to level 35:** new stores now arrive at levels 13, 16, 18 (Top Dog, moved from 19), 20, 22, 25, 28 and 31, so there's a new store every two or three levels after 12.
+- **Plenty of clerks:** the clerk limit now grows by one every level (3 at level 3, 10 at level 10, 35 at level 35), and the Staff panel offers enough clerk applicants to staff every register still without one (three at least, up to eight a day).
+- **Pacing:** with every store staffed, service stays near 5 stars and walkouts almost vanish. The XP for levels 29–35 went up a little (level 35 at 232,000) so the last stretch doesn't fly by. The balance bot (now hiring a clerk for every register from level 8) reaches level 18 around day 45–48, 28 around day 80 and 35 around day 105–110.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

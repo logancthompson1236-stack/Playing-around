@@ -329,6 +329,12 @@ export function storeIcon(icon, x, y, s, mono = null){
   switch (icon){
     case 'pretzel': pretzelIcon(0, 0, 1); break;
     case 'hotdog': A2.hotdogIcon(c); break;
+    case 'leaf': A2.leafIcon(c); break;
+    case 'ring': A2.ringIcon(c); break;
+    case 'boba': A2.bobaIcon(c); break;
+    case 'vr': A2.vrIcon(c); break;
+    case 'cupcake': A2.cupcakeIcon(c); break;
+    case 'comic': A2.comicIcon(c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -595,7 +601,7 @@ export function person(x, y, o){
     g.restore();
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza') && !o.back && !walking && (t % 3.2) < 0.8;
+  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake') && !o.back && !walking && (t % 3.2) < 0.8;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
     if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
@@ -636,8 +642,10 @@ export function person(x, y, o){
   if (o.back){
     circ(0, -0.89, 0.28); fs(o.hood ? shade(o.shirt, -0.15) : o.hair);
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
+    if (o.vr){ rr(-0.28, -0.95, 0.56, 0.07, 0.03); fs('#2b2d42', 0.03); }
   } else {
     if (profile) profileHead(o); else { hairFront(o); face(o); }
+    if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
     if (sipping){ raisedArm(o, profile ? 0.04 : 0.215, profile ? 0.2 : 0.09, -0.66); g.save(); g.translate(0.06, -0.64); g.rotate(-0.6); heldItem(o.hold, 0, 0.1, o.bagColor, o.prize); g.restore(); }
   }
@@ -651,6 +659,7 @@ function raisedArm(o, ax, hx, hy){
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
 function heldItem(kind, hx, hy, color, prize){
+  if (A2.heldNew(kind, hx, hy)) return;
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -1200,6 +1209,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
     case 'shoe':
       g.fillStyle = '#fbe9dc'; g.fillRect(x0, y0, w, H); g.fillStyle = '#f4d5bf'; for (let r = 0; r * 0.2 < H; r += 2) g.fillRect(x0, y0 + r * 0.2, w, 0.2); break;
     case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
+    case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
       for (let i = 0; i * 0.2 < w; i++) for (let j = 0; j * 0.2 < H; j++) if ((i + j) % 2){ g.fillStyle = '#ffd9a0'; g.fillRect(x0 + i * 0.2, y0 + j * 0.2, 0.2, 0.2); }
@@ -1261,6 +1271,7 @@ function wallPieceArt(ic, wx, wy, t){
       for (let r = 0; r < 2; r++){ rr(wx + 0.1, wy - 0.1 + r * 0.2, 0.7, 0.04, 0.01); fs('#c9a27e', 0.015); for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.22 + i * 0.22, wy - 0.15 + r * 0.2); g.scale(0.14, 0.14); storeIcon('shoe', 0, 0, 1, JAR[(i + r * 2) % JAR.length]); g.restore(); } }
       break;
     case 'pizza': A2.pizzaMenu(wx, wy); break;
+    case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
       for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.2 + i * 0.25, wy - 0.1); g.scale(0.12, 0.12); storeIcon(['burger', 'cup', 'burger'][i], 0, 0, 1); g.restore(); text(['$5', '$2', '$7'][i], wx + 0.2 + i * 0.25, wy + 0.07, 0.08, '#fcbf49', 700); }
@@ -1358,6 +1369,9 @@ function counter(u, def){
     // Tester bottles on a little mirrored tray.
     rr(cx + 0.06, top + 0.12, 0.4, 0.08, 0.03); fs('#e9f6fb', 0.02);
     ['#e0b0ff', '#ff8fc8', '#ffd23f'].forEach((c2, i) => { rr(cx + 0.1 + i * 0.12, top - 0.02, 0.08, 0.14, 0.03); fs(c2, 0.015); rr(cx + 0.12 + i * 0.12, top - 0.06, 0.04, 0.05, 0.01); fs('#c9a227', 0.012); });
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
+    A2.newCounter(ic, cx, top);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (ic === 'pizza'){
     A2.pizzaCounter(cx, top);
@@ -1496,6 +1510,8 @@ export function storeFurniture(u, def, t, layer){
       box(x, y, sw, 0.36, 0.85, '#f2d5bf', '#d9a98a');
       const top = y + 0.36 - 0.85;
       for (let r = 0; r < 3; r++){ g.fillStyle = '#b07a5a'; g.fillRect(x + 0.05, top + 0.26 + r * 0.22, sw - 0.1, 0.03); for (let i = 0; i < Math.floor(sw / 0.24); i++){ g.save(); g.translate(x + 0.17 + i * 0.24, top + 0.18 + r * 0.22); g.scale(0.13, 0.13); storeIcon('shoe', 0, 0, 1, JAR[(i + r * 3 + u.id) % JAR.length]); g.restore(); } }
+    } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
+      A2.newBack(ic, x, y, sw, t, u.id);
     } else if (ic === 'pizza'){
       A2.pizzaOven(x, y, sw, t);
     } else if (ic === 'burger'){
@@ -1512,6 +1528,16 @@ export function storeFurniture(u, def, t, layer){
     return;
   }
   // Mid-room pieces
+  if (ic === 'vr'){
+    // Glowing play pads where folks try the headsets.
+    for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
+      if (lx > W - 0.5 || ly > H - 0.5) continue;
+      const [px, py] = local(u, lx, ly);
+      ell(px, py, 0.42, 0.2); fs('#3a0ca3', 0.03);
+      ell(px, py, 0.32, 0.14); g.strokeStyle = `hsla(${(t * 90 + lx * 100) % 360},95%,65%,.9)`; g.lineWidth = 0.04; g.stroke();
+    }
+    return;
+  }
   if (ic === 'dollar' && H >= 3){
     const bw = Math.max(0.6, W - 1.6), [x, y] = local(u, 0.3, 1.9, bw, 0.36); shelf(x, y, bw, 0.36, 0.5, 'goods', u.id + 5);
     // A wire bargain bin.
@@ -1792,6 +1818,7 @@ export function kiosk(k, def, t){
   storeIcon(def.icon, x + 0.7, y - 0.16, 0.28);
   for (const wx of [x + 0.22, x + 1.18]){ circ(wx, y + 0.45, 0.09); fs('#5a4a5a', 0.04); circ(wx, y + 0.45, 0.03); fs('#ccc', 0); }
   if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
+  else if (def.icon === 'boba') A2.bobaCounter(x, y, t);
   else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.
     rr(x + 0.12, y - 0.55, 1.16, 0.22, 0.05); fs('rgba(220,245,255,.85)', 0.03);
