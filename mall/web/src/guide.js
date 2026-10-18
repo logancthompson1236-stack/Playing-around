@@ -3,7 +3,7 @@ import * as C from './config.js';
 import { S, writeSave } from './state.js';
 import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnGus } from './sim.js';
 import { litterSpot } from './map.js';
-import { say, hint, clearHint, showTip, tipVisible, dialogOpen } from './ui.js';
+import { say, hint, clearHint, showTip, tipVisible, dialogOpen, hideTipFor } from './ui.js';
 import { view } from './render.js';
 import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES, CLERK_SCENE, STORE_SCENE, TROUBLE_SCENE } from './story.js';
 
@@ -125,7 +125,10 @@ export async function runDeeScene(){
   g.state = 'leave';
   deeRunning = false;
 }
-export const deeSceneRunning = () => deeRunning || expandRunning || sceneRunning;
+// While the night opens (Gus's story, scenes), tips wait so they never pop up over his lines.
+let nightIntro = false;
+export function setNightIntro(on){ nightIntro = on; hideTipFor(on); }
+export const deeSceneRunning = () => deeRunning || expandRunning || sceneRunning || nightIntro;
 
 /* ---------- Early nights and level 10: short Gus scenes ---------- */
 let sceneRunning = false;

@@ -7,7 +7,7 @@ import { initRender, resize, render, view, invalidate, clampCam, restroomBubble 
 import { initInput } from './input.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
-import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene, runClerkScene, runStoreScene, runTroubleScene } from './guide.js';
+import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene, runClerkScene, runStoreScene, runTroubleScene, setNightIntro } from './guide.js';
 import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
 import { MEET_GUS, MEMORIES } from './story.js';
 
@@ -222,6 +222,7 @@ async function enterNight(report, gusVisited = false){
   UI.setHudMode('night');
   setMusicMode('night');
   resetTipBudget();
+  setNightIntro(true);
   const s = S.save;
   if (report && s.day === 1 && !s.flags.memories.night1){
     s.flags.memories.night1 = true; writeSave();
@@ -237,6 +238,7 @@ async function enterNight(report, gusVisited = false){
   if (s.level >= 3) await runDeeScene();
   await runTroubleScene();
   await runExpandScene();
+  setNightIntro(false);
   nightTips(report);
 }
 function openDoors(){

@@ -185,6 +185,8 @@ export function showTip(key, onShowMe){
   });
 }
 export const tipVisible = () => !!tipEl;
+// Tuck a showing tip out of sight (and back) so it never sits over Gus's lines.
+export function hideTipFor(on){ if (tipEl) tipEl.style.display = on ? 'none' : ''; }
 
 /* ---------- Side panel ---------- */
 let panelEl = null;
