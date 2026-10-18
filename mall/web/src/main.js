@@ -234,7 +234,8 @@ async function enterNight(report, gusVisited = false){
 }
 function openDoors(){
   if (placing()){ UI.toast('Finish or cancel what you’re placing first'); return; }
-  if (UI.dialogOpen || deeSceneRunning()) return;
+  if (UI.dialogOpen) return;
+  if (deeSceneRunning()){ UI.toast('Gus is still talking. Finish up with him first'); return; }
   const s = S.save;
   s.day++; s.flags.tipsToday = 0; s.phase = 'day';
   writeSave();

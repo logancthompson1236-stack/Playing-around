@@ -568,7 +568,7 @@ function heldItem(kind, hx, hy, color, prize){
 export function family(x, y, o){
   const k = o.kid;
   const side = o.sit && o.sitSide, kx = side ? x : x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + (side ? 0.45 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
+  person(kx, y + (side ? 0.45 : o.sit ? 0 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
   person(x, y, o);
 }
 

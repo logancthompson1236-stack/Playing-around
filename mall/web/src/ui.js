@@ -114,7 +114,7 @@ export function updateHud(night){
   hud.lvl.textContent = s.level;
   hud.ring.style.setProperty('--p', levelProgress());
   hud.speed.classList.toggle('speed-on', sim.speed > 1);
-  hud.speed.hidden = !s.staff.length;
+  hud.speed.hidden = !s.staff.length && s.day < 2;   // fast-forward once the first day (the tutorial) is done
 }
 export function resetMoneyDisplay(){ shownMoney = null; }
 
@@ -400,7 +400,7 @@ export function showReport(r, firstDay){
     const left = h('div', {},
       h('table', {},
         row('Visitors', `${r.visitors}${r.visitorsDelta ? ` (${r.visitorsDelta > 0 ? '+' : ''}${r.visitorsDelta})` : ''}`),
-        row('Served', `${r.served}${r.walkouts ? ` · ${r.walkouts} walked out` : ''}`),
+        row('Sales rung up', `${r.served}${r.walkouts ? ` · ${r.walkouts} lost` : ''}`),
         row('Sales', money(r.revenue - (r.machines || 0))),
         r.machines ? row('Machines', money(r.machines)) : null,
         r.wages ? row('Wages', money(-r.wages)) : null,
@@ -426,9 +426,11 @@ export function showReport(r, firstDay){
     );
     const sheet = h('div', { class: 'report' },
       h('h2', {}, h('span', {}, `Day ${r.day} · ${S.save.player.mall}`), h('div', { class: 'grade', style: `background:${GRADE_COLORS[r.grade]}`, 'aria-label': `Grade ${r.grade}` }, r.grade)),
-      r.gained.length ? h('div', { class: 'levelup' }, h('div', { class: 'lv-title' }, `★ Level ${r.levelAfter}! Here’s what you unlocked:`), unlockList(r.gained)) : null,
+      // The day's numbers come first; a level-up's unlocks follow them.
+      r.gained.length ? h('div', { class: 'lv-title', style: 'margin:2px 0 6px' }, `★ Level ${r.levelAfter}! Unlocks below.`) : null,
       h('div', { class: 'cols' }, left, right),
       foot,
+      r.gained.length ? h('div', { class: 'levelup', style: 'margin-top:8px' }, h('div', { class: 'lv-title' }, 'Here’s what you unlocked:'), unlockList(r.gained)) : null,
       h('div', { class: 'actions' }, h('button', { class: 'btn primary', onclick: () => { m.close(); resolve(); } }, 'Continue')));
     const m = modal(sheet);
     sfx(r.gained.length ? 'level' : 'chime');

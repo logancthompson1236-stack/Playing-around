@@ -308,10 +308,13 @@ function updateCustomer(p, dt){
       const i = st.queue.indexOf(p.id);
       const spot = queueSpot(u, i);
       // Moving between a spot inside the store and the overflow line outside goes through the door.
+      // Once at the door they carry on to the spot (the door sits just inside, so without this they'd turn back).
       let goal = spot;
-      if (!u.kiosk && insideUnit(u, p.x, p.y) !== insideUnit(u, spot.x, spot.y)){
+      const crossing = !u.kiosk && insideUnit(u, p.x, p.y) !== insideUnit(u, spot.x, spot.y);
+      if (!crossing) p.viaDoor = false;
+      else if (!p.viaDoor){
         const door = spotsFor(u).door;
-        if (Math.hypot(door.x - p.x, door.y - p.y) > 0.12) goal = door;
+        if (Math.hypot(door.x - p.x, door.y - p.y) > 0.12) goal = door; else p.viaDoor = true;
       }
       moveDirect(p, goal.x, goal.y, dt);
       p.walking = Math.hypot(spot.x - p.x, spot.y - p.y) > 0.05;

@@ -174,6 +174,13 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
     if (f !== FLOOR_CLEAN || occ[idx(i, j)]) return { ok: false, reason: 'Something is in the way' };
     if (j === MAP_H - 1 && i >= ENTRANCE.x && i < ENTRANCE.x + ENTRANCE.w) return { ok: false, reason: 'Keep the doors clear' };
   }
+  if (kind === 'kiosk'){
+    // A kiosk's line forms along the row in front of it: keep it off the doors and out of other storefronts.
+    for (let i = x - 1; i <= x + w; i++){
+      if (y + 1 >= MAP_H - 2 && i >= ENTRANCE.x && i < ENTRANCE.x + ENTRANCE.w) return { ok: false, reason: 'Its line would block the doors' };
+      for (const u of save.units) if (u.id !== ignoreId && !u.kiosk){ const a = unitAccess(u); if (a.x === i && a.y === y + 1) return { ok: false, reason: 'Its line would block a storefront' }; }
+    }
+  }
   let access = null;
   if (kind === 'unit'){
     const dx = x + Math.floor(w / 2);

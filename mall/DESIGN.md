@@ -594,6 +594,7 @@ v0.10.0 changes (art and animation polish):
 - **Decor:** a proper mall trash can, slatted benches with metal arms, a cushioned sofa, a POP! soda machine that drops a can into its tray, padded cinema seats with armrests, and bigger kiosk signs with icon toppers and a pretzel rack.
 - **Animation:** a fuller walk cycle (legs lift and swing, arms swing, a little sway), breathing and blinking when standing, a seated pose on benches, sofas, the fountain rim and cinema seats (side-facing seats show the legs to the side; kids sit beside their grown-up), sipping drinks and licking cones every few seconds, pressing the soda machine's buttons (standing by the buttons so the can drop shows), shadows that stay on the trampoline while jumpers fly up.
 - **Economy:** foot traffic and store prices are both up 5%. The balance bot reaches level 18 around day 43–44 with higher daily profits.
+- **Fixes from a player bot's playthrough:** shoppers no longer walk in place in a store's doorway on their way to a spot in line; a kiosk can't go where its line would block the mall doors or a storefront; on level-up nights the report shows the day's numbers first and the unlocks after; Open Doors says when Gus is still talking instead of doing nothing; rotating a piece of decor slides it to the nearest spot that works; the report says "Sales rung up · lost" (they count sales, not people); fast-forward is available from Day 2.
 
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types

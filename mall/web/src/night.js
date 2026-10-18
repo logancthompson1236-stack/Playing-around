@@ -364,7 +364,17 @@ function startPlacement(p){
   place.name = p.moveId ? `Move ${name}` : name;
   const turnable = p.decor && C.DECOR[p.decor].rot;
   place.bar = showPlacementBar({ label: place.name, canFlip: p.kind === 'unit' || turnable, flipLabel: turnable ? 'Rotate' : 'Flip door', onFlip: () => {
-    if (turnable){ place.face = (place.face + 1) % 4; const z = decorSize({ type: p.decor, rot: place.face }); place.w = z.w; place.h = z.h; moveGhostTo(place.x + 0.5, place.y + 0.5, true); }
+    if (turnable){
+      place.face = (place.face + 1) % 4; const z = decorSize({ type: p.decor, rot: place.face }); place.w = z.w; place.h = z.h; moveGhostTo(place.x + 0.5, place.y + 0.5, true);
+      // If turning it blocks its own front (or something else), slide it to the nearest spot that works.
+      if (!validate(place.x, place.y, place.face).ok){
+        let best = null;
+        for (let r = 1; r <= 3 && !best; r++) for (let dy = -r; dy <= r && !best; dy++) for (let dx = -r; dx <= r && !best; dx++){
+          if (Math.max(Math.abs(dx), Math.abs(dy)) === r && validate(place.x + dx, place.y + dy, place.face).ok) best = { x: place.x + dx, y: place.y + dy };
+        }
+        if (best) moveGhostTo(best.x + 0.5, best.y + 0.5, true);
+      }
+    }
     else place.face = place.face === 'down' ? 'up' : 'down';
     refreshGhost();
   }, onCancel: endPlacement, onConfirm: confirmPlacement });
