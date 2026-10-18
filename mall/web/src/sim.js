@@ -65,6 +65,14 @@ export function roomInfo(u){
   if (!r){ const n = restroomSpots(u).stalls.length; r = { dirt: 0, claimed: null, stalls: Array(n).fill(null), inside: Array(n).fill(false) }; sim.rooms.set(u.id, r); }
   return r;
 }
+// Where the k-th person waiting for a stall stands: the doorway, two spots inside by the door, then outside along the front.
+function restroomWaitSpot(u, k){
+  const d = spotsFor(u), sp = restroomSpots(u);
+  if (k === 0) return d.door;
+  if (k < 3){ const a = sp.aisle(k === 1 ? sp.sinkY + 0.45 : sp.sinkY - 0.15); return { x: Math.min(u.x + u.w - 0.4, a.x + 0.8), y: a.y }; }
+  const n = k - 2, side = n % 2 ? -1 : 1;
+  return { x: d.front.x + side * 0.7 * Math.ceil(n / 2), y: d.front.y + 0.15 };
+}
 function freeStall(p){ for (const r of sim.rooms.values()) r.stalls.forEach((id, i) => { if (id === p.id){ r.stalls[i] = null; r.inside[i] = false; } }); }
 const restrooms = () => S.save.units.filter(u => u.state === 'restroom');
 // What shoppers walk out holding. Food and drinks get finished after a while; bags and boxes go home.
@@ -385,14 +393,27 @@ function updateCustomer(p, dt){
       break;
     }
     case 'enterRestroom': {
-      // In the door, then on to the first free stall (or wait by the door for one).
+      // In the door, then on to the first free stall (or wait for one).
       const u = S.save.units.find(v => v.id === p.storeId);
       if (!u){ p.state = 'decide'; break; }
+      const r = roomInfo(u);
+      // Every stall's taken: head for a waiting spot of their own (outside along the front once the room fills up).
+      if (p.waitSpot === undefined && r.stalls.indexOf(null) < 0){
+        const taken = new Set(sim.people.filter(q => q !== p && q.state === 'enterRestroom' && q.storeId === u.id && q.waitSpot !== undefined).map(q => q.waitSpot));
+        let k = 0; while (taken.has(k)) k++;
+        const w = restroomWaitSpot(u, k);
+        p.waitSpot = k; p.exit = k === 0 || k >= 3 ? [w] : [spotsFor(u).door, w];
+      }
       if (!runPath(p, dt)) break;
       p.walking = false;
-      const r = roomInfo(u), i = r.stalls.indexOf(null);
-      if (i >= 0){ r.stalls[i] = p.id; p.stall = i; const sp = restroomSpots(u).stalls[i]; p.exit = [sp.front, sp.inside]; p.state = 'toStall'; break; }
-      if ((p.timer -= dt) <= 0){ p.mood = Math.max(0, p.mood - 0.1); setBubble(p, 'wc', 'wish', 1.6); p.exit = exitPath(u, p); p.state = 'leave'; }
+      const i = r.stalls.indexOf(null);
+      if (i >= 0){
+        r.stalls[i] = p.id; p.stall = i; const sp = restroomSpots(u).stalls[i];
+        // From a spot outside, come back in through the door first.
+        p.exit = p.waitSpot >= 3 ? [spotsFor(u).door, sp.front, sp.inside] : [sp.front, sp.inside];
+        p.waitSpot = undefined; p.state = 'toStall'; break;
+      }
+      if ((p.timer -= dt) <= 0){ p.mood = Math.max(0, p.mood - 0.1); setBubble(p, 'wc', 'wish', 1.6); p.exit = p.waitSpot >= 3 ? [] : exitPath(u, p); p.waitSpot = undefined; p.state = 'leave'; }
       break;
     }
     case 'toStall':
@@ -419,7 +440,11 @@ function updateCustomer(p, dt){
       break;
     }
     case 'toSink':
-      if (runPath(p, dt)){ p.state = 'washing'; p.timer = 1.0 + rand() * 0.6; }
+      if (runPath(p, dt)){
+        p.state = 'washing'; p.timer = 1.0 + rand() * 0.6;
+        // With the door facing up, the sinks are between the washer and the door, so they face away from us.
+        const u = S.save.units.find(v => v.id === p.storeId); p.faceBack = !!u && u.face !== 'down';
+      }
       break;
     case 'washing': {
       p.walking = false;
@@ -427,12 +452,13 @@ function updateCustomer(p, dt){
       const u = S.save.units.find(v => v.id === p.storeId);
       if (!u){ p.state = 'decide'; break; }
       const sp = restroomSpots(u), d = spotsFor(u);
-      p.exit = [sp.aisle(sp.sinkY), d.door, d.front]; p.state = 'leave';
+      p.faceBack = false; p.exit = [sp.aisle(sp.sinkY), d.door, d.front]; p.state = 'leave';
       break;
     }
     case 'exit': {
       dropLitter(p, def);
-      const ex = C.ENTRANCE.x + 0.5 + (p.id % 2), ey = C.MAP_H - 0.5;
+      // Spread out a little across the doorway rather than leaving in two neat columns.
+      const ex = C.ENTRANCE.x + 0.5 + (p.id % 2) + ((p.id * 7) % 5 - 2) * 0.15, ey = C.MAP_H - 0.5;
       if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 2 : 1)){ p.state = 'out'; }
       break;
     }
@@ -676,7 +702,9 @@ function leaveRegister(p){
 function updateOwner(p, dt){
   p.t += dt;
   if (p.broomT > 0){ p.broomT -= dt; p.walking = false; if (p.broomT <= 0) finishClean(p); return; }
-  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0){ finishMop(p); sim.jobs.shift(); } return; }
+  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0){ finishMop(p); sim.jobs.shift(); p.exit = p.mopOut; p.mopOut = null; } return; }
+  // Finish stepping out of wherever we were (like a restroom we just mopped) even with nothing else to do.
+  if (p.exit && p.exit.length && !sim.jobs.length){ runPath(p, dt); return; }
   const job = sim.jobs[0];
   if (!job){ p.walking = false; return; }
   if (!job.started){ job.started = true; leaveRegister(p); }
@@ -706,9 +734,13 @@ function updateOwner(p, dt){
   } else if (job.type === 'restroom'){
     const u = S.save.units.find(v => v.id === job.unitId && v.state === 'restroom');
     if (!u){ sim.jobs.shift(); return; }
-    const a = unitAccess(u);
-    if (!walkTo(p, a.x + 0.5, a.y + 0.5, dt)) return;
-    roomInfo(u).claimed = p.id; p.roomTarget = u.id; p.mopT = C.RESTROOM_MOP;
+    if (!job.inside){
+      const a = unitAccess(u);
+      if (!walkTo(p, a.x + 0.5, a.y + 0.5, dt)) return;
+      p.exit = mopPathIn(u); job.inside = true;
+      return;
+    }
+    roomInfo(u).claimed = p.id; p.roomTarget = u.id; p.mopT = C.RESTROOM_MOP; p.mopOut = mopPathOut(u);
   } else if (job.type === 'nudge'){
     // Walk over and have a word. Clerks get called from their store's door.
     const st = personById(job.staffId);
@@ -748,6 +780,13 @@ function tossCoin(){
   emit('wish', { text: `Rose's penny: ${text}.` });
 }
 
+// Mopping happens inside: in through the door to the middle of the room, and back out after.
+function mopPathIn(u){ const d = spotsFor(u), sp = restroomSpots(u); return [d.door, sp.aisle(sp.sinkY - 0.4)]; }
+function mopPathOut(u){ const d = spotsFor(u); return [d.door, d.front]; }
+function runWaypoints(p, list, dt){
+  while (list.length){ if (!moveDirect(p, list[0].x, list[0].y, dt)) return false; list.shift(); }
+  return true;
+}
 function finishMop(p){
   const u = S.save.units.find(v => v.id === p.roomTarget);
   if (u){ const r = roomInfo(u); r.dirt = 0; r.claimed = null; sim.fx.push({ kind: 'sparkle', x: u.x + u.w / 2, y: u.y + u.h / 2, t: 0, life: 0.8 }); emit('cleaned', { count: 1, by: p.kind }); }
@@ -784,14 +823,21 @@ function updateStaff(p, dt){
     return;
   }
   // Restroom duty comes first once one gets grubby.
-  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0) finishMop(p); return; }
+  if (p.mopT > 0){ p.mopT -= dt; p.walking = false; if (p.mopT <= 0){ finishMop(p); p.mopPath = p.mopOut; p.mopOut = null; } return; }
+  // Stepping into or out of a restroom.
+  if (p.mopPath && p.mopPath.length){ runWaypoints(p, p.mopPath, dt); return; }
   let room = p.roomTarget && S.save.units.find(v => v.id === p.roomTarget && v.state === 'restroom');
   if (!room && !p.target){
     for (const u of restrooms()){ const r = roomInfo(u); if (r.dirt >= 40 && (!r.claimed || r.claimed === p.id)){ room = u; r.claimed = p.id; p.roomTarget = u.id; break; } }
   }
+  if (!room) p.mopInside = false;
   if (room){
-    const a = unitAccess(room);
-    if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)) p.mopT = C.RESTROOM_MOP * [0, 1.3, 1.0, 0.75][p.skill];
+    if (!p.mopInside){
+      const a = unitAccess(room);
+      if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)){ p.mopPath = mopPathIn(room); p.mopInside = true; }
+      return;
+    }
+    p.mopInside = false; p.mopT = C.RESTROOM_MOP * [0, 1.3, 1.0, 0.75][p.skill]; p.mopOut = mopPathOut(room);
     return;
   }
   let tr = p.target && sim.trash.find(t => t.id === p.target);

@@ -573,7 +573,19 @@ v0.9.0 changes, from playtest feedback:
 - **More window shopping later on:** from level 8 to level 18, shoppers get up to 25% less likely to buy on a given visit, and browsers (who mostly look) make up more of the crowd.
 - **Stricter report card:** cleanliness counts trash and restroom grime harder, service punishes waits more, variety needs more kinds of stores, and ambience needs more decor. Grades need 4.7 for S, 4.1 for A, 3.3 for B and 2.4 for C, and the star display rounds down, so five stars takes a really well run mall. The balance bot tops out around 4.3.
 - **Mall styles (level 10):** Build → Style has five new wallpapers (Retro Wave, Sunset Plaza, Greenhouse, Art Deco, Modern Luxe) and five new concourse floors (Diner Checker, Terracotta Tile, Garden Flagstone, Herringbone Oak, Marble Hall), from $1,200 to $4,000, plus the original lilac and terrazzo. Tap one to see it on your mall, tap Next to flip through the rest, then Buy (or Use it for one you already own). Styles add to ambience and give a little XP the first time you buy one. The camera can now scroll a bit higher so the back wall shows clear of the top bar.
-- **Polish:** store signs on the back wall are drawn above tall shelves and arcade cabinets so the names stay readable, and the record store's posters moved off the sign.
+- **Polish (from a visual QA pass):**
+  - Store signs on the back wall draw above tall shelves and arcade cabinets, the record store's posters moved off its sign, and neon names (Pixel Palace, Starlight Cinema) sit on a dark plate so they read in daylight.
+  - Gus's notebook no longer breaks once he's suggested a wing.
+  - People waiting for a stall each get their own spot (the doorway, two inside, then outside along the front) instead of piling onto one point.
+  - Janitors and the owner mop inside the restroom instead of on the concourse.
+  - Restrooms with the door facing up draw washers in front of the sinks, and every stall has a rail with a red or green light.
+  - Claw machine players face the machine.
+  - In a long line, only the first two show a bubble (plus anyone about to give up).
+  - Shoppers spread out across the doors as they leave.
+  - The placement bar no longer covers the Settings button.
+  - Placing decor zooms in a little.
+  - The report's Continue button stays visible when a level-up makes the sheet scroll.
+  - The title's tagline lost its doubled shadow.
 - **Pacing:** the balance bot reaches level 7 around day 11–12 (same as v0.8.0) and level 16–17 by day 43, with money staying tight.
 
 Milestone 1 scope:

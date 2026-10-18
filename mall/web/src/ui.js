@@ -233,10 +233,12 @@ export function showPlacementBar({ label, canFlip, flipLabel = 'Flip door', onFl
     extra ? h('button', { class: 'btn small', onclick: () => { sfx('tap'); extra.onClick(); } }, extra.label) : null,
     confirm);
   placeEls = { info, bar, confirm };
+  // The night toolbar steps aside while the bar is up, so the two never overlap on narrow screens.
+  root.classList.add('placing');
   root.append(info, bar);
   return placeEls;
 }
-export function hidePlacementBar(){ if (placeEls){ placeEls.info.remove(); placeEls.bar.remove(); placeEls = null; } }
+export function hidePlacementBar(){ if (placeEls){ placeEls.info.remove(); placeEls.bar.remove(); placeEls = null; } root.classList.remove('placing'); }
 
 /* ---------- Modals ---------- */
 export function modal(content, { onBackdrop } = {}){

@@ -148,7 +148,8 @@ export function render(t){
     } else {
       add(u.y + u.h, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid')); }
-      if (u.state === 'restroom') add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid'));
+      // The sink counter's front edge, so people washing (just below it) are drawn in front of it.
+      if (u.state === 'restroom') add(u.y + 0.72, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
@@ -211,7 +212,11 @@ function drawPerson(p, t){
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
-  if (machine && machine !== 'ride' && machine !== 'vending') o.play = true;
+  if (machine && machine !== 'ride' && machine !== 'vending'){
+    o.play = true;
+    // Standing in front of a machine that faces down: we see their back, hands on the controls.
+    if (!(p.machine.rot || 0)) o.back = true;
+  }
   if (L.kid){
     if (machine !== 'ride') return A.family(p.x, p.y, o);
     // On the kiddie ride the kid hops on, rocking with the rocket and cheering, while the grown-up watches.
@@ -316,11 +321,15 @@ function drawGhost(t){
 
 function drawOverlays(t){
   const s = S.save;
-  // Bubbles over customers
+  // Bubbles over customers. In a long line only the first two show what they want (plus anyone about to give up),
+  // so the bubbles don't pile into a heap.
+  const backOfLine = new Set();
+  for (const st of sim.storeState.values()) if (st.queue) for (const id of st.queue.slice(2)) backOfLine.add(id);
   for (const p of sim.people){
     if (p.kind === 'customer' && p.bubble){
       const b = p.bubble, y = p.y - (C.CUSTOMERS[p.type] && p.look.kid ? 1.6 : 1.55);
       const pulse = b.kind === 'want' && p.patience / p.patienceMax < 0.3 ? Math.abs(Math.sin(t * 8)) : 0;
+      if (b.kind === 'want' && !pulse && backOfLine.has(p.id)) continue;
       A.bubble(p.x, y, b.icon, b.kind === 'info' ? 'info' : b.kind, b.kind === 'want' ? p.patience / p.patienceMax : 1, pulse);
     }
     if (p.kind === 'gus' && p.chatIcon){ A.bubble(p.x, p.y - 1.55, 'chat', 'info'); }

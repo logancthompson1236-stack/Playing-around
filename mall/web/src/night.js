@@ -358,6 +358,8 @@ function startPlacement(p){
     }
     place.x = best ? best.x : Math.round(c.x - p.w / 2); place.y = best ? best.y : Math.round(c.y - p.h / 2);
   }
+  // Small pieces are hard to see (and rotate) from all the way out, so move in a little.
+  if (p.decor && view.cam.s < view.minS * 2) view.camTarget = { x: place.x + place.w / 2, y: place.y + place.h / 2, s: view.minS * 2 };
   const name = p.restroom ? C.RESTROOM.name : p.store ? C.STORES[p.store].name : C.DECOR[p.decor].name;
   place.name = p.moveId ? `Move ${name}` : name;
   const turnable = p.decor && C.DECOR[p.decor].rot;
@@ -531,7 +533,8 @@ export function openNotebook(){
     const keys = seenTips();
     if (!keys.length) body.append(h('p', { class: 'muted' }, 'Empty for now. Gus’s tips land here as they come up.'));
     body.append(h('div', { class: 'notebook' }, keys.map(k => TIPS[k] ? h('div', { class: 'entry' }, h('b', {}, TIPS[k].title), h('div', {}, TIPS[k].text)) : null)));
-    const mem = Object.keys(S.save.flags.memories);
+    // Only stories: the same flags also mark scenes Gus has done (like suggesting a wing), which have no entry.
+    const mem = Object.keys(S.save.flags.memories).filter(k => MEMORIES[k]);
     if (mem.length){
       body.append(h('div', { class: 'section-label' }, 'Gus’s stories'));
       body.append(h('div', { class: 'notebook' }, mem.map(k => h('div', { class: 'entry' }, h('b', {}, MEMORIES[k].title), h('div', { class: 'muted' }, MEMORIES[k].lines[1] || MEMORIES[k].lines[0])))));

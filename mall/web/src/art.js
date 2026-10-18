@@ -525,7 +525,7 @@ function heldItem(kind, hx, hy, color, prize){
 export function family(x, y, o){
   const k = o.kid;
   const kx = x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + 0.12 + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay });
+  person(kx, y + 0.12 + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back });
   person(x, y, o);
 }
 
@@ -686,8 +686,10 @@ export function unitBack(u, def, t){
   if (isOpen(u)) storeFurniture(u, def, t, 'back');
   // The sign goes up last so tall back shelves and cabinets never cover the store's name.
   if (u.face === 'down' && isOpen(u)){
-    rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs('#fffaf3');
-    if (def.icon === 'joystick' || def.icon === 'film') neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', u.w - 0.6);
+    // Neon names glow on a dark plate so they read in daylight too.
+    const lit = def.icon === 'joystick' || def.icon === 'film';
+    rr(u.x + 0.2, u.y - 0.98, u.w - 0.4, 0.42, 0.12); fs(lit ? '#2b2340' : '#fffaf3');
+    if (lit) neon(def.name, u.x + u.w / 2, u.y - 0.77, 0.27, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', u.w - 0.6);
     else text(def.name, u.x + u.w / 2, u.y - 0.76, 0.27, shade(def.color, -0.3), 700, 'Fredoka', u.w - 0.6);
   }
   if (u.state === 'derelict') derelictJunk(u);
@@ -876,8 +878,11 @@ function restroomFurniture(u, layer){
       box(x - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
       if (i === sp.stalls.length - 1) box(x + s0.sw - 0.03, y, 0.06, D, 0.85, '#bfe7e3', '#9fd6d0');
       const dy = down ? y + D - 0.05 : y;
-      if (taken){ box(x + 0.04, dy, s0.sw - 0.08, 0.05, 0.78, '#7fcfc6', '#5cc8bf'); circ(x + s0.sw - 0.16, dy - 0.42, 0.04); fs('#ef476f', 0.015); }
-      else { box(x + 0.04, dy - (down ? 0.25 : 0), 0.05, 0.3, 0.78, '#7fcfc6', '#5cc8bf'); circ(x + s0.sw / 2, dy - 0.74, 0.035); fs('#4cc38a', 0.015); }
+      if (taken) box(x + 0.04, dy, s0.sw - 0.08, 0.05, 0.78, '#7fcfc6', '#5cc8bf');
+      else box(x + 0.04, dy - (down ? 0.25 : 0), 0.05, 0.3, 0.78, '#7fcfc6', '#5cc8bf');
+      // A rail across the top of the doorway, with the light on it: red when someone's in, green when it's free.
+      rr(x - 0.03, dy - 0.86, s0.sw + 0.06, 0.07, 0.02); fs('#9fd6d0', 0.025);
+      circ(x + s0.sw / 2, dy - 0.825, 0.04); fs(taken ? '#ef476f' : '#4cc38a', 0.015);
     }
   } else if (layer === 'mid'){
     // Sink counter by the door, one basin and faucet per sink.
