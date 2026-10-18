@@ -84,6 +84,20 @@ export const EXPAND_SCENES = {
     'Rose had one dream she never got to. A garden up there, under a glass roof. Real trees, sunlight, somewhere to sit that doesn’t smell like pretzels.',
     'The far end of the second floor is still boarded up. Forty-five grand and it’s yours. Just saying.',
   ],
+  // The first night you could afford the casino: Gus takes stock of how far it's all come.
+  casino: [
+    'Evening, boss. I took the long way in tonight. Every floor, every store. Had to sit down by the fountain for a minute.',
+    'When Rose and I locked those doors, I figured that was it. Pigeons and dust, forever. Now look. Two floors, every storefront lit, a line at the door every morning.',
+    'She’d be proud of you. I mean that.',
+    'Now, here’s a wild one. There’s a third floor up top. Used to be the Starlight Ballroom: big band on Fridays, the whole town in their good shoes.',
+    'Some folks I know want to bring it back as a casino. Bright lights, card tables, slot machines going ding-ding-ding. Fifty grand, and you’ve got it sitting right there.',
+    'You’d need dealers to run the tables. Real pros, vests and bow ties. Look under Build, then Fix up. Rose always did love a little razzle-dazzle.',
+  ],
+  vip: [
+    'Boss, that casino of yours is the talk of the town. I saw a fellow in a gold tie tip a dealer fifty bucks.',
+    'Folks with that kind of money want somewhere quieter to play. A high roller suite at the end of the casino floor: gold carpet, golden slots, champagne.',
+    'A hundred and twenty grand. Big number. Bigger crowd. Your call.',
+  ],
 };
 
 // Night 1: Gus helps you hire your first two clerks.

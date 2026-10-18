@@ -77,19 +77,22 @@ export function buildHud(on){
     h('div', { class: 'spacer' }),
     hud.open = h('button', { class: 'btn go open-doors', onclick: () => { sfx('tap'); on.open(); } }, 'Open Doors'),
   );
-  // Switch between the ground floor and the second floor (once it's open). A dot means something upstairs (or
-  // downstairs) needs you.
-  hud.floor = h('button', { class: 'floor-btn', 'aria-label': 'Switch floor', onclick: () => { sfx('tap'); on.floor(); } }, hud.floorLabel = h('b'), hud.floorDot = h('i', { class: 'dot', hidden: true }));
+  // Switch floors once there's more than one: up, the floor you're on, down. A dot means something on a floor that
+  // way needs you.
+  const fbtn = (dir, fn) => { const b = h('button', { class: 'floor-btn', 'aria-label': dir > 0 ? 'Go up a floor' : 'Go down a floor', onclick: () => { sfx('tap'); fn(); } }, h('b', {}, dir > 0 ? '▲' : '▼'), h('i', { class: 'dot', hidden: true })); return b; };
+  hud.floor = h('div', { class: 'floor-nav' }, hud.floorUp = fbtn(1, on.floorUp), hud.floorLabel = h('span', { class: 'floor-label' }), hud.floorDown = fbtn(-1, on.floorDown));
   root.append(hud.top, hud.dayCtl, hud.night, hud.floor);
   setHudMode('none');
 }
-export function updateFloorBtn(show, floor, alert){
-  hud.floor.hidden = !show || hud.top.hidden;
-  if (!show) return;
-  const txt = floor ? '1F ▼' : '2F ▲';
+// top: the highest floor open (0 = ground only). alert: [up, down] whether a floor that way needs you.
+export function updateFloorBtn(top, floor, alert = [false, false]){
+  hud.floor.hidden = !top || hud.top.hidden;
+  if (!top) return;
+  const txt = `${floor + 1}F`;
   if (hud.floorLabel.textContent !== txt) hud.floorLabel.textContent = txt;
-  hud.floor.setAttribute('aria-label', floor ? 'Go down to the ground floor' : 'Go up to the second floor');
-  hud.floorDot.hidden = !alert;
+  hud.floorUp.disabled = floor >= top; hud.floorDown.disabled = floor <= 0;
+  hud.floorUp.querySelector('.dot').hidden = !alert[0] || floor >= top;
+  hud.floorDown.querySelector('.dot').hidden = !alert[1] || floor <= 0;
 }
 export function setHudMode(mode){
   hud.top.hidden = mode === 'none';
@@ -475,11 +478,12 @@ export function unlockList(levels){
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
     if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = d.attraction ? `New ${d.w}×${d.h} attraction. It needs a big plot, like the ones on the second floor.` : `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
+    else if (u.expand){ const e = C.EXPANSIONS.find(q => q.id === u.expand); paint = () => A.storeIcon(u.expand === 'casino' || u.expand === 'vip' ? 'chip' : 'sun', 0.5, 0.5, 0.62); title = e.name; where = `${e.sub}. Build, then Fix up ($${e.cost.toLocaleString()}).`; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
     else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => A.decorThumb(u.decor, d.w); title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){
       const r = C.ROLES[u.hire], n = C.STAFF_LIMITS[u.hire][lv];
-      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), stocker: () => A.storeIcon('box', 0.5, 0.55, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) }[u.hire];
+      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), dealer: () => A.storeIcon('chip', 0.5, 0.5, 0.6), host: () => A.storeIcon('cocktail', 0.5, 0.5, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) }[u.hire];
       title = n > 1 ? `Hire up to ${n} ${r.plural.toLowerCase()}` : `Hire a ${r.name.toLowerCase()}`; where = `${r.desc} Tap Staff at night.`;
     }
     else if (u.staffSlots){

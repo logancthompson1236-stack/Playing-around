@@ -3,8 +3,8 @@ import * as A from './art.js';
 import * as A2 from './art2.js';
 import * as C from './config.js';
 import { S } from './state.js';
-import { sim, spotsFor, storeInfo, clockHour, roomInfo } from './sim.js';
-import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize, floorRange, hasUpstairs } from './map.js';
+import { sim, spotsFor, storeInfo, clockHour, roomInfo, tableDealer } from './sim.js';
+import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize, floorRange, hasUpstairs, topFloor } from './map.js';
 
 export const view = {
   W: 0, H: 0, dpr: 1,
@@ -22,7 +22,7 @@ const X0 = () => floorRange(view.floor).x0 - 1.5;
 const X1 = () => floorRange(view.floor).x1 + 1.5;
 // Switch floors, keeping the camera over the same part of the building.
 export function setFloor(f){
-  if (f && !hasUpstairs()) f = 0;
+  f = Math.max(0, Math.min(topFloor(), f));
   if (f === view.floor) return;
   const a = floorRange(view.floor), b = floorRange(f);
   view.cam.x = b.x0 + Math.min(b.x1 - b.x0, Math.max(0, view.cam.x - a.x0));
@@ -48,7 +48,7 @@ export function clampCam(){
   const c = view.cam;
   c.s = Math.max(view.minS, Math.min(view.maxS, c.s));
   const hw = view.W / 2 / c.s, hh = view.H / 2 / c.s;
-  if (view.floor && !hasUpstairs()){ view.floor = 0; view.cacheRev = -1; }
+  if (view.floor > topFloor()){ view.floor = topFloor(); view.cacheRev = -1; }
   const x0 = X0(), x1 = X1();
   c.x = (x1 - x0) <= hw * 2 ? (x0 + x1) / 2 : Math.max(x0 + hw, Math.min(x1 - hw, c.x));
   c.y = (Y1 - Y0) <= hh * 2 ? (Y0 + Y1) / 2 : Math.max(Y0 + hh, Math.min(Y1 - hh, c.y));
@@ -62,7 +62,7 @@ export function poof(x, y, w, h){ view.poofs.push({ x, y, w, h, t: 0 }); }
 /* ---------- Cached floor layer ---------- */
 // Only the floor on screen is cached (and drawn): a smaller cache, so it can be sharper too.
 function buildCache(){
-  const want = view.dpr * view.cam.s, X0f = X0(), X1f = X1(), fr = floorRange(view.floor), up = view.floor === 1;
+  const want = view.dpr * view.cam.s, X0f = X0(), X1f = X1(), fr = floorRange(view.floor), up = view.floor > 0;
   // Keep the cached floor under ~8 million pixels so a big mall still fits in a phone's memory.
   const cap = Math.sqrt(8e6 / ((X1f - X0f) * (Y1 - Y0)));
   const sizes = [32, 48, 64, 88, 112].filter(b => b <= cap);
@@ -76,7 +76,7 @@ function buildCache(){
   c.setTransform(ppt, 0, 0, ppt, -X0f * ppt, -Y0 * ppt);
   const s = S.save;
   // Outside: sidewalk and parking lot below the ground floor; sky and rooftops below the second floor's windows.
-  if (up) A.skyView(X0f, C.MAP_H, X1f - X0f, Y1 - C.MAP_H);
+  if (up) A.skyView(X0f, C.MAP_H, X1f - X0f, Y1 - C.MAP_H, view.floor === 2);
   else { A.floor('sidewalk', X0f, C.MAP_H, X1f - X0f, 1, 3); A.floor('asphalt', X0f, C.MAP_H + 1, X1f - X0f, Y1 - C.MAP_H - 1, 4); }
   // Inside floors, row runs at a time.
   for (let y = 0; y < C.MAP_H; y++){
@@ -84,7 +84,7 @@ function buildCache(){
     while (x < fr.x1){
       const f = map.floor[idx(x, y)], gd = map.garden[idx(x, y)];
       let x2 = x; while (x2 < fr.x1 && map.floor[idx(x2, y)] === f && map.garden[idx(x2, y)] === gd) x2++;
-      A.floor(gd ? 'grass' : f === FLOOR_DUST ? 'dust' : A.concourseFloor(), x, y, x2 - x, 1, 11 + y * 31 + x);
+      A.floor(gd === 1 ? 'grass' : gd === 2 ? 'casinocarpet' : gd === 3 ? 'vipcarpet' : f === FLOOR_DUST ? 'dust' : A.concourseFloor(), x, y, x2 - x, 1, 11 + y * 31 + x);
       x = x2;
     }
   }
@@ -119,7 +119,8 @@ export function render(t){
   const s = S.save; if (!s) return;
   const { dpr, cam } = view;
   // The mall's style, or one being previewed from the Build panel.
-  const st = view.stylePreview || s.style, key = st ? st.wall + '/' + st.floor : '';
+  // The casino has its own look, whatever style the rest of the mall has.
+  const st0 = view.stylePreview || s.style, st = view.floor === 2 ? { ...st0, wall: 'casino', floor: 'casino' } : st0, key = st ? st.wall + '/' + st.floor : '';
   if (key !== view.styleKey){ view.styleKey = key; A.setStyle(st); view.cacheRev = -1; }
   const want = dpr * cam.s;
   if (view.cacheRev !== map.rev || view.cacheFloor !== view.floor || !view.cache || (view.cachePPT < 112 && want > view.cachePPT * 1.25) || want < view.cachePPT * 0.45) buildCache();
@@ -141,7 +142,7 @@ export function render(t){
   }
   ctx.setTransform(ppt, 0, 0, ppt, ox, oy);
   A.setTarget(ctx, ppt);
-  const fr = floorRange(view.floor), up = view.floor === 1;
+  const fr = floorRange(view.floor), up = view.floor > 0;
 
   // Floor-level things.
   for (const tr of sim.trash) if (seen(tr.x, tr.y, 0.5)) A.trash(tr.x, tr.y, tr.kind, tr.t);
@@ -186,16 +187,20 @@ export function render(t){
   // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are.
   const users = new Map();
   for (const p of sim.people) if (p.state === 'useMachine' && p.machine) users.set(p.machine, p);
+  // Casino tables: who's in which seat and how far along their round is, and whether the dealer's there.
+  const players = new Map();
+  for (const p of sim.people) if (p.state === 'atTable' && p.table){ let a = players.get(p.table); if (!a) players.set(p.table, a = [null, null, null]); a[p.seat] = { k: Math.min(1, Math.max(0, 1 - p.timer / p.tableMax)), win: p.tableWin, done: p.tableWin !== null && p.tableWin !== undefined }; }
   for (const d of s.decor){
-    if (!seenRect(d.x - 1, d.y - 2.8, 3, 4)) continue;
-    const u = users.get(d), c = C.DECOR[d.type].coin;
-    if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))) }); else A.decorState.delete(d);
+    if (!seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
+    const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
+    if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
+    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1 }); else A.decorState.delete(d);
     add(decorSortY(d), () => A.decor(d, t));
     if (d.type === 'playarea') add(d.y + 1.9, () => A2.playFront(d));
   }
   if (!up && seenRect(C.FOUNTAIN.x - 1, C.FOUNTAIN.y - 2, 4, 5)) add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
   // The escalator: its belts under the riders, its glass sides in front of them.
-  if (hasUpstairs()) for (const e of C.ESCALATORS) if (e.floor === view.floor && seenRect(e.x - 1, e.y - 3, e.w + 2, e.h + 4)){
+  for (const e of map.esc) if (e.floor === view.floor && seenRect(e.x - 1, e.y - 3, e.w + 2, e.h + 4)){
     add(e.y - 0.01, () => A.escalator(e, t, 'back'));
     add(e.y + 1.0, () => A.escalator(e, t, 'mid'));
     add(e.y + e.h + 0.02, () => A.escalator(e, t, 'front'));
@@ -240,6 +245,7 @@ export function decorSortY(d){
   if (d.type === 'playarea') return d.y + 0.2;
   if (d.type === 'piano') return d.y + 1.5;
   if (d.type === 'koi') return d.y + 0.3;
+  if (C.DECOR[d.type].game) return d.y + 1.2;
   return d.y + 0.8;
 }
 function drawPerson(p, t){
@@ -313,6 +319,32 @@ function drawPersonAt(p, t){
   }
   // In the photo booth, behind the curtain.
   if (machine === 'photobooth') return;
+  // Casino: pulling the slot lever, then watching the reels; giving the prize wheel a big spin.
+  if (machine === 'slots' || machine === 'goldslots' || machine === 'wheel'){
+    const live = A.decorState.get(p.machine), k = live ? live.k : 0, r = p.machine.rot || 0;
+    o.back = !r; o.play = false;
+    if (machine === 'wheel') o.reach = k < 0.2;
+    else { o.reach = k < 0.2; o.reachSide = r % 2 === 1; if (k > 0.85 && live && live.win){ o.play = true; o.reach = false; o.mood = 'happy'; } }
+    return A.person(p.x, p.y, o);
+  }
+  // At a casino table, seen from behind: cards and chips at blackjack and poker (sat on a stool), leaning in to place
+  // chips at roulette, throwing the dice at craps. A winner throws their arms up.
+  if (p.state === 'atTable' && p.table){
+    const kind = p.table.type, k = Math.min(1, Math.max(0, 1 - p.timer / p.tableMax)), done = p.tableWin !== null && p.tableWin !== undefined;
+    const so = { ...o, back: true, kid: undefined, flip: false, walk: false };
+    if (done && p.tableWin){ so.play = true; so.mood = 'happy'; }
+    else if (kind === 'blackjack' || kind === 'poker'){ so.sit = true; so.play = Math.sin(t * 1.5 + p.id) > 0.3; if (kind === 'poker') so.hold = 'cards'; }
+    else if (kind === 'roulette') so.reach = k < 0.35 && Math.sin(t * 5 + p.id) > -0.2;
+    else if (kind === 'craps'){
+      // The shooter is whoever's in the lowest seat still mid-round; the rest cheer once the dice land.
+      const shooter = Math.min(...sim.people.filter(q => q.table === p.table && q.state === 'atTable' && (q.tableWin === null || q.tableWin === undefined)).map(q => q.seat));
+      const roller = shooter === p.seat; so.reach = roller && k > 0.25 && k < 0.4; so.play = !roller && k > 0.7;
+    }
+    return A.person(p.x, (kind === 'blackjack' || kind === 'poker') ? p.y + 0.02 : p.y, so);
+  }
+  // Dealers face the players, hands busy dealing while anyone's playing.
+  if (p.role === 'dealer' && p.state === 'deal'){ o.reach = p.dealing && Math.sin(t * 5) > 0.2; o.play = p.dealing && !o.reach; }
+  if (p.role === 'host' && p.waveT > 0) o.reach = true;
   // Sat in the massage chair, buzzing.
   if (machine === 'massage'){
     const m = p.machine, r = m.rot || 0, st = A2.MASSAGE_SEAT(r), j = Math.sin(t * 40) * 0.012;

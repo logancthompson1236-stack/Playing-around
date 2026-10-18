@@ -4,7 +4,7 @@ import * as A from './art.js';
 import { S, writeSave, addXp, stores, staffSkill, wageOf, stars } from './state.js';
 import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, ESCALATOR_ID, unitAccess, decorSize, decorAccess, floorRange, floorOf, clearEscalators } from './map.js';
 import { sim, staffLook } from './sim.js';
-import { view, invalidate, poof, worldToScreen } from './render.js';
+import { view, invalidate, poof, worldToScreen, setFloor } from './render.js';
 import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portrait, showPlacementBar, hidePlacementBar, confirmBox, setToolDot } from './ui.js';
 import { sfx } from './audio.js';
 import { tip, addMemory, seenTips } from './guide.js';
@@ -38,7 +38,7 @@ export function nightTap(wx, wy){
   // Tall things are drawn above their footprint, so also look one row down.
   const id = occAt(tx, ty) || occAt(tx, Math.floor(wy + 0.7));
   if (id === FOUNTAIN_ID) return fountainCard();
-  if (id === ESCALATOR_ID){ hideCard(); view.selected = null; return showCard({ title: 'Escalator', text: view.floor ? 'Down to the ground floor. Shoppers, staff and you ride it whenever where they’re going is downstairs.' : 'Up to the second floor. Shoppers, staff and you ride it whenever where they’re going is upstairs. Tap 2F on the left to look up there.' }); }
+  if (id === ESCALATOR_ID){ hideCard(); view.selected = null; return showCard({ title: 'Escalator', text: 'Shoppers, staff and you ride the escalators whenever where they’re going is on another floor. The ▲ and ▼ buttons on the left switch which floor you’re looking at.' }); }
   if (id){
     const u = S.save.units.find(v => v.id === id);
     if (u) return unitCard(u);
@@ -86,7 +86,7 @@ const fits = (def, u) => def.w === u.w && def.h === u.h;
 function roomFor(key){
   const def = C.STORES[key];
   if (def.kiosk) return [];
-  return S.save.units.filter(u => !u.kiosk && (u.state === 'vacant' || u.state === 'derelict') && fits(def, u))
+  return S.save.units.filter(u => !u.kiosk && (u.state === 'vacant' || u.state === 'derelict') && fits(def, u) && (!def.casino || floorOf(u.x) === 2))
     .map(u => ({ u, cost: def.cost + fixCost(u) })).sort((a, b) => a.cost - b.cost);
 }
 function openStore(u, key){
@@ -109,17 +109,18 @@ function openInUnit(u){
     body.append(h('p', { class: 'muted', style: 'margin:0' }, `This storefront is ${u.w}×${u.h}.${fix ? ` Prices include ${money(fix)} to fix it up.` : ''} ${u.w}×${u.h} stores:`));
     for (const [key, def] of Object.entries(C.STORES)){
       if (def.kiosk || !fits(def, u)) continue;
+      if (def.casino && floorOf(u.x) !== 2) continue;
       body.append(storeItem(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }));
     }
   } });
 }
 function storeItem(key, def, cost, onPick){
-  const locked = S.save.level < def.level, afford = S.save.money >= cost;
+  const noCasino = def.casino && !S.save.expansions.casino, locked = S.save.level < def.level || noCasino, afford = S.save.money >= cost;
   const have = stores(S.save).filter(u => u.store === key).length;
   const b = h('button', { class: `item ${locked ? 'locked' : afford ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); onPick(); } },
     iconCanvas(() => A.storeIcon(def.icon, 0.5, 0.5, 0.62)),
     h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.attraction ? `${def.w}×${def.h} attraction · tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
-    h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(cost)));
+    h('span', { class: 'price' }, S.save.level < def.level ? `Level ${def.level}` : noCasino ? 'Casino' : money(cost)));
   return b;
 }
 const DECOR_TEXT = {
@@ -135,7 +136,9 @@ function decorCard(d){
   const actions = [{ label: 'Move', onClick: () => startPlacement({ kind: d.type, decor: d.type, w: z.w, h: z.h, face: d.rot || 0, cost: 0, moveId: d.id, x: d.x, y: d.y }) }];
   if (def.rot) actions.push({ label: 'Rotate', onClick: () => rotateInPlace(d) });
   actions.push({ label: `Sell · +${money(def.cost / 2)}`, onClick: () => { S.save.decor = S.save.decor.filter(v => v !== d); S.save.money += Math.round(def.cost / 2); hideCard(); view.selected = null; sfx('coin'); changed(); } });
-  showCard({ title: def.name, text: DECOR_TEXT[d.type] || 'Makes the place feel nicer.', actions });
+  const dealer = def.game && S.save.staff.filter(m => m.role === 'dealer').length > S.save.decor.filter(v => C.DECOR[v.type].game && v.id < d.id).length;
+  const txt = def.game ? `Up to three players a round, and the house takes the bets ($${def.game.price[0]}–${def.game.price[1]} a hand). ${dealer ? 'A dealer runs it each day.' : 'Needs a dealer: hire one under Staff, or the table stays closed.'}` : DECOR_TEXT[d.type] || 'Makes the place feel nicer.';
+  showCard({ title: def.name, text: txt, actions });
 }
 // Turn a piece a quarter turn where it stands, skipping facings that don't fit.
 function rotateInPlace(d){
@@ -185,11 +188,11 @@ export function openBuild(startTab = 0){
       }
     } else if (tab === 1){
       for (const [key, def] of Object.entries(C.DECOR)){
-        const locked = s.level < def.level, have = s.decor.filter(d => d.type === key).length;
+        const noCasino = def.casino && !s.expansions.casino, locked = s.level < def.level || noCasino, have = s.decor.filter(d => d.type === key).length;
         const b = h('button', { class: `item ${locked ? 'locked' : s.money >= def.cost ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } },
           decorIcon(key),
-          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.sub + (def.rot ? ' · can rotate' : ''))),
-          h('span', { class: 'price' }, locked ? `Level ${def.level}` : money(def.cost)));
+          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.sub + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : ''))),
+          h('span', { class: 'price' }, s.level < def.level ? `Level ${def.level}` : noCasino ? 'Casino' : money(def.cost)));
         body.append(b);
       }
     } else if (tab === 3){
@@ -203,8 +206,8 @@ export function openBuild(startTab = 0){
         body.append(fixItem(z.name, done ? 'Cleared' : `${z.w}×${z.h} of storage`, done ? 'Done' : locked ? `Level ${z.level}` : money(z.cost), done || locked, () => { closePanel(); panTo(z.x + z.w / 2, z.y + z.h / 2); zoneCard(z); }));
       }
       body.append(h('div', { class: 'section-label' }, 'Expansions'));
-      C.EXPANSIONS.forEach((e, i) => {
-        const done = !!s.expansions[e.id], prev = C.EXPANSIONS[i - 1], blocked = prev && !s.expansions[prev.id], locked = s.level < e.level;
+      C.EXPANSIONS.forEach(e => {
+        const done = !!s.expansions[e.id], prev = e.requires && C.EXPANSIONS.find(q => q.id === e.requires), blocked = prev && !s.expansions[prev.id], locked = s.level < e.level;
         const price = done ? 'Open' : locked ? `Level ${e.level}` : blocked ? `After ${prev.name}` : money(e.cost);
         body.append(fixItem(e.name, e.sub, price, done || locked || blocked, () => { if (!done && !locked && !blocked) buyExpansion(e); }, 'expand'));
       });
@@ -285,14 +288,15 @@ async function buyExpansion(e){
   if (!spend(e.cost)) return;
   closePanel();
   s.expansions[e.id] = true;
-  for (const l of e.lots) s.units.push({ id: s.nextId++, x: l.x, y: l.y, w: l.w, h: l.h, face: l.face, state: 'vacant', store: null, stock: 0 });
+  for (const l of e.lots) s.units.push({ id: s.nextId++, x: l.x, y: l.y, w: l.w, h: l.h, face: l.face, state: l.store ? 'store' : 'vacant', store: l.store || null, stock: l.store ? C.STORES[l.store].stock : 0 });
   if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
   for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
   rebuildMap(s); clearEscalators(s);
   sfx('build'); poof(e.x, 0, e.w, C.MAP_H);
   changed(e.xp);
   view.camTarget = { x: e.x + e.w / 2 - 2, y: 7.5, s: view.minS * 1.4 };
-  toast(e.id === 'east' ? 'The Second Floor is open! Shoppers ride the escalator up. Tap 1F/2F to switch floors.' : `The ${e.name} is open! New storefronts are waiting.`, 4000);
+  toast(e.id === 'east' ? 'The Second Floor is open! Shoppers ride the escalator up. Tap the floor buttons to switch floors.'
+    : e.id === 'casino' ? 'The Lucky Star Casino is open on the third floor! Hire dealers under Staff to run the tables.' : `The ${e.name} is open! New storefronts are waiting.`, 4500);
 }
 
 /* ---------- Picking a storefront for a store ---------- */
@@ -351,6 +355,9 @@ export function endPick(){ if (!pick) return; pick = null; view.spots = null; hi
 export const placing = () => !!place || !!pick || !!styling;
 function startPlacement(p){
   hideCard(); view.selected = null;
+  // Casino things go on the casino floor: head up there.
+  const cas = (p.decor && C.DECOR[p.decor].casino) || (p.store && C.STORES[p.store].casino);
+  if (cas && view.floor !== 2 && S.save.expansions.casino && p.x === undefined){ setFloor(2); view.cam.x = C.F3X + 6; }
   place = { ...p };
   if (p.x === undefined){
     const c = view.cam; let best = null;
@@ -395,6 +402,7 @@ function validate(x, y, face){
     for (const [i, j] of tiles){ const id = zoneAt(i, j), z = id && C.ZONES.find(q => q.id === id); if (z && !zones.includes(z)) zones.push(z); }
     const locked = zones.find(z => S.save.level < z.level);
     if (locked) return { ok: false, reason: `${locked.name} opens at level ${locked.level}`, zones: [] };
+    if (place.store && C.STORES[place.store].casino && floorOf(x) !== 2) return { ok: false, reason: 'This goes on the casino floor', zones: [] };
   }
   const v = validatePlacement(S.save, place.kind, x, y, place.w, place.h, face, place.moveId || 0, zones.map(z => z.id));
   return { ...v, zones };
@@ -478,8 +486,10 @@ function applicants(){
     // Enough clerks to staff every register that needs one (three at least, up to eight), one of every other role.
     const unstaffed = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(m => m.storeId === u.id)).length;
     const clerks = Math.max(3, Math.min(8, unstaffed + 1));
+    // Same for dealers: one for every table still without one.
+    const tables = s.decor.filter(d => C.DECOR[d.type].game).length, dealers = Math.max(1, Math.min(5, tables - s.staff.filter(m => m.role === 'dealer').length + 1));
     const roles = [];
-    for (const [role, r] of Object.entries(C.ROLES)) if (s.level >= r.level) roles.push(...(role === 'clerk' ? Array(clerks).fill('clerk') : [role]));
+    for (const [role, r] of Object.entries(C.ROLES)) if (s.level >= r.level) roles.push(...(role === 'clerk' ? Array(clerks).fill('clerk') : role === 'dealer' ? Array(dealers).fill('dealer') : [role]));
     const list = [], used = new Set(['Dee', ...s.staff.map(m => m.name)]);
     roles.forEach((role, i) => {
       const seed = s.day * 31 + i * 7 + s.level * 101 + s.nextId;
@@ -498,7 +508,7 @@ function applicants(){
   return out;
 }
 // Staff is long by the late game: tabs pick a role (or All), and the team is grouped by role either way.
-const ROLE_ORDER = ['clerk', 'janitor', 'supervisor', 'stocker', 'guard', 'greeter', 'mascot'];
+const ROLE_ORDER = ['clerk', 'janitor', 'supervisor', 'guard', 'greeter', 'mascot', 'dealer', 'host'];
 export function openStaff(){
   endPick(); endPlacement(); hideCard(); view.selected = null; setToolDot('staff', false);
   const s0 = S.save, roles = ROLE_ORDER.filter(r => s0.level >= C.ROLES[r].level || s0.staff.some(m => m.role === r));

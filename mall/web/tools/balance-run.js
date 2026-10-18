@@ -92,7 +92,7 @@ function night(){
   }
   // Hire help when allowed.
   // Like a sensible player: stores first, frills later, and save up for the next expansion once it unlocks.
-  const nextExp = C.EXPANSIONS.find(e => !s.expansions[e.id]);
+  const nextExp = C.EXPANSIONS.find(e => !s.expansions[e.id] && (!e.requires || s.expansions[e.requires]));
   const saving = stores(s).length < 8 && s.money < 1500;
   const saveExp = saving || (nextExp && s.level >= nextExp.level && s.money < nextExp.cost + 1500);   // no frills while saving up
   const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(botRand() * 4)], ...extra });
@@ -107,8 +107,25 @@ function night(){
     }
   }
   if (s.level >= 5 && has('janitor') < lim('janitor') && !saving && s.money > 600) hire('janitor');
-  for (const role of ['guard', 'stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
+  // The casino: a table at a time (the cheapest one unlocked), and a dealer for each.
+  if (s.expansions.casino){
+    const tables = s.decor.filter(d => C.DECOR[d.type].game).length;
+    const games = Object.entries(C.DECOR).filter(([k, d]) => d.game && d.level <= s.level).sort((a, b) => a[1].cost - b[1].cost);
+    const pick = games[tables % Math.max(1, games.length)];
+    if (pick && tables < lim('dealer') && s.money > pick[1].cost + 3000){ const sp = findSpot(pick[0], pick[1].w, pick[1].h); if (sp){ s.decor.push({ id: s.nextId++, type: pick[0], x: sp.x, y: sp.y, rot: 0 }); s.money -= pick[1].cost; gain(5); rebuildMap(s); } }
+    while (has('dealer') < Math.min(lim('dealer'), s.decor.filter(d => C.DECOR[d.type].game).length) && s.money > 900) hire('dealer');
+  }
+  for (const role of ['guard', 'greeter', 'mascot', 'supervisor', 'host']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
+  C.EXPANSIONS.forEach(e => {
+    if (s.expansions[e.id] || (e.requires && !s.expansions[e.requires]) || s.level < e.level || s.money < e.cost + 1500) return;
+    s.money -= e.cost; s.expansions[e.id] = true; gain(e.xp);
+    for (const l of e.lots) s.units.push({ id: s.nextId++, ...l, state: l.store ? 'store' : 'vacant', store: l.store || null, stock: l.store ? C.STORES[l.store].stock : 0 });
+    if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
+    for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
+    rebuildMap(s); clearEscalators(s);
+    console.log(`      (day ${s.day}: opened the ${e.name})`);
+  });
   // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
   for (let n = 0; n < 2 && !saveExp && s.money > 500 && s.decor.length < 34; n++){
     const bins = s.decor.filter(d => d.type === 'bin').length;
@@ -126,15 +143,6 @@ function night(){
     if (next && s.money > next.d.cost + 2500){ s.money -= next.d.cost; s.style[next.slot + 's'].push(next.id); s.style[next.slot] = next.id; gain(C.STYLE_XP); }
   }
   for (const z of C.ZONES) if (!s.zones[z.id] && s.level >= z.level && s.money > z.cost + 800){ s.money -= z.cost; s.zones[z.id] = true; gain(60); }
-  C.EXPANSIONS.forEach((e, i) => {
-    if (s.expansions[e.id] || (i && !s.expansions[C.EXPANSIONS[i - 1].id]) || s.level < e.level || s.money < e.cost + 1500) return;
-    s.money -= e.cost; s.expansions[e.id] = true; gain(e.xp);
-    for (const l of e.lots) s.units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
-    if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
-    for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
-    rebuildMap(s); clearEscalators(s);
-    console.log(`      (day ${s.day}: opened the ${e.name})`);
-  });
   rebuildMap(s);
 }
 // First spot (scanning out from the concourse) where something fits without blocking anything.

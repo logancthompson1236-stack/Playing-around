@@ -188,7 +188,7 @@ export async function runTroubleScene(){
 let expandRunning = false;
 export function expansionToSuggest(){
   const s = S.save;
-  return C.EXPANSIONS.find((e, i) => !s.expansions[e.id] && (i === 0 || s.expansions[C.EXPANSIONS[i - 1].id]) && s.level >= e.level && s.money >= e.cost && !s.flags.memories['wing_' + e.id]);
+  return C.EXPANSIONS.find(e => !s.expansions[e.id] && (!e.requires || s.expansions[e.requires]) && s.level >= e.level && s.money >= e.cost && !s.flags.memories['wing_' + e.id]);
 }
 export async function runExpandScene(){
   const e = expansionToSuggest();

@@ -62,7 +62,7 @@ function upgradeSave(s){
   const old = s.units, units = [];
   for (const u of START_UNITS) units.push({ id: s.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.restroom ? 'restroom' : 'derelict', store: null, stock: 0 });
   for (const e of EXPANSIONS) if (s.expansions[e.id]){
-    for (const l of e.lots) units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
+    for (const l of e.lots) units.push({ id: s.nextId++, ...l, store: null, state: 'vacant', stock: 0 });
     if (e.restroom) units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: RESTROOM.w, h: RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
   }
   const leftovers = [];

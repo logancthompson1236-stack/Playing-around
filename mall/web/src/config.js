@@ -31,7 +31,8 @@ export const UTILITIES_PER_STORE = 5;
 export const LAYOUT = 3;
 export const MAP_W = 30;              // the ground floor
 export const F2X = 40;                // where the second floor starts on the grid
-export const MAP_W_MAX = 68;          // F2X + the whole second floor (Second Floor 16 + Sky Garden 12)
+export const F3X = 80;                // where the third floor (the casino) starts
+export const MAP_W_MAX = 108;         // F3X + the whole third floor (Casino 18 + High Roller Suite 10)
 export const MAP_H = 17;
 export const OUTSIDE_H = 2;
 export const CONCOURSE = { y: 7, h: 4 };
@@ -82,24 +83,40 @@ export const RESTROOM_MOP = 2.6;     // seconds to mop out (owner); janitors sca
 // Expansions: the second floor, up an escalator at the east end of the concourse. It opens in two parts.
 // Ids stay 'east' and 'garden' so older saves (where these were wings beside the ground floor) carry over.
 export const EXPANSIONS = [
-  { id: 'east', name: 'Second Floor', cost: 20000, level: 8, x: 40, w: 16, xp: 300,
+  { id: 'east', name: 'Second Floor', floor: 1, cost: 20000, level: 8, x: 40, w: 16, xp: 300,
     sub: 'Open up the sealed second floor, with an escalator from the concourse: two big plots for attractions, 4 storefronts and more restrooms',
     lots: [{ x: 41, y: 3, w: 5, h: 4, face: 'down' }, { x: 47, y: 4, w: 3, h: 3, face: 'down' }, { x: 50, y: 4, w: 2, h: 3, face: 'down' },
            { x: 41, y: 11, w: 5, h: 4, face: 'up' }, { x: 47, y: 11, w: 3, h: 3, face: 'up' }, { x: 50, y: 11, w: 2, h: 2, face: 'up' }],
     restroom: { x: 52, y: 4, face: 'down' },
     decor: [{ type: 'planter', x: 46, y: 13, rot: 1 }, { type: 'plant', x: 54, y: 12 }, { type: 'bench', x: 53, y: 14 }, { type: 'plant', x: 46, y: 5 }] },
-  { id: 'garden', name: 'Sky Garden', cost: 45000, level: 13, x: 56, w: 12, xp: 500,
+  { id: 'garden', name: 'Sky Garden', floor: 1, requires: 'east', cost: 45000, level: 13, x: 56, w: 12, xp: 500,
     sub: 'A sunny garden under a glass roof at the end of the second floor: grass, shade trees, one more big plot, 3 storefronts and plenty of room',
     lots: [{ x: 57, y: 4, w: 3, h: 3, face: 'down' }, { x: 61, y: 3, w: 5, h: 4, face: 'down' },
            { x: 57, y: 11, w: 3, h: 3, face: 'up' }, { x: 61, y: 11, w: 2, h: 3, face: 'up' }],
     garden: { x: 56, y: 7, w: 12, h: 4 },
     decor: [{ type: 'tree', x: 57, y: 7 }, { type: 'tree', x: 60, y: 10 }, { type: 'tree', x: 64, y: 7 }, { type: 'tree', x: 66, y: 10 }, { type: 'sofa', x: 64, y: 14, rot: 0 }, { type: 'lamp', x: 56, y: 13 }] },
+  // v0.15: the third floor is a casino, up a second escalator from the second floor. Its games, stores and decor
+  // only go on this floor (casino: true), and it has its own look whatever style the rest of the mall has.
+  { id: 'casino', name: 'Lucky Star Casino', floor: 2, requires: 'east', cost: 50000, level: 30, x: 80, w: 18, xp: 800, theme: 'casino',
+    sub: 'A whole third floor of bright lights: slot machines, room for card tables and roulette, a chip cage, a lounge and restrooms, up a new escalator',
+    lots: [{ x: 85, y: 4, w: 3, h: 3, face: 'down' }, { x: 88, y: 4, w: 2, h: 3, face: 'down' }, { x: 90, y: 5, w: 2, h: 2, face: 'down', store: 'chips' },
+           { x: 85, y: 11, w: 3, h: 3, face: 'up' }, { x: 88, y: 11, w: 2, h: 3, face: 'up' }],
+    restroom: { x: 92, y: 4, face: 'down' },
+    decor: [{ type: 'slots', x: 81, y: 12, rot: 0 }, { type: 'slots', x: 82, y: 12, rot: 0 }, { type: 'slots', x: 83, y: 12, rot: 0 }, { type: 'slots', x: 81, y: 4, rot: 0 }, { type: 'slots', x: 82, y: 4, rot: 0 },
+            { type: 'neon', x: 92, y: 13 }, { type: 'rope', x: 84, y: 7 }, { type: 'rope', x: 84, y: 10 }] },
+  { id: 'vip', name: 'High Roller Suite', floor: 2, requires: 'casino', cost: 120000, level: 42, x: 98, w: 10, xp: 1200, theme: 'vip',
+    sub: 'A gold-carpeted high-limit room at the end of the casino: two big plots, golden slots and a champagne tower',
+    lots: [{ x: 99, y: 4, w: 3, h: 3, face: 'down' }, { x: 102, y: 4, w: 3, h: 3, face: 'down' }, { x: 99, y: 11, w: 3, h: 3, face: 'up' }],
+    decor: [{ type: 'goldslots', x: 105, y: 4, rot: 0 }, { type: 'goldslots', x: 106, y: 4, rot: 0 }, { type: 'champagne', x: 104, y: 13 }, { type: 'plant', x: 98, y: 15 }] },
 ];
-// The escalators, one at each end of the ride: at the east end of the ground floor's concourse and the west end of
-// the second floor's. land: the tile you step on and off from. The belts run away from the landing (dir: which way).
+// The escalators come in pairs, one at each end of a ride. rise: the belt climbs (the bottom end of the ride, with a
+// bulkhead it disappears into); otherwise it's the top end, an open stairwell the belt sinks into. land: the tile you
+// step on and off from; the belt runs away from it (dir: which way). to: the other end. needs: the expansion that adds it.
 export const ESCALATORS = [
-  { floor: 0, x: 27, y: 7, w: 3, h: 2, land: { x: 26, y: 8 }, dir: 1 },
-  { floor: 1, x: 40, y: 7, w: 3, h: 2, land: { x: 43, y: 8 }, dir: -1 },
+  { id: 'a0', floor: 0, x: 27, y: 7, w: 3, h: 2, land: { x: 26, y: 8 }, dir: 1, rise: true, label: '▲ 2F', to: 'a1', needs: 'east' },
+  { id: 'a1', floor: 1, x: 40, y: 7, w: 3, h: 2, land: { x: 43, y: 8 }, dir: -1, label: '▼ 1F', to: 'a0', needs: 'east' },
+  { id: 'b1', floor: 1, x: 53, y: 9, w: 3, h: 2, land: { x: 52, y: 10 }, dir: 1, rise: true, label: '▲ 3F', to: 'b2', needs: 'casino' },
+  { id: 'b2', floor: 2, x: 80, y: 7, w: 3, h: 2, land: { x: 83, y: 8 }, dir: -1, label: '▼ 2F', to: 'b1', needs: 'casino' },
 ];
 export const ESCALATOR_RIDE = 1.5;    // seconds on each belt (up one, then off the other)
 export const EXPANSION_UTILITIES = 120;   // a bigger building costs more to light and heat, per wing
@@ -139,6 +156,10 @@ export const STORES = {
   vr:       { name: 'Virtual Voyage',   w: 3, h: 3, cat: 'Fun',     level: 25, cost: 7500, price: [38, 62], stock: 60, icon: 'vr',      litter: 0.08, color: '#240046', trim: '#00f5d4', floor: 'neon', play: true },
   bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'cafe' },
   comics:   { name: 'Comic Vault',      w: 2, h: 3, cat: 'Fun',     level: 31, cost: 6800, price: [32, 66], stock: 40, icon: 'comic',   litter: 0.04, color: '#e63946', trim: '#ffd23f', floor: 'carpet' },
+  // v0.15: casino stores. casino: only on the casino floor.
+  chips:    { name: 'Chip Cage',        w: 2, h: 2, cat: 'Casino',  level: 30, cost: 4000, price: [40, 110], stock: 80, icon: 'chip',    litter: 0.02, color: '#1b4332', trim: '#f2c14e', floor: 'royal', casino: true },
+  lounge:   { name: 'Neon Lounge',      w: 3, h: 3, cat: 'Casino',  level: 39, cost: 12000, price: [24, 44], stock: 80, icon: 'cocktail', litter: 0.2, color: '#3c096c', trim: '#ff4fa0', floor: 'neon', dine: true, casino: true },
+  giftshop: { name: 'Lucky Charms',     w: 2, h: 3, cat: 'Casino',  level: 46, cost: 14000, price: [36, 80], stock: 50, icon: 'clover',  litter: 0.04, color: '#2d6a4f', trim: '#f2c14e', floor: 'royal', casino: true },
 };
 // Prices went up 5% in v0.10 (the ranges above are the old ones).
 export const PRICE_SCALE = 1.05;
@@ -161,6 +182,7 @@ export const WALLPAPERS = {
   sakura:  { name: 'Cherry Blossom',  level: 30, cost: 15000, ambience: 7, sub: 'Pink blossom branches on soft cream' },
   waves:   { name: 'Ocean Waves',     level: 33, cost: 17500, ambience: 8, sub: 'Rolling blue waves and little sailboats' },
   crystal: { name: 'Crystal Palace',  level: 35, cost: 20000, ambience: 8, sub: 'Pale lilac with sparkling crystal facets' },
+  neonights:{ name: 'Neon Nights',    level: 48, cost: 26000, ambience: 9, sub: 'Midnight purple with glowing neon stripes' },
 };
 export const FLOORS = {
   classic:    { name: 'Classic Terrazzo', cost: 0,    ambience: 0, sub: 'Speckled cream tile with pink and teal diamonds' },
@@ -176,6 +198,7 @@ export const FLOORS = {
   ocean:      { name: 'Seaside Tile',     level: 31, cost: 16000, ambience: 7, sub: 'Sea-glass blue tiles with sandy grout' },
   velvet:     { name: 'Royal Carpet',     level: 34, cost: 18500, ambience: 8, sub: 'Deep red carpet with a gold border pattern' },
   crystal:    { name: 'Crystal Marble',   level: 35, cost: 22000, ambience: 8, sub: 'Pearly marble with a soft rainbow shimmer' },
+  starburst:  { name: 'Starburst Tile',   level: 49, cost: 28000, ambience: 9, sub: 'Black and white tile with gold starbursts' },
 };
 export const STYLE_XP = 30;
 
@@ -210,6 +233,19 @@ export const DECOR = {
   arcadecab: { name: 'Arcade cabinet',  w: 1, h: 1, cost: 1900, ambience: 2, level: 32, rot: true, coin: { price: [3, 5], who: ['teen', 'browser', 'family'], chance: 0.25, secs: 3.4 }, sub: 'A classic stand-up game: teens line up for it' },
   bubbles:   { name: 'Bubble machine',  w: 1, h: 1, cost: 2000, ambience: 6, level: 33, sub: 'Floats bubbles over the crowd · +ambience' },
   koi:       { name: 'Koi pond',        w: 2, h: 2, cost: 3800, ambience: 9, level: 34, sub: 'Orange and white koi under lily pads · +ambience' },
+  // Casino floor only (casino: true). game: a table game run by a dealer, with three seats along its front.
+  slots:     { name: 'Slot machine',    w: 1, h: 1, cost: 2500, ambience: 2, level: 30, casino: true, rot: true, coin: { price: [6, 14], who: ['walker', 'fashion', 'browser', 'highroller'], chance: 0.4, secs: 3.4 }, sub: 'Pull the lever, watch the reels' },
+  blackjack: { name: 'Blackjack table', w: 3, h: 2, cost: 7000, ambience: 3, level: 32, casino: true, game: { kind: 'blackjack', price: [18, 42], secs: [7, 10] }, sub: 'Three seats and a dealer. Needs a dealer to open' },
+  neon:      { name: 'Neon sign',       w: 2, h: 1, cost: 2200, ambience: 6, level: 34, casino: true, sub: 'A big flashing CASINO sign · +ambience' },
+  roulette:  { name: 'Roulette table',  w: 3, h: 2, cost: 9000, ambience: 3, level: 36, casino: true, game: { kind: 'roulette', price: [16, 48], secs: [8, 11] }, sub: 'Spin the wheel! Needs a dealer to open' },
+  rope:      { name: 'Velvet rope',     w: 1, h: 1, cost: 600,  ambience: 2, level: 37, casino: true, sub: 'Brass posts and red velvet · +ambience' },
+  poker:     { name: 'Poker table',     w: 3, h: 2, cost: 10000, ambience: 3, level: 38, casino: true, game: { kind: 'poker', price: [24, 60], secs: [9, 12] }, sub: 'Cards, chips and poker faces. Needs a dealer to open' },
+  jackpot:   { name: 'Jackpot board',   w: 2, h: 1, cost: 4200, ambience: 6, level: 40, casino: true, sub: 'A glowing jackpot counter that never stops climbing · +ambience' },
+  craps:     { name: 'Craps table',     w: 3, h: 2, cost: 11000, ambience: 3, level: 41, casino: true, game: { kind: 'craps', price: [16, 44], secs: [7, 10] }, sub: 'Roll the dice, the whole table cheers. Needs a dealer to open' },
+  dicestatue:{ name: 'Golden dice',     w: 1, h: 1, cost: 3600, ambience: 6, level: 43, casino: true, sub: 'A pair of giant golden dice on a pedestal · +ambience' },
+  wheel:     { name: 'Prize wheel',     w: 2, h: 1, cost: 6500, ambience: 3, level: 44, casino: true, coin: { price: [5, 10], who: ['walker', 'fashion', 'browser', 'highroller', 'family', 'teen'], chance: 0.3, secs: 4.2 }, sub: 'A giant wheel anyone can spin for a prize' },
+  champagne: { name: 'Champagne tower', w: 1, h: 1, cost: 4800, ambience: 7, level: 45, casino: true, sub: 'Glasses stacked high, bubbling over · +ambience' },
+  goldslots: { name: 'Golden slots',    w: 1, h: 1, cost: 6000, ambience: 3, level: 47, casino: true, rot: true, coin: { price: [16, 32], who: ['fashion', 'highroller'], chance: 0.45, secs: 3.6 }, sub: 'High-limit slots in solid gold' },
 };
 export const BIN_RADIUS = 4;
 
@@ -220,6 +256,8 @@ export const CUSTOMERS = {
   family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
   fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
   browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
+  // Only once the casino is open (see spawnCustomer).
+  highroller: { label: 'High roller', wants: { chips: 6, lounge: 4, giftshop: 3, jewelry: 3, perfume: 1, boutique: 1, pizza: 1 }, buy: 0.85, spend: 1.6, patience: 1.0, litter: 0.04, speed: 1.3, hours: [14, 21], weight: 0, casino: 0.7 },
 };
 
 // Relative arrivals per hour, 9:00 through 20:00.
@@ -227,28 +265,31 @@ export const HOURLY = [0.9, 0.8, 1.0, 1.6, 1.4, 0.9, 1.3, 1.3, 1.2, 1.4, 1.1, 0.
 
 export const LEVEL_XP = [0, 0, 85, 255, 550, 980, 1530, 2300, 3230, 4760, 6460, 11000, 14100, 17600, 21500, 25900, 30800, 36300, 42400,
   48000, 54100, 60700, 67800, 75400, 83500, 92100, 101200, 110800, 120900,
-  133000, 147000, 162000, 178000, 195000, 213000, 232000];   // XP needed to reach level n
-export const MAX_LEVEL = 35;
+  133000, 147000, 162000, 178000, 195000, 213000, 232000,
+  248000, 265000, 283000, 302000, 322000, 343000, 365000, 388000, 412000, 437000, 463000, 490000, 518000, 547000, 577000];   // XP needed to reach level n
+export const MAX_LEVEL = 50;
 // Staff roles. Wages are per day, indexed by star rating (1–3).
 export const ROLES = {
   janitor: { name: 'Janitor', plural: 'Janitors', level: 3,  wage: [0, 28, 36, 46], desc: 'Sweeps up trash near them.' },
   clerk:   { name: 'Clerk',   plural: 'Clerks',   level: 1,  wage: [0, 28, 38, 50], desc: 'Runs a register for you.' },
-  stocker: { name: 'Stocker', plural: 'Stockers', level: 10, wage: [0, 34, 44, 56], desc: 'Restocks stores during the day so shelves never run dry.' },
   greeter: { name: 'Greeter', plural: 'Greeters', level: 12, wage: [0, 30, 38, 48], desc: 'Welcomes shoppers at the door. Happier, more patient customers.' },
   mascot:  { name: 'Mascot',  plural: 'Mascots',  level: 15, wage: [0, 40, 52, 66], desc: 'Sunny the mascot draws a bigger crowd and cheers folks up.' },
   supervisor: { name: 'Supervisor', plural: 'Supervisors', level: 5, wage: [0, 48, 62, 80], desc: 'Makes the rounds, gets anyone on their phone back to work, and staff near them work faster.' },
   guard:   { name: 'Security guard', plural: 'Security guards', level: 10, wage: [0, 44, 56, 70], desc: 'Patrols the mall and walks troublemakers out before they upset anyone.' },
+  dealer:  { name: 'Dealer', plural: 'Dealers', level: 30, wage: [0, 55, 70, 90], desc: 'Runs a casino table (blackjack, roulette, poker or craps). A table only opens with a dealer.' },
+  host:    { name: 'Casino host', plural: 'Casino hosts', level: 40, wage: [0, 46, 58, 74], desc: 'Works the casino floor, cheering on players. Happier gamblers.' },
 };
 export const WAGES = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.wage]));
 // How many of each role you can employ at each level (index = level).
 export const STAFF_LIMITS = {
-  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10],
-  clerk:   [0, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
-  stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7],
-  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-  mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4],
-  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5],
-  guard:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6],
+  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 14, 15],
+  clerk: [0, 2, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 24, 26, 27, 28, 29, 31, 32, 33, 34, 36, 37, 38, 39, 41, 42, 43, 44, 46, 47, 48, 49, 51, 52, 53, 54, 56, 57, 58, 59, 61],
+  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+  mascot: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+  guard: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7],
+  dealer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 4, 4, 6, 6, 8, 8, 9, 10, 11, 11, 12, 12, 13, 13, 14, 14, 14],
+  host: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3],
 };
 export const SUPERVISOR_RADIUS = [0, 3, 4, 5];      // tiles they keep an eye on
 export const SUPERVISOR_BOOST = [0, 1.05, 1.09, 1.13];   // staff in range work this much faster (by the supervisor's stars)…
@@ -264,9 +305,7 @@ export const DREAM_SPEND = 1.15;                    // …and talks customers in
 // Tap them and you'll go have a word; otherwise they drift back when the break runs out.
 export const BREAK_EVERY = [0, [35, 60], [120, 180], null];   // seconds of work between breaks [min, max]
 export const BREAK_LENGTH = [0, 24, 14, 0];
-export const STOCKER_SPEED = [0, 1.3, 1.9, 2.2];
-export const STOCKER_TIME = [0, 3.8, 2.4, 1.8];     // seconds to restock a store
-export const RESTOCK_AT = 0.35;                      // stockers top up a store below this fraction
+export const RESTOCK_AT = 0.25;                      // a clerk tops up their store from the back when it gets this low
 // What each level unlocks. The report card and the level-up screen are built from this.
 export const LEVEL_UNLOCKS = {
   2: [{ store: 'coffee' }, { zone: 'nw' }],
@@ -277,7 +316,7 @@ export const LEVEL_UNLOCKS = {
   7: [{ store: 'perfume' }, { staffSlots: true }],
   8: [{ store: 'gaming' }, { staffSlots: true }],
   9: [{ store: 'scoops' }, { store: 'shoes' }, { decor: 'planter' }, { decor: 'lamp' }, { staffSlots: true }],
-  10: [{ store: 'burger' }, { hire: 'stocker' }, { hire: 'guard' }, { decor: 'vending' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
+  10: [{ store: 'burger' }, { hire: 'guard' }, { decor: 'vending' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
   11: [{ store: 'music' }, { decor: 'sofa' }, { style: 'wall:sunset' }, { staffSlots: true }],
   12: [{ hire: 'greeter' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
   13: [{ store: 'plants' }, { decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
@@ -297,12 +336,27 @@ export const LEVEL_UNLOCKS = {
   27: [{ decor: 'arch' }, { style: 'wall:gala' }, { staffSlots: true }],
   28: [{ store: 'bakery' }, { style: 'floor:gold' }, { staffSlots: true }],
   29: [{ decor: 'balloons' }, { staffSlots: true }],
-  30: [{ decor: 'statue' }, { style: 'wall:sakura' }, { staffSlots: true }],
+  30: [{ expand: 'casino' }, { store: 'chips' }, { decor: 'slots' }, { hire: 'dealer' }, { decor: 'statue' }, { style: 'wall:sakura' }, { staffSlots: true }],
   31: [{ store: 'comics' }, { style: 'floor:ocean' }, { staffSlots: true }],
-  32: [{ decor: 'arcadecab' }, { staffSlots: true }],
+  32: [{ decor: 'blackjack' }, { decor: 'arcadecab' }, { staffSlots: true }],
   33: [{ decor: 'bubbles' }, { style: 'wall:waves' }, { staffSlots: true }],
-  34: [{ decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],
-  35: [{ style: 'wall:crystal' }, { style: 'floor:crystal' }, { done: true }],
+  34: [{ decor: 'neon' }, { decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],
+  35: [{ style: 'wall:crystal' }, { style: 'floor:crystal' }, { staffSlots: true }],
+  36: [{ decor: 'roulette' }, { staffSlots: true }],
+  37: [{ decor: 'rope' }, { staffSlots: true }],
+  38: [{ decor: 'poker' }, { staffSlots: true }],
+  39: [{ store: 'lounge' }, { staffSlots: true }],
+  40: [{ decor: 'jackpot' }, { hire: 'host' }, { staffSlots: true }],
+  41: [{ decor: 'craps' }, { staffSlots: true }],
+  42: [{ expand: 'vip' }, { staffSlots: true }],
+  43: [{ decor: 'dicestatue' }, { staffSlots: true }],
+  44: [{ decor: 'wheel' }, { staffSlots: true }],
+  45: [{ decor: 'champagne' }, { staffSlots: true }],
+  46: [{ store: 'giftshop' }, { staffSlots: true }],
+  47: [{ decor: 'goldslots' }, { staffSlots: true }],
+  48: [{ style: 'wall:neonights' }, { staffSlots: true }],
+  49: [{ style: 'floor:starburst' }, { staffSlots: true }],
+  50: [{ staffSlots: true }, { done: true }],
 };
 
 export const LOOKS = {

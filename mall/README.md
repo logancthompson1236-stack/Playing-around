@@ -9,7 +9,7 @@ A cozy 2D mall sim for Android and iPhone. You inherit your grandma's dead mall 
 
 Both are built automatically by `.github/workflows/mall-build.yml` on every push that changes `mall/`.
 
-## How to play (v0.14)
+## How to play (v0.15)
 
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
 - **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
@@ -18,6 +18,7 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 - **Troublemakers** (level 10): tap a rowdy kid with a boombox to shoo them out, or hire a security guard under Staff.
 - **Restrooms:** when one gets grubby (flies, then a bubble), tap it to mop it out, or let janitors handle it.
 - **Second floor:** Build → Fix up has the Second Floor ($20,000, level 8) and its Sky Garden ($45,000, level 13), including big 5×4 plots for the Starlight Cinema and Bounce Zone attractions. An escalator at the east end of the concourse takes shoppers, staff and you up and down. Tap **2F ▲ / 1F ▼** on the left to switch floors; a red dot means something on the other floor needs you. Only the floor on screen is drawn; the other keeps running.
+- **Casino (third floor, level 30, $50,000):** Gus brings it up the first night you can afford it. Slot machines, card tables (blackjack, roulette, poker, craps), a prize wheel and casino decor go only on the casino floor. Tables need a dealer (Staff); casino hosts cheer players on. The High Roller Suite ($120,000, level 42) extends it.
 - **Staff panel:** tabs along the top show one role at a time (or All); the team is grouped by role.
 - **Supervisor** (level 5): makes the rounds, gets staff off their phones for you, and gives nearby staff a small boost.
 - **Mall styles** (level 10): Build → Style changes the wallpaper and the concourse floor. Tap one to preview it, **Next** to flip through, then **Buy** or **Use it**.
