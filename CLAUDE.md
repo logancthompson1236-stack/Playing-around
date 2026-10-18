@@ -23,5 +23,6 @@ Every version also needs:
 - Pushing changes under `mall/` runs `.github/workflows/mall-build.yml`, which publishes the HTML to GitHub Pages (`/Playing-around/mall/` and `/mall/vX.Y.Z/`) and the APK to the GitHub Release `mall-vX.Y.Z`.
 - For the chat copy of the APK, build locally: `mall/build-apk.sh` (needs the Android SDK; in a fresh cloud container install it under `/root/android-sdk`). If Maven Central rate-limits the container, add a local Gradle init script pointing at `https://maven-central.storage-download.googleapis.com/maven2/`; don't commit it.
 - Run `npm run balance` in `mall/web` after tuning changes to check pacing.
+- Testing: briefly check each new section or addition yourself (targeted screenshots, a quick headless run, the regression scripts). Full visual-polish and player-bot passes are optional, not needed every version.
 - Don't remove the player's decor (or other things they placed or bought) in save migrations or layout changes. Move pieces to the nearest valid spot instead, and only refund what truly can't fit.
 - Backup HTML link: also republish `mall/web/out/embed.html` (made by `npm run build`) to the existing claude.ai artifact https://claude.ai/artifact/SgvkiiiguYzK1nzNQD1U22 so that link always has the latest build.
