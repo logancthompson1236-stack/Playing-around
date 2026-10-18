@@ -2,7 +2,7 @@
 export const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'dev';
 
 export const DAY_SECONDS = 150;        // real seconds for 9:00–21:00 at 1x speed
-export const VISITOR_SCALE = 0.72;     // keeps shoppers per minute about the same as the old 4-minute days
+export const VISITOR_SCALE = 0.756;    // 0.72 kept shoppers per minute like the old 4-minute days; v0.10 adds 5%
 export const VISITOR_TAPER = [4, 12, 0.2];   // from level 4 to 12, crowds grow 20% slower than the mall does
 export const WINDOW_SHOP = [8, 18, 0.25];    // from level 8 to 18, shoppers grow up to 25% pickier about buying
 export const LITTER_SCALE = 0.25;      // overall litter rate (each store and shopper type has its own weight)
@@ -111,6 +111,9 @@ export const STORES = {
   theater:  { name: 'Starlight Cinema', w: 5, h: 4, attraction: 'theater', cat: 'Fun', level: 12, cost: 12000, price: [24, 36], seats: 8, show: [12, 16], upkeep: 160, stock: 0, icon: 'film', litter: 0.25, color: '#3d2b56', trim: '#ffd23f', floor: 'cinema' },
   jumppark: { name: 'Bounce Zone',      w: 5, h: 4, attraction: 'jump',    cat: 'Fun', level: 15, cost: 15000, price: [20, 32], seats: 6, show: [10, 14], upkeep: 130, stock: 0, icon: 'bounce', litter: 0.12, color: '#ff6b35', trim: '#ffd23f', floor: 'bounce' },
 };
+// Prices went up 5% in v0.10 (the ranges above are the old ones).
+export const PRICE_SCALE = 1.05;
+for (const d of Object.values(STORES)) d.price = d.price.map(v => Math.round(v * PRICE_SCALE));
 
 // Mall styles (level 10): a wallpaper for the mall's walls and a floor for the concourse.
 // Each is bought once, then you can switch between the ones you own for free. ambience: points toward the rating, like decor.

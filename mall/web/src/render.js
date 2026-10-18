@@ -173,6 +173,8 @@ export function render(t){
   for (const p of sim.people) if (!p.hidden) add(p.y, () => drawPerson(p, t));
   Q.sort((a, b) => a[0] - b[0]);
   for (const [, f] of Q) f();
+  // Signs over storefronts that face up hang above everything, so nobody's head covers a store's name.
+  for (const u of s.units) if (!u.kiosk) A.unitSign(u, unitDef(u));
 
   A.text(s.player.mall, C.ENTRANCE.x + 1, C.MAP_H + 0.62, 0.3, 'rgba(255,255,255,.85)', 700, 'Fredoka', 6);
   drawLighting(t);
@@ -205,6 +207,8 @@ function drawPerson(p, t){
     return A.person(p.x, p.y - b, o);
   }
   if (p.faceBack) o.back = true;
+  // Seated on a bench, sofa, the fountain's rim or a cinema seat. Side-facing seats show the legs in profile.
+  if (p.state === 'sit' || (p.state === 'show' && !p.bouncing)){ o.sit = true; if (p.seat && p.seat.flip !== undefined) o.sitSide = true; }
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
   if (p.slacking) o.phone = true;
@@ -212,6 +216,8 @@ function drawPerson(p, t){
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
+  // At the soda machine: face it and press a button, until the can drops.
+  if (machine === 'vending'){ const live = A.decorState.get(p.machine); if (!(p.machine.rot || 0)) o.back = true; o.reach = !live || live.k < 0.55; }
   if (machine && machine !== 'ride' && machine !== 'vending'){
     o.play = true;
     // Standing in front of a machine that faces down: we see their back, hands on the controls.

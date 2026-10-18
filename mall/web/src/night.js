@@ -398,7 +398,7 @@ function refreshGhost(){
   const access = accessFor(place.x, place.y, place.face), cost = placeCost(v);
   const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: place.restroom ? 'restroom' : 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
   view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
-    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); }
+    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); A.unitSign(temp, def); }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
     else A.decor({ type: place.decor, x: place.x, y: place.y, rot: place.face || 0 }, t);
   } };
