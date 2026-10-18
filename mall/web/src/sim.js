@@ -514,7 +514,7 @@ function findSeat(p){
     const def = C.DECOR[d.type]; if (!def.seat) continue;
     const a = decorAccess(d); if (!isWalk(a.x, a.y)) continue;
     // Where to sit depends on which way the seat faces (and which way the sitter looks).
-    const r = d.rot || 0, k = rand() * 0.9, comfy = !!def.comfy;
+    const r = d.rot || 0, k = rand() < 0.5 ? 0.05 : 0.85, comfy = !!def.comfy;   // one end or the other, so two sitters don't stack up
     const spot = r === 0 ? { x: d.x + 0.55 + k, y: d.y + 0.62, comfy } : r === 2 ? { x: d.x + 0.55 + k, y: d.y + 0.45, back: true, comfy }
       : r === 1 ? { x: d.x + 0.42, y: d.y + 0.55 + k, flip: true, comfy } : { x: d.x + 0.58, y: d.y + 0.55 + k, flip: false, comfy };
     opts.push({ access: { x: a.x + 0.5, y: a.y + 0.5 }, spot });
@@ -530,8 +530,11 @@ function findMachine(p){
     const a = decorAccess(d); if (!isWalk(a.x, a.y) || rand() >= c.chance) continue;
     const dist = Math.hypot(a.x + 0.5 - p.x, a.y + 0.5 - p.y);
     // At a kiddie ride facing down, the grown-up waits off to one side so the kid riding it stays in view.
-    const side = d.type === 'ride' && !d.rot ? 0.42 : 0;
-    if (dist < bd){ bd = dist; best = { d, at: { x: a.x + 0.5 + side, y: a.y + 0.5 + side * 0.5 } }; }
+    // At a soda machine they stand to the right, by the buttons, so the window and the tray stay in view;
+    // at a side-on one they step right up to it.
+    const r = d.rot || 0, side = d.type === 'ride' && !r ? 0.42 : d.type === 'vending' && !r ? 0.36 : 0;
+    const close = d.type === 'vending' && r % 2 ? (r === 1 ? 0.25 : -0.25) : 0;
+    if (dist < bd){ bd = dist; best = { d, at: { x: a.x + 0.5 + side + close, y: a.y + 0.5 + side * 0.5 } }; }
   }
   return best;
 }

@@ -588,6 +588,13 @@ v0.9.0 changes, from playtest feedback:
   - The title's tagline lost its doubled shadow.
 - **Pacing:** the balance bot reaches level 7 around day 11–12 (same as v0.8.0) and level 16–17 by day 43, with money staying tight.
 
+v0.10.0 changes (art and animation polish):
+- **Stores look like what they sell.** Each store has its own wallpaper, a wall piece (a giant lollipop, chalkboard menu, READ poster, dog poster, guitar, mirror, $1 tag, prize shelf, SALE screen), a sign with its icon, a counter in its colors with a real cash register, and its own furniture: candy gravity bins and a pick'n'mix barrel, an espresso machine and pastry case, fish tanks with swimming fish and bubbles, a clothes rail of shirts and a mannequin in a dress, a full bookcase and a NEW table, record crates and a listening station, a TV wall, arcade cabinets with marquees, and a SALE bargain bin.
+- **Signs are never covered.** Back-wall signs draw after shelves and wall pieces, wide stores hang their wall piece beside the sign (above the clerk), and signs over storefronts that face up draw after people. Small signs on light colors use dark text.
+- **Decor:** a proper mall trash can, slatted benches with metal arms, a cushioned sofa, a POP! soda machine that drops a can into its tray, padded cinema seats with armrests, and bigger kiosk signs with icon toppers and a pretzel rack.
+- **Animation:** a fuller walk cycle (legs lift and swing, arms swing, a little sway), breathing and blinking when standing, a seated pose on benches, sofas, the fountain rim and cinema seats (side-facing seats show the legs to the side; kids sit beside their grown-up), sipping drinks and licking cones every few seconds, pressing the soda machine's buttons (standing by the buttons so the can drop shows), shadows that stay on the trampoline while jumpers fly up.
+- **Economy:** foot traffic and store prices are both up 5%. The balance bot reaches level 18 around day 43–44 with higher daily profits.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

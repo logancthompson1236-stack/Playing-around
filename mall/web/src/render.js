@@ -202,6 +202,8 @@ function drawPerson(p, t){
   // Bouncing on a trampoline: up and down, arms out.
   if (p.bouncing){
     const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true;
+    // The shadow stays on the trampoline while the jumper flies up.
+    A.shadow(p.x, p.y, 0.24, 0.085, 0.22 - b * 0.2); o.noShadow = true;
     // Kids bounce higher, on their own rhythm.
     if (L.kid){ o.kidBob = b - Math.abs(Math.sin(t * 6.5 + p.id + 1.7)) * 0.6; return A.family(p.x, p.y - b, o); }
     return A.person(p.x, p.y - b, o);
@@ -217,7 +219,7 @@ function drawPerson(p, t){
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
   // At the soda machine: face it and press a button, until the can drops.
-  if (machine === 'vending'){ const live = A.decorState.get(p.machine); if (!(p.machine.rot || 0)) o.back = true; o.reach = !live || live.k < 0.55; }
+  if (machine === 'vending'){ const live = A.decorState.get(p.machine), r = p.machine.rot || 0; if (!r) o.back = true; o.reach = !live || live.k < 0.55; o.reachSide = r % 2 === 1; }
   if (machine && machine !== 'ride' && machine !== 'vending'){
     o.play = true;
     // Standing in front of a machine that faces down: we see their back, hands on the controls.

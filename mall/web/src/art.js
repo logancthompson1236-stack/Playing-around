@@ -20,6 +20,8 @@ export function shade(hex, amt){
   return `rgb(${c.map(f).join(',')})`;
 }
 
+// Is a color light enough that white text on it would be hard to read?
+export const light = hex => { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) > 170; };
 export const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
 export const circ = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); };
 export const ell = (x, y, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); };
@@ -419,7 +421,7 @@ export function person(x, y, o){
   const t = o.t || 0, s = o.s || 1, walking = !!o.walk;
   g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s);
   if (o.mop !== undefined){ ell(0.5, 0.04, 0.32, 0.1); g.fillStyle = 'rgba(150,210,240,.45)'; g.fill(); }
-  shadow(0, 0, 0.24, 0.085, 0.22);
+  if (!o.noShadow) shadow(0, 0, 0.24, 0.085, 0.22);
   const ph = t * 9, sw = walking ? Math.sin(ph) : 0, sit = !!o.sit;
   // Walking bobs twice a stride; standing still, folks breathe and now and then blink.
   const bob = walking ? Math.abs(Math.sin(ph)) * 0.04 : 0, breathe = walking ? 0 : Math.sin(t * 2.2) * 0.01;
@@ -428,9 +430,10 @@ export function person(x, y, o){
     // Seated: knees toward us, shins hanging over the seat edge, feet swinging a little.
     const swing = Math.sin(t * 2.4) * 0.025;
     if (o.sitSide){
-      rr(-0.08, -0.25, 0.3, 0.13, 0.06); fs(o.pants);
-      rr(0.13, -0.18, 0.11, 0.16, 0.05); fs(o.pants);
-      ell(0.21, -0.02 + swing, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+      rr(0.25, -0.18, 0.11, 0.17, 0.05); fs(o.pants);
+      ell(0.32, -0.02 + swing, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+    } else if (o.back){
+      // From behind, the seat hides the legs.
     } else {
       for (const [lx, k] of [[-0.14, 1], [0.03, -1]]){
         rr(lx, -0.17, 0.11, 0.16, 0.05); fs(o.pants);
@@ -452,6 +455,7 @@ export function person(x, y, o){
   if (o.back && o.hood){ circ(0, -0.88, 0.31); fs(o.shirt); }
   if (o.hairStyle === 'long' && !o.back){ rr(-0.3, -1.05, 0.6, 0.6, 0.26); fs(o.hair); }
   rr(-0.2, -0.63 - breathe, 0.4, 0.43 + breathe, 0.14); fs(o.shirt);
+  if (sit && o.sitSide){ rr(-0.08, -0.34, 0.44, 0.14, 0.07); fs(o.pants); }
   if (o.apron){ rr(-0.15, -0.5, 0.3, 0.32, 0.06); fs(o.apron, 0.03); }
   if (o.badge){ g.save(); g.translate(0.09, -0.48); g.beginPath(); for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.025 : 0.06; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); fs('#ffd23f', 0.02); g.restore(); }
   if (o.patch){ rr(0.03, -0.53, 0.12, 0.07, 0.02); fs('#fff', 0.02); }
@@ -479,7 +483,7 @@ export function person(x, y, o){
   const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone') && !o.back && !walking && (t % 3.2) < 0.8;
   for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
     if (ax > 0 && sipping) continue;   // drawn after the head, so the drink is in front of the face
-    if (ax > 0 && o.reach){ raisedArm(o, ax, 0.2, -0.82); continue; }
+    if (ax > 0 && o.reach){ if (o.reachSide) raisedArm(o, ax, 0.42, -0.6); else raisedArm(o, ax, 0.2, -0.82); continue; }
     if (sit && !o.play){
       // Hands resting in the lap.
       rr(ax - 0.055 + dir * 0.02, -0.58, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt);
@@ -497,7 +501,7 @@ export function person(x, y, o){
     rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
     circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
   }
-  if (o.hold && !o.back && !sipping) heldItem(o.hold, 0.235, -0.31, o.bagColor, o.prize);
+  if (o.hold && !o.back && !sipping) heldItem(o.hold, sit ? 0.13 : 0.235, sit ? -0.33 : -0.31, o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
@@ -563,8 +567,8 @@ function heldItem(kind, hx, hy, color, prize){
 // A family: parent plus a smaller kid walking beside them.
 export function family(x, y, o){
   const k = o.kid;
-  const kx = x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + 0.12 + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide });
+  const side = o.sit && o.sitSide, kx = side ? x : x + (o.flip ? 0.38 : -0.38);
+  person(kx, y + (side ? 0.45 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
   person(x, y, o);
 }
 
@@ -721,12 +725,17 @@ export function unitBack(u, def, t){
     if (u.state === 'vacant'){ forLease(u.x + u.w / 2, u.y - 0.6, -0.05, 0.9); }
     if (u.state === 'derelict'){ cobweb(u.x, u.y - H, 0.42, 1); cobweb(u.x + u.w, u.y - H, 0.36, -1); }
   } else {
+    if (isOpen(u)) storeFurniture(u, def, t, 'back');
     box(u.x - 0.04, u.y + u.h - 0.1, u.w + 0.08, 0.16, 0.42, wl, wd);
     if (u.state === 'store'){ storeWallpaper(u, def, u.x, u.y + u.h - 0.34, u.w, 0.38); rr(u.x - 0.04, u.y + u.h - 0.36, u.w + 0.08, 0.42, 0.05); fs(null); }
   }
-  if (isOpen(u)) storeFurniture(u, def, t, 'back');
+  if (isOpen(u) && u.face === 'down') storeFurniture(u, def, t, 'back');
   // The sign goes up last so tall back shelves and cabinets never cover the store's name.
-  if (u.face === 'down' && isOpen(u)) storeSign(u.x + u.w / 2, u.y - 0.77, u.w - 0.4, def);
+  if (u.face === 'down' && isOpen(u)){
+    // Wide stores share the sign band with their wall piece.
+    if (u.state === 'store' && u.w >= 3) storeSign(u.x + 0.15 + (u.w - 1.35) / 2, u.y - 0.77, u.w - 1.35, def);
+    else storeSign(u.x + u.w / 2, u.y - 0.77, u.w - 0.4, def);
+  }
   if (u.state === 'derelict') derelictJunk(u);
 }
 
@@ -758,7 +767,7 @@ export function kioskSpots(k){
   const cx = k.x + 1;
   return {
     staff: { x: cx, y: k.y + 0.12 },
-    queue: [{ x: cx + 0.05, y: k.y + 1.5 }, { x: cx - 0.65, y: k.y + 1.62 }, { x: cx + 0.75, y: k.y + 1.62 }],
+    queue: [{ x: cx + 0.05, y: k.y + 1.5 }, { x: cx - 0.85, y: k.y + 1.62 }, { x: cx + 0.95, y: k.y + 1.62 }],
     front: { x: cx + 0.05, y: k.y + 1.5 },
   };
 }
@@ -869,7 +878,14 @@ function storeWallpaper(u, def, x0, y0, w, H){
 }
 // Something on the wall that says what the store is, on the free patch behind the counter (under the sign).
 function wallPiece(u, def, t){
-  const ic = def.icon, wx = u.x + u.w - 0.95, wy = u.y - 0.27;
+  // Wide stores hang it beside the sign, up out of the clerk's way; narrow ones put it left of where the clerk stands.
+  const wide = u.w >= 3, wx = wide ? u.x + u.w - 1.02 : u.x + 0.55, wy = wide ? u.y - 0.72 : u.y - 0.27;
+  const ic = def.icon;
+  g.save(); g.translate(wx + 0.45, wy); g.scale(0.85, 0.85); g.translate(-(wx + 0.45), -wy);
+  wallPieceArt(ic, wx, wy, t);
+  g.restore();
+}
+function wallPieceArt(ic, wx, wy, t){
   switch (ic){
     case 'candy':   // a giant swirly lollipop
       g.strokeStyle = '#fff'; g.lineWidth = 0.06; g.beginPath(); g.moveTo(wx + 0.45, wy - 0.05); g.lineTo(wx + 0.45, wy + 0.25); g.stroke();
@@ -920,7 +936,7 @@ export function storeSign(cx, cy, w, def, small = false){
   storeIcon(def.icon, ix, cy, ir * 1.6);
   const tx = (ix + ir + cx + w / 2) / 2, tw = cx + w / 2 - (ix + ir) - 0.12;
   if (lit) neon(def.name, tx, cy + 0.01, ts, def.icon === 'film' ? '#ffd23f' : '#ff5fa2', tw);
-  else text(def.name, tx, cy + 0.01, ts, small ? '#fffaf3' : shade(def.color, -0.3), 700, 'Fredoka', tw);
+  else text(def.name, tx, cy + 0.01, ts, small ? (light(def.color) ? shade(def.color, -0.65) : '#fffaf3') : shade(def.color, -0.3), 700, 'Fredoka', tw);
 }
 // Doors facing up: the sign stands over the storefront. Drawn after the people (see render.js) so heads never cover it.
 export function unitSign(u, def){
@@ -1055,7 +1071,7 @@ export function storeFurniture(u, def, t, layer){
       for (let i = 0; i < n; i++) for (let row = 0; row < 2; row++){
         const cx = x + 0.04 + i * (sw - 0.08) / n, bw = (sw - 0.08) / n - 0.06, by = y + 0.4 - row * 0.38;
         box(cx, by - 0.4, bw, 0.4, 0.36, '#4a5058', '#2f343a');
-        rr(cx + 0.06, by - 0.4 - 0.31, bw - 0.12, 0.24, 0.05); fs(`hsl(${(t * 40 + i * 30 + row * 60) % 360},70%,${62 + Math.sin(t * 9 + i) * 6}%)`, 0.025);
+        rr(cx + 0.06, by - 0.33, bw - 0.12, 0.26, 0.05); fs(`hsl(${(t * 40 + i * 30 + row * 60) % 360},70%,${62 + Math.sin(t * 9 + i) * 6}%)`, 0.025);
       }
     } else if (ic === 'cup'){
       // Pastry case along the back: croissants and muffins.
@@ -1119,6 +1135,7 @@ export function storeFurniture(u, def, t, layer){
     // A NEW ARRIVALS table with stacks of books.
     const [x, y] = local(u, 0.25, 2.0, 0.8, 0.4); box(x, y, 0.8, 0.4, 0.34, '#c9a27e', '#a47148');
     for (let s = 0; s < 3; s++) for (let k = 0; k < 2 + s % 2; k++){ rr(x + 0.07 + s * 0.24, y + 0.4 - 0.34 - 0.18 - k * 0.06, 0.18, 0.06, 0.01); fs(JAR[(s * 3 + k) % JAR.length], 0.012); }
+    g.strokeStyle = '#7a5a44'; g.lineWidth = 0.025; g.beginPath(); g.moveTo(x + 0.63, y - 0.3); g.lineTo(x + 0.63, y - 0.48); g.stroke();
     rr(x + 0.5, y - 0.62, 0.26, 0.16, 0.02); fs('#fffaf3', 0.02); text('NEW', x + 0.63, y - 0.54, 0.08, '#e07a5f', 700);
   }
 }
