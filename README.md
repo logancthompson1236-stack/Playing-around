@@ -1,5 +1,7 @@
 # Shardfall
 
+> This repo also contains **[Balanced Books](accounting/)**, an interactive accounting textbook with narrated worked examples and graded practice. Open `accounting/index.html` in a browser.
+
 A 3D mobile space shooter. Dodge and shatter asteroids, dogfight enemy fighters across large sectors, collect power-ups, and warp deeper into the belt.
 
 Built with [three.js](https://threejs.org) and packaged as an Android APK through a lightweight native WebView shell. Every sound effect and the soundtrack are synthesized at runtime with WebAudio, so there are no audio asset files.

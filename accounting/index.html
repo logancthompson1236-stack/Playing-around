@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Balanced Books</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="An interactive accounting textbook from first principles, with narrated worked examples and graded practice.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..500&display=swap">
+<link rel="stylesheet" href="css/book.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <button type="button" class="menu-btn" id="menuBtn" aria-label="Contents" aria-expanded="false" aria-controls="toc">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+    </button>
+    <a class="brand" href="#home"><span class="brand-mark m" aria-hidden="true">A=L+E</span><span class="brand-name">Balanced Books</span></a>
+    <nav class="topnav" aria-label="Site">
+      <a href="#home" data-nav="home">Contents</a>
+      <a href="#lab" data-nav="lab">Ledger Lab</a>
+      <a href="#review" data-nav="review">Review</a>
+      <a href="#glossary" data-nav="glossary">Glossary</a>
+    </nav>
+    <div class="progress-pill" id="overallProgress"></div>
+  </div>
+</header>
+<div class="layout">
+  <aside class="toc" id="toc" aria-label="Chapters"></aside>
+  <main id="main" tabindex="-1">
+    <noscript><p class="page">Balanced Books needs JavaScript to run its lessons, videos and practice problems.</p></noscript>
+  </main>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+
+<script src="js/core.js"></script>
+<script src="js/chapters/ch01.js"></script>
+<script src="js/chapters/ch02.js"></script>
+<script src="js/chapters/ch03.js"></script>
+<script src="js/chapters/ch04.js"></script>
+<script src="js/chapters/ch05.js"></script>
+<script src="js/chapters/ch06.js"></script>
+<script src="js/chapters/ch07.js"></script>
+<script src="js/chapters/ch08.js"></script>
+<script src="js/chapters/ch09.js"></script>
+<script src="js/chapters/ch10.js"></script>
+<script src="js/chapters/ch11.js"></script>
+<script src="js/chapters/ch12.js"></script>
+<script src="js/chapters/ch13.js"></script>
+<script src="js/chapters/ch14.js"></script>
+<script src="js/player.js"></script>
+<script src="js/practice.js"></script>
+<script src="js/widgets.js"></script>
+<script src="js/lab.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
