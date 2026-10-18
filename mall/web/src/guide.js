@@ -5,7 +5,7 @@ import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnG
 import { litterSpot } from './map.js';
 import { say, hint, clearHint, showTip, tipVisible, dialogOpen } from './ui.js';
 import { view } from './render.js';
-import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES } from './story.js';
+import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES, CLERK_SCENE, STORE_SCENE, TROUBLE_SCENE } from './story.js';
 
 /* ---------- Waiting on game state from async scripts ---------- */
 const waiters = [];
@@ -125,7 +125,61 @@ export async function runDeeScene(){
   g.state = 'leave';
   deeRunning = false;
 }
-export const deeSceneRunning = () => deeRunning || expandRunning;
+export const deeSceneRunning = () => deeRunning || expandRunning || sceneRunning;
+
+/* ---------- Early nights and level 10: short Gus scenes ---------- */
+let sceneRunning = false;
+// Gus walks in from the parking lot, says his piece, does whatever the scene needs, and heads out.
+async function gusScene(lines, during){
+  sceneRunning = true;
+  const g = spawnGus('night');
+  g.x = C.ENTRANCE.x + 1.4; g.y = C.MAP_H + 1.3;
+  g.state = 'walkTo'; g.goal = { x: C.ENTRANCE.x + 1.6, y: C.MAP_H - 3.4 };
+  view.camTarget = { x: g.goal.x, y: g.goal.y - 1.5 };
+  await until(() => g.state === 'stand');
+  await say(lines);
+  if (during) await during();
+  g.state = 'leave';
+  sceneRunning = false;
+}
+const clerks = () => S.save.staff.filter(m => m.role === 'clerk').length;
+// Night 1: hire the first two clerks.
+export async function runClerkScene(){
+  const s = S.save, f = s.flags;
+  if (sceneRunning || f.memories.clerks || s.day > 2 || clerks() >= 2) return;
+  f.memories.clerks = true; f.tips.clerks = true; writeSave();
+  await gusScene(CLERK_SCENE.lines, async () => {
+    const staffBtn = document.querySelector('.night-bar .tool:nth-child(2)');
+    hint(CLERK_SCENE.staff, true); staffBtn && staffBtn.classList.add('pulse');
+    await until(() => staffPanel());
+    staffBtn && staffBtn.classList.remove('pulse');
+    hint(CLERK_SCENE.hire, true);
+    await until(() => clerks() >= 2 || !staffPanel());
+    clearHint();
+    await wait(0.3);
+    await say(clerks() ? CLERK_SCENE.hired : CLERK_SCENE.skipped);
+  });
+}
+// Night 2: open another store.
+export async function runStoreScene(){
+  const s = S.save, f = s.flags;
+  if (sceneRunning || f.memories.store2 || s.day !== 2 || s.units.filter(u => u.state === 'store').length > 2) return;
+  f.memories.store2 = true; writeSave();
+  await gusScene(STORE_SCENE);
+  const buildBtn = document.querySelector('.night-bar .tool:nth-child(1)');
+  buildBtn && buildBtn.classList.add('pulse');
+  until(() => document.querySelector('.panel[aria-label="Build"]') || S.save.phase !== 'night').then(() => buildBtn && buildBtn.classList.remove('pulse'));
+}
+// The first night after troublemakers show up: Gus brings up security.
+export async function runTroubleScene(){
+  const s = S.save, f = s.flags;
+  if (sceneRunning || f.memories.trouble || !f.sawTrouble) return;
+  f.memories.trouble = true; f.tips.trouble = true; writeSave();
+  await gusScene(TROUBLE_SCENE);
+  const staffBtn = document.querySelector('.night-bar .tool:nth-child(2)');
+  staffBtn && staffBtn.classList.add('pulse');
+  until(() => staffPanel() || S.save.phase !== 'night').then(() => staffBtn && staffBtn.classList.remove('pulse'));
+}
 
 /* ---------- Expansions: Gus brings each one up the first night you can afford it ---------- */
 let expandRunning = false;

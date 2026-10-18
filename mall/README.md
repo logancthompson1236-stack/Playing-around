@@ -9,12 +9,13 @@ A cozy 2D mall sim for Android and iPhone. You inherit your grandma's dead mall 
 
 Both are built automatically by `.github/workflows/mall-build.yml` on every push that changes `mall/`.
 
-## How to play (v0.10)
+## How to play (v0.11)
 
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
 - **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
 - **Decor** unlocks as you level (a claw machine, planters, lamps, sofas, soda and gumball machines, a kiddie ride, a mall directory, shade trees). Tap **Rotate** while placing, or tap a placed piece, to turn it. Machines earn a little from shoppers.
 - **Staff on their phones:** tap the phone bubble over a slacking employee to go get them back to work. One-star hires do it most.
+- **Troublemakers** (level 10): tap a rowdy kid with a boombox to shoo them out, or hire a security guard under Staff.
 - **Restrooms:** when one gets grubby (flies, then a bubble), tap it to mop it out, or let janitors handle it.
 - **Expansions:** Build → Fix up has the East Wing ($20,000) and Garden Court ($45,000) for more room, including big 5×4 plots for the Starlight Cinema and Bounce Zone attractions.
 - **Supervisor** (level 5): makes the rounds, gets staff off their phones for you, and gives nearby staff a small boost.

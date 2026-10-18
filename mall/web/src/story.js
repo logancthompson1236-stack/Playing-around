@@ -86,6 +86,32 @@ export const EXPAND_SCENES = {
   ],
 };
 
+// Night 1: Gus helps you hire your first two clerks.
+export const CLERK_SCENE = {
+  lines: [
+    'One more thing before I head out.',
+    'You can’t be at every register at once. Back in the day there was a clerk behind every counter.',
+    'I asked around, and a couple of folks would be glad of the work. Let me show you where to hire them.',
+  ],
+  staff: 'Tap Staff, down in the corner. That’s where you hire help.',
+  hire: 'Hire two clerks. Each one takes a register for you.',
+  hired: ['There you go. They’ll be behind the registers when you open tomorrow.', 'That frees you up to keep the floors clean and plan what’s next. Wages come out each night.'],
+  skipped: ['Suit yourself. Clerks are under Staff whenever you want them.'],
+};
+// Night 2: with help at the registers, Gus nudges you to open another store.
+export const STORE_SCENE = [
+  'Evening! Registers ran smooth today, didn’t they?',
+  'Now that you’ve got help, let’s get another shop open. Those boarded-up storefronts won’t fix themselves.',
+  'Tap Build and pick a store. I’d start with something small and sweet.',
+];
+// Level 10: the first troublemakers, and a security guard to deal with them.
+export const TROUBLE_SCENE = [
+  'Evening, boss. You see those kids today? Blasting music, kicking over trash cans, scaring off customers.',
+  'Busy malls draw a rowdy crowd. Always have. Back in ’98 we had a whole gang that lived in the arcade.',
+  'You can tap one to shoo them out yourself. But a place this size needs real security.',
+  'Hire a security guard under Staff. They’ll walk the halls and show troublemakers the door.',
+];
+
 // Notebook tips: shown once, when the situation first comes up.
 export const DEE_SCENE = {
   staff: 'Tap Staff, down in the corner. That’s where you hire help.',

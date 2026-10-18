@@ -60,11 +60,12 @@ function player(){
 function night(){
   const s = S.save, gain = n => addXp(n);
   const lim = role => C.STAFF_LIMITS[role][s.level], has = role => s.staff.filter(m => m.role === role).length;
-  for (let tries = 0; tries < 4; tries++){
+  // Night 1 is for hiring the first clerks; stores open from night 2 (like Gus suggests).
+  for (let tries = 0; tries < 4 && s.day >= 2; tries++){
     // Open a new store type in an empty unit of the right size if possible.
     const owned = new Set(stores(s).map(u => u.store));
     const vacant = s.units.filter(u => u.state === 'vacant');
-    const choices = Object.entries(C.STORES).filter(([k, d]) => !d.kiosk && d.level <= s.level).sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || b[1].level - a[1].level);
+    const choices = Object.entries(C.STORES).filter(([k, d]) => !d.kiosk && d.level <= s.level).sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || a[1].cost - b[1].cost);   // new kinds first, the cheapest it can afford
     let opened = false;
     for (const u of vacant){
       const pick = choices.find(([k, d]) => d.w === u.w && d.h === u.h && s.money >= d.cost + 150 && (!owned.has(k) || owned.size >= choices.length));
@@ -93,14 +94,15 @@ function night(){
   const saving = stores(s).length < 8 && s.money < 1500;   // like a sensible player: stores first, frills later
   const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(botRand() * 4)], ...extra });
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
-  if (s.level >= 4){
-    for (const u of stores(s).filter((_, i) => i % 2 === 0)){
-      if (has('clerk') >= lim('clerk') || s.money < 600) break;
+  if (s.level >= 1){
+    const firstTwo = s.day <= 2;
+    for (const u of stores(s).filter((_, i) => firstTwo || i % 2 === 0)){
+      if (has('clerk') >= lim('clerk') || s.money < 600 || (!firstTwo && saving && has('clerk') >= 2)) break;
       if (!s.staff.some(m => m.storeId === u.id)) hire('clerk', { storeId: u.id });
     }
   }
-  if (s.level >= 5 && has('janitor') < lim('janitor') && s.money > 600) hire('janitor');
-  for (const role of ['stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
+  if (s.level >= 5 && has('janitor') < lim('janitor') && !saving && s.money > 600) hire('janitor');
+  for (const role of ['guard', 'stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
   // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
   for (let n = 0; n < 2 && !saving && s.money > 500 && s.decor.length < 26; n++){
@@ -115,7 +117,7 @@ function night(){
   }
   // Mall styles: the cheapest new wallpaper or floor, once there's money to spare.
   if (s.level >= C.STYLE_LEVEL && !saving){
-    const next = [['wall', C.WALLPAPERS], ['floor', C.FLOORS]].flatMap(([slot, T]) => Object.entries(T).filter(([id]) => !s.style[slot + 's'].includes(id)).map(([id, d]) => ({ slot, id, d }))).sort((a, b) => a.d.cost - b.d.cost)[0];
+    const next = [['wall', C.WALLPAPERS], ['floor', C.FLOORS]].flatMap(([slot, T]) => Object.entries(T).filter(([id, d]) => !s.style[slot + 's'].includes(id) && (d.level || 0) <= s.level).map(([id, d]) => ({ slot, id, d }))).sort((a, b) => a.d.cost - b.d.cost)[0];
     if (next && s.money > next.d.cost + 2500){ s.money -= next.d.cost; s.style[next.slot + 's'].push(next.id); s.style[next.slot] = next.id; gain(C.STYLE_XP); }
   }
   for (const z of C.ZONES) if (!s.zones[z.id] && s.level >= z.level && s.money > z.cost + 800){ s.money -= z.cost; s.zones[z.id] = true; gain(60); }

@@ -596,6 +596,17 @@ v0.10.0 changes (art and animation polish):
 - **Economy:** foot traffic and store prices are both up 5%. The balance bot reaches level 18 around day 43–44 with higher daily profits.
 - **Fixes from a player bot's playthrough:** shoppers no longer walk in place in a store's doorway on their way to a spot in line; a kiosk can't go where its line would block the mall doors or a storefront; on level-up nights the report shows the day's numbers first and the unlocks after; Open Doors says when Gus is still talking instead of doing nothing; rotating a piece of decor slides it to the nearest spot that works; the report says "Sales rung up · lost" (they count sales, not people); fast-forward is available from Day 2.
 
+v0.11.0 changes, from playtest feedback:
+- **A gentler start:** on the first night Gus walks you through hiring your first two clerks (they can be hired from night 1 now, at $28/$38/$50 a day by stars). Opening a second store is a Day 2 thing: Gus stops by on night 2 to suggest it, and the "open a store" tip waits until then. Fast-forward is available from Day 2.
+- **Faster early levels:** levels 2–10 need about 15% less XP. Levels 11–18 need about 10% more, because the five new stores add XP and traffic; the balance bot still reaches level 18 around day 37–45.
+- **Five new stores:** Toy Chest (3×3, level 6: toy shelves, a giant teddy, a toy train), Scent-sational (2×2, level 7: glass shelves of perfume, testers, an arched mirror), Level Up Games (2×3, level 8: a wall of games and a demo station), Sole Mates (2×3, level 9: shoe shelves, a try-on bench), and Big Bite Burgers (3×3, level 10: a kitchen with a grill and fryer, a lit menu board). At the burger place shoppers take a stool at one of the tables and eat before heading out (takeout when the tables are full). Each new store has its own take-home item.
+- **Troublemakers (level 10+):** one to four rowdy teens a day wander in with a boombox. They blast music (shoppers nearby get upset and some leave in a huff) or kick over a trash can. Tap one (or its angry bubble) and the owner shoos them out. Acting up costs the day's ambience, and the report counts them.
+- **Security guard (level 10):** the first night after troublemakers show up, Gus stops by to talk security. Guards walk the storefronts and walk troublemakers out of the mall within 4–6 tiles. One guard at level 10, two from level 14.
+- **Restrooms, redone:** each stall has one cute toilet (tank, bowl and pedestal in a single shape). The door swings open when the stall is free and closes once someone's inside, with a red tab and the toilet's tank peeking over. Restrooms with the door facing up show the toilets from behind.
+- **Mall styles by level:** each wallpaper and floor unlocks at its own milestone (levels 10 to 18) and costs more the later it comes ($1,200 to $6,000). Level-up screens list each one.
+- **Side profiles:** people on side-facing benches, sofas and diner stools, and at side-facing soda machines, are drawn in profile, with one eye, a nose and their legs out to the side.
+- **Bigger take-home items:** pretzels (and the new items) are about twice as big, so you can see what everyone bought.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

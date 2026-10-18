@@ -421,6 +421,7 @@ export function showReport(r, firstDay){
       h('div', { class: 'xp' }, `XP +${r.xpGain}`, h('div', { class: 'bar' }, h('i', { style: `width:${Math.round(prog * 100)}%` })), `Lv ${r.levelAfter}`),
       r.wishes.length ? h('div', {}, h('b', {}, 'Wished for: '), r.wishes.map(w => `${w.n}× ${w.name}`).join(' · ')) : null,
       r.top ? h('div', {}, h('b', {}, 'Top store: '), `${r.top.name} (${money(r.top.amount)})`) : null,
+      r.troubles ? h('div', {}, h('b', {}, 'Troublemakers: '), `${r.troubles} showed up · ${r.shooed} shooed out${r.scared ? ` · scared off ${r.scared} shopper${r.scared > 1 ? 's' : ''}` : ''}`) : null,
       r.gusTrash ? h('div', { class: 'muted' }, `Gus picked up ${r.gusTrash} piece${r.gusTrash > 1 ? 's' : ''} of trash on his laps.`) : null,
       r.restockShort ? h('div', { class: 'muted' }, 'Money was tight, so some shelves were only partly restocked.') : null,
     );
@@ -464,7 +465,7 @@ export function unlockList(levels){
     else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => { const k = 1 / Math.max(d.w, u.decor === 'lamp' || u.decor === 'tree' ? 2.7 : 1.45); A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-d.w / 2, u.decor === 'lamp' || u.decor === 'tree' ? 0.38 : u.decor === 'ride' ? -0.3 : -0.15); A.decor({ type: u.decor, x: 0, y: 0, rot: 0 }, 0); }; title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){
       const r = C.ROLES[u.hire], n = C.STAFF_LIMITS[u.hire][lv];
-      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), stocker: () => A.storeIcon('box', 0.5, 0.55, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6) }[u.hire];
+      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), stocker: () => A.storeIcon('box', 0.5, 0.55, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) }[u.hire];
       title = n > 1 ? `Hire up to ${n} ${r.plural.toLowerCase()}` : `Hire a ${r.name.toLowerCase()}`; where = `${r.desc} Tap Staff at night.`;
     }
     else if (u.staffSlots){
@@ -472,7 +473,12 @@ export function unlockList(levels){
       const more = Object.entries(C.STAFF_LIMITS).map(([role, L]) => [role, L[lv] - L[lv - 1]]).filter(([, d]) => d > 0);
       where = more.length ? `${more.map(([role, d]) => `${d} more ${(d > 1 ? C.ROLES[role].plural : C.ROLES[role].name).toLowerCase()}`).join(', ')}.` : 'More hands on deck.';
     }
-    else if (u.style){ paint = () => { A.g.save(); A.rr(0.05, 0.05, 0.9, 0.9, 0.16); A.g.clip(); A.g.scale(0.5, 0.5); A.g.translate(0, 1.5); A.mallBackWall(2, 'sunset'); A.floor('terracotta', 0, 0, 2, 0.6, 1); A.g.restore(); }; title = 'Mall styles'; where = 'New wallpaper and flooring for the whole mall. Build, then Style.'; }
+    else if (u.style){
+      // A new wallpaper or floor in the Build > Style tab.
+      const [slot, id] = String(u.style).split(':'), d = slot === 'wall' ? C.WALLPAPERS[id] : C.FLOORS[id];
+      paint = () => { A.g.save(); A.rr(0.05, 0.05, 0.9, 0.9, 0.16); A.g.clip(); A.g.scale(0.5, 0.5); if (slot === 'wall'){ A.g.translate(0, 1.5); A.mallBackWall(2, id); A.floor('concourse', 0, 0, 2, 0.6, 1); } else A.floor(A.concourseFloor(id), 0, 0, 2, 2, 1); A.g.restore(); A.rr(0.05, 0.05, 0.9, 0.9, 0.16); A.fs(null, 0.035); };
+      title = d ? `${d.name} ${slot === 'wall' ? 'wallpaper' : 'floor'}` : 'Mall styles'; where = 'New mall style. Build, then Style.';
+    }
     else if (u.done){ paint = () => A.sparkle(0.5, 0.5, 1.3, 1, '#ffd23f'); title = 'Top level for this test version'; where = 'Thanks for playing!'; }
     rows.push(h('div', { class: 'unlock' }, iconCanvas(paint, 36), h('div', {}, h('b', {}, title), h('span', {}, where))));
   }

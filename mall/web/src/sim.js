@@ -2,7 +2,7 @@
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
-import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots } from './art.js';
+import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
 
 export const sim = {
   t: 0, phase: 'idle', speed: 1, paused: false, clockFrozen: false, spawning: true,
@@ -46,6 +46,7 @@ export function staffLook(role, seed){
     case 'stocker': return { ...base, hairStyle: 'cap', acc: '#8a5a44', shirt: '#c98b55', apron: '#7a5a44' };
     case 'greeter': return { ...base, shirt: '#ef476f', badge: true };
     case 'supervisor': return { ...base, hairStyle: p(['short', 'bun']), shirt: '#3d405b', pants: '#2b2d42', glasses: true, clipboard: true };
+    case 'guard': return { ...base, hairStyle: 'cap', acc: '#1d3557', shirt: '#1d3557', pants: '#2b2d42', badge: true };
     case 'mascot': return { costume: 'sun' };
     default: return { ...base, shirt: '#ff8fab', apron: '#fff6ea' };
   }
@@ -79,8 +80,9 @@ const restrooms = () => S.save.units.filter(u => u.state === 'restroom');
 const HOLD_FROM = {
   pretzel: 'pretzel', candy: 'lolly', coffee: 'coffee', scoops: 'cone', arcade: 'plush', books: 'book', music: 'record', gadgets: 'gadget',
   dollar: ['bag', '#ffd23f'], boutique: ['bag', '#ff8fab'], pets: ['bag', '#06a77d'],
+  toys: 'toy', perfume: ['bag', '#c77dff'], gaming: 'game', shoes: 'shoebox', burger: 'burger',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -105,7 +107,7 @@ export function startDay(opts = {}){
   sim.storeState.clear(); sim.rooms.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
+  sim.stats = { troubleT: 0, scared: 0, shooed: 0, troubles: 0, visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
@@ -130,6 +132,7 @@ export function startDay(opts = {}){
   for (const st of s.staff) spawnStaff(st);
   sim.gus = null;
   if (opts.gus) spawnGus(opts.tutorial ? 'tutorial' : 'visit');
+  planTrouble(opts.tutorial);
 }
 function makePerson(kind, look, x, y){
   return { id: sim.nextId++, kind, look, x, y, t: rand() * 10, walking: false, flip: false, state: 'idle', timer: 0, speed: 1.4 };
@@ -330,6 +333,17 @@ function updateCustomer(p, dt){
     case 'leave':
       if (runPath(p, dt)) p.state = 'decide';
       break;
+    case 'toDine':
+      if (runPath(p, dt)){ const u = S.save.units.find(v => v.id === p.storeId); p.state = 'dine'; p.timer = 7 + rand() * 5; p.holdT = 0; if (u) p.flip = dineSpots(u).seats[p.dineSeat].flip; }
+      break;
+    case 'dine': {
+      p.walking = false; p.holdT = 0;
+      if ((p.timer -= dt) > 0) break;
+      const u = S.save.units.find(v => v.id === p.storeId);
+      stopDining(p, u); p.holding = null; p.mood = Math.min(1, p.mood + 0.08);
+      leaveStore(p, u);
+      break;
+    }
     case 'toSeat': {
       dropLitter(p, def);
       if (walkTo(p, p.seatAccess.x, p.seatAccess.y, dt)){ p.exit = [p.seat]; p.state = 'seatIn'; }
@@ -674,7 +688,22 @@ function completeSale(u, st, p){
   sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.3, t: 0, life: 1.1, text: `+$${price}` });
   if (p.mood > 0.75) sim.fx.push({ kind: 'heart', x: p.x + 0.2, y: p.y - 1.2, t: 0, life: 1.2 });
   emit('sale', { amount: price, store: u.store, tutorial: !!p.tutorial });
+  if (def.dine && startDining(p, u)) return;
   leaveStore(p, u);
+}
+// Dine-in stores: take a free stool and eat before heading out (a full place means takeout).
+function startDining(p, u){
+  const st = storeInfo(u), seats = dineSpots(u).seats;
+  st.dine = st.dine || seats.map(() => null);
+  const i = st.dine.findIndex(id => id === null);
+  if (i < 0) return false;
+  st.dine[i] = p.id; p.dineSeat = i; p.exit = [seats[i]]; p.state = 'toDine';
+  return true;
+}
+function stopDining(p, u){
+  const st = u && storeInfo(u);
+  if (st && st.dine && st.dine[p.dineSeat] === p.id) st.dine[p.dineSeat] = null;
+  p.dineSeat = undefined;
 }
 
 // What people leave behind after shopping at each store.
@@ -682,10 +711,11 @@ const TRASH_FROM = {
   pretzel: ['bag', 'wrapper'], candy: ['wrapper', 'lolly'], coffee: ['cup'], arcade: ['can', 'popcorn'],
   dollar: ['paper', 'bag'], boutique: ['paper'], pets: ['paper', 'bag'], books: ['paper', 'cup'],
   scoops: ['cone', 'cup'], music: ['paper', 'bag'], gadgets: ['bag', 'paper'], theater: ['popcorn', 'cup'], jumppark: ['can', 'cup'],
+  toys: ['paper', 'bag'], perfume: ['paper'], gaming: ['bag', 'paper'], shoes: ['paper', 'bag'], burger: ['wrapper', 'cup'],
 };
 
 /* ---------- Owner and jobs ---------- */
-export function jobKey(j){ return j.type + ':' + (j.unitId || j.trashId || j.staffId || ''); }
+export function jobKey(j){ return j.type + ':' + (j.unitId || j.trashId || j.staffId || j.troubleId || ''); }
 export function addJob(job){
   const k = jobKey(job), i = sim.jobs.findIndex(j => jobKey(j) === k);
   if (i >= 0){ if (i > 0 || !sim.jobs[0].started){ sim.jobs.splice(i, 1); return 'removed'; } return 'busy'; }
@@ -756,6 +786,12 @@ function updateOwner(p, dt){
     if (u){ const a = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); goal = { x: a.x + 0.5, y: a.y + 0.5 }; }
     if (!walkTo(p, goal.x, goal.y, dt) && Math.hypot(p.x - goal.x, p.y - goal.y) > 0.8) return;
     p.walking = false; sim.jobs.shift(); backToWork(st, true);
+  } else if (job.type === 'shoo'){
+    // Walk up to the troublemaker and send them packing.
+    const q = personById(job.troubleId);
+    if (!q || q.kind !== 'trouble' || q.state === 'flee' || q.state === 'gone'){ sim.jobs.shift(); return; }
+    if (!walkTo(p, q.x, q.y + 0.3, dt) && Math.hypot(p.x - q.x, p.y - q.y) > 0.9) return;
+    p.walking = false; sim.jobs.shift(); shoo(q, 'owner');
   } else if (job.type === 'wish'){
     const spots = fountainSpots();
     const f = spots[0] || { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y + 2 };
@@ -819,6 +855,7 @@ function updateStaff(p, dt){
   }
   if (p.role === 'mascot') return updateMascot(p, dt);
   if (p.role === 'supervisor') return updateSupervisor(p, dt);
+  if (p.role === 'guard' && !p.slacking) return updateGuard(p, dt);
   if (p.broomT > 0){
     p.broomT -= dt; p.walking = false;
     if (p.broomT <= 0){
@@ -933,6 +970,95 @@ function updateSupervisor(p, dt){
   }
   if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
 }
+/* ---------- Troublemakers (level 10+) ---------- */
+// Rowdy teens wander in, blast a boombox (souring the mood nearby and sometimes scaring shoppers off) or kick over
+// a trash can, then drift out. Tap one to send the owner over to shoo them, or hire a security guard.
+function planTrouble(tutorial){
+  const s = S.save, T = C.TROUBLE;
+  sim.troubleTimes = [];
+  if (tutorial || s.level < T.level) return;
+  const k = clamp((s.level - T.ramp[0]) / (T.ramp[1] - T.ramp[0]), 0, 1);
+  const n = Math.max(1, Math.round(T.perDay[0] + (T.perDay[1] - T.perDay[0]) * k + (rand() - 0.5)));
+  for (let i = 0; i < n; i++) sim.troubleTimes.push((0.15 + rand() * 0.6) * C.DAY_SECONDS);
+  sim.troubleTimes.sort((a, b) => a - b);
+}
+function spawnTrouble(){
+  const look = { skin: pick(SKINS), hair: pick(HAIRS), hairStyle: pick(['short', 'cap']), acc: '#ef476f', hood: true, shirt: pick(['#3d405b', '#5a189a', '#2b2d42']), pants: '#2b2d42', shoe: '#ef476f' };
+  const p = makePerson('trouble', look, C.ENTRANCE.x + 0.5 + rand(), C.MAP_H + 1.5);
+  p.speed = 1.5; p.state = 'enter'; p.holding = 'boombox';
+  p.stay = C.TROUBLE.stay[0] + rand() * (C.TROUBLE.stay[1] - C.TROUBLE.stay[0]);
+  p.scared = new Set();
+  sim.people.push(p); sim.stats.troubles++;
+  if (!S.save.flags.sawTrouble){ S.save.flags.sawTrouble = true; emit('firstTrouble'); }
+}
+function troubleSpot(){
+  for (let k = 0; k < 40; k++){
+    const x = Math.floor(rand() * map.w), y = C.CONCOURSE.y + Math.floor(rand() * C.CONCOURSE.h);
+    if (isWalk(x, y)) return { x: x + 0.5, y: y + 0.5 };
+  }
+  return { x: C.ENTRANCE.x + 1, y: C.MAP_H - 2 };
+}
+const troubleActive = p => p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act');
+function updateTrouble(p, dt){
+  p.t += dt;
+  if (p.state === 'flee'){ if (walkTo(p, C.ENTRANCE.x + 1, C.MAP_H - 0.5, dt, p.shooed ? 1.8 : 1)) p.state = 'gone'; return; }
+  if (p.state === 'gone'){ if (moveDirect(p, p.x, C.MAP_H + 1.8, dt, 1.8)) p.gone = true; return; }
+  if (p.state === 'enter'){ if (moveDirect(p, p.x, C.MAP_H - 0.6, dt)){ p.state = 'roam'; p.goal = troubleSpot(); } return; }
+  if (sim.phase !== 'day' || (p.stay -= dt) <= 0){ p.state = 'flee'; return; }
+  if (p.state === 'roam'){
+    if (walkTo(p, p.goal.x, p.goal.y, dt)){ p.state = 'act'; p.timer = 6 + rand() * 5; p.act = rand() < 0.35 && kickBin(p) ? 'kick' : 'music'; }
+    return;
+  }
+  // Acting up: the boombox blares, and shoppers close by get upset (some leave in a huff).
+  p.walking = false; sim.stats.troubleT += dt;
+  if ((p.noteT = (p.noteT || 0) - dt) <= 0){
+    p.noteT = 0.5;
+    if (p.act === 'music') sim.fx.push({ kind: 'coin', x: p.x + (rand() - 0.5) * 0.6, y: p.y - 1.4, t: 0, life: 1.0, text: '♪' });
+    const T = C.TROUBLE;
+    for (const q of sim.people) if (q.kind === 'customer' && Math.hypot(q.x - p.x, q.y - p.y) < T.radius){
+      q.mood = Math.max(0, q.mood - T.moodHit * 0.25);
+      if (!p.scared.has(q.id) && ['decide', 'pause', 'toStore', 'arrive', 'toMachine', 'toSeat'].includes(q.state)){
+        p.scared.add(q.id);
+        if (rand() < T.scareChance){ q.state = 'exit'; q.bubble = null; sim.stats.scared++; sim.fx.push({ kind: 'storm', x: q.x, y: q.y - 1.5, t: 0, life: 1.6 }); }
+      }
+    }
+  }
+  if ((p.timer -= dt) <= 0){ p.state = 'roam'; p.goal = troubleSpot(); }
+}
+// Kick over the nearest trash can: its trash goes everywhere.
+function kickBin(p){
+  const bin = S.save.decor.filter(d => d.type === 'bin').sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+  if (!bin || Math.hypot(bin.x + 0.5 - p.x, bin.y + 0.5 - p.y) > 4) return false;
+  for (let i = 0; i < 4; i++){ const sp = litterSpot(bin.x + 0.5 + (rand() - 0.5) * 2, bin.y + 1 + rand()); if (sp) addTrash(sp.x, sp.y, pick(['wrapper', 'cup', 'bag', 'paper'])); }
+  sim.fx.push({ kind: 'storm', x: bin.x + 0.5, y: bin.y - 0.6, t: 0, life: 1.4 });
+  return true;
+}
+function shoo(q, by){
+  if (!q || !troubleActive(q)) return;
+  q.state = 'flee'; q.shooed = true; sim.stats.shooed++;
+  sim.fx.push({ kind: 'coin', x: q.x, y: q.y - 1.5, t: 0, life: 1.2, text: by === 'guard' ? 'Out you go!' : 'Scram!' });
+  emit('shooed', { by });
+}
+// Security guards walk the storefronts; anyone acting up within range gets walked out.
+function updateGuard(p, dt){
+  const R = C.TROUBLE.guardRadius[p.skill];
+  if ((p.scanT = (p.scanT || 0) - dt) <= 0){
+    p.scanT = 0.4;
+    if (!p.catching){ const q = sim.people.find(q => troubleActive(q) && Math.hypot(q.x - p.x, q.y - p.y) < R); if (q) p.catching = q.id; }
+  }
+  if (p.catching){
+    const q = personById(p.catching);
+    if (!q || !troubleActive(q)){ p.catching = null; return; }
+    if (walkTo(p, q.x, q.y + 0.3, dt, 1.2) || Math.hypot(p.x - q.x, p.y - q.y) < 0.9){ shoo(q, 'guard'); p.catching = null; }
+    return;
+  }
+  if (!p.round || (p.round.wait -= dt) < -3){
+    const fronts = S.save.units.filter(u => u.state === 'store');
+    const u = fronts.length ? pick(fronts) : null;
+    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (isWalk(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
+  }
+  if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
+}
 // Sunny wanders the concourse, waving. Anyone close by perks up (once per visit).
 function updateMascot(p, dt){
   if (!p.wander || (p.wander.wait -= dt) < -4){
@@ -996,6 +1122,7 @@ export function step(realDt){
   if (sim.phase === 'day' && !sim.clockFrozen){
     sim.t += dt;
     if (sim.spawning) while (sim.spawnIdx < sim.spawnTimes.length && sim.spawnTimes[sim.spawnIdx] <= sim.t){ spawnCustomer(); sim.spawnIdx++; }
+    while (sim.spawning && sim.troubleTimes.length && sim.troubleTimes[0] <= sim.t){ sim.troubleTimes.shift(); spawnTrouble(); }
     if (sim.wishCoin && clockHour() >= C.OPEN_HOUR + 2) sim.wishCoin = false;
     if ((sim.stats.sampleT += dt) > 2){
       sim.stats.sampleT = 0; sim.stats.dirtSum += sim.trash.length; sim.stats.dirtN++;
@@ -1015,6 +1142,7 @@ export function step(realDt){
     else if (p.kind === 'owner') updateOwner(p, dt);
     else if (p.kind === 'staff') updateStaff(p, dt);
     else if (p.kind === 'gus') updateGus(p, dt);
+    else if (p.kind === 'trouble') updateTrouble(p, dt);
   }
   if (sim.phase === 'day') updateStores(dt);
   sim.people = sim.people.filter(p => !p.gone);
@@ -1032,7 +1160,8 @@ function beginClosing(){
     if (p.state === 'show' || p.state === 'toShow'){ leaveShow(p, S.save.units.find(v => v.id === p.storeId)); continue; }
     p.faceBack = false;
     if (p.state === 'line'){ p.state = 'exit'; continue; }
-    if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'toStall', 'inStall', 'toSink', 'washing'].includes(p.state)){
+    if (p.state === 'dine' || p.state === 'toDine') stopDining(p, S.save.units.find(v => v.id === p.storeId));
+    if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'toStall', 'inStall', 'toSink', 'washing', 'dine', 'toDine'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);
       if (u && !u.kiosk){ p.exit = exitPath(u, p); p.state = 'leave'; } else p.state = 'exit';
     } else if (p.state === 'sit' || p.state === 'seatIn'){ p.state = 'exit'; p.faceBack = false; }
@@ -1085,7 +1214,8 @@ export function buildReport(){
   const decorPts = s.decor.reduce((a, d) => a + C.DECOR[d.type].ambience, 0) + (s.fountain ? C.FOUNTAIN.ambience : 0);
   const amb = (T, id) => (T[id] && T[id].ambience) || 0;
   const stylePts = s.style ? amb(C.WALLPAPERS, s.style.wall) + amb(C.FLOORS, s.style.floor) : 0;
-  const ambience = clamp(1.6 + (decorPts + stylePts + open.length * 1.5 - derelict * 0.55 - dusty * 1.2) / 8, 1, 5);
+  // Troublemakers acting up sour the place's feel for the day.
+  const ambience = clamp(1.6 + (decorPts + stylePts + open.length * 1.5 - derelict * 0.55 - dusty * 1.2) / 8 - Math.min(1.2, st.troubleT / 50), 1, 5);
   const happy = st.moodN ? st.moodSum / st.moodN : 0.6;
   // A five-star mall needs everything going right: clean, quick, varied, pretty, and happy shoppers.
   const overall = (clean + service + variety + ambience) / 4 * 0.8 + happy * 5 * 0.2;
@@ -1106,6 +1236,7 @@ export function buildReport(){
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
     restockShort: frac < 1, gusTrash: st.gusTrash, machines: st.machines, roomDirt,
+    troubles: st.troubles, scared: st.scared, shooed: st.shooed,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

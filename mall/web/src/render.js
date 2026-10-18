@@ -125,6 +125,8 @@ export function render(t){
 
   const Q = [];
   const add = (y, f) => Q.push([y, f]);
+  // Dine-in tables: stools just behind whoever sits on them, the table top just in front.
+  const addDine = u => A.dineSpots(u).tables.forEach((tb, i) => { add(tb.y + 0.0, () => A.dineTable(u, i, 'stools')); add(tb.y + 0.12, () => A.dineTable(u, i, 'table')); });
   for (const u of s.units){
     const def = unitDef(u);
     if (u.kiosk){ add(u.y + 0.85, () => A.kiosk(u, def, t)); continue; }
@@ -143,11 +145,13 @@ export function render(t){
     if (u.face === 'down'){
       add(u.y + 0.48, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'store' && def.dine) addDine(u);
       if (u.state === 'restroom') add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + u.h + 0.05, () => A.unitFront(u, def, t));
     } else {
       add(u.y + u.h, () => A.unitBack(u, def, t));
       if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'store' && def.dine) addDine(u);
       // The sink counter's front edge, so people washing (just below it) are drawn in front of it.
       if (u.state === 'restroom') add(u.y + 0.72, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + 0.05, () => A.unitFront(u, def, t));
@@ -198,6 +202,7 @@ function drawPerson(p, t){
     if (p.type === 'teen' && L.hood) o.hood = false;
   }
   if (p.kind === 'gus') o.mood = 'happy';
+  if (p.kind === 'trouble') o.mood = 'mad';
   if (L.costume) return A.mascot(p.x, p.y, o);
   // Bouncing on a trampoline: up and down, arms out.
   if (p.bouncing){
@@ -211,6 +216,7 @@ function drawPerson(p, t){
   if (p.faceBack) o.back = true;
   // Seated on a bench, sofa, the fountain's rim or a cinema seat. Side-facing seats show the legs in profile.
   if (p.state === 'sit' || (p.state === 'show' && !p.bouncing)){ o.sit = true; if (p.seat && p.seat.flip !== undefined) o.sitSide = true; }
+  if (p.state === 'dine'){ o.sit = true; o.sitSide = true; }
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
   if (p.slacking) o.phone = true;
@@ -341,6 +347,7 @@ function drawOverlays(t){
       A.bubble(p.x, y, b.icon, b.kind === 'info' ? 'info' : b.kind, b.kind === 'want' ? p.patience / p.patienceMax : 1, pulse);
     }
     if (p.kind === 'gus' && p.chatIcon){ A.bubble(p.x, p.y - 1.55, 'chat', 'info'); }
+    if (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act')) A.bubble(p.x, p.y - 1.55, 'angry', 'want', 1, p.state === 'act' ? Math.abs(Math.sin(t * 6)) : 0);
     if (p.kind === 'staff' && p.slacking){ A.bubble(p.x, p.y - (p.look.costume ? 1.9 : 1.55), 'phone', 'want', Math.max(0, p.breakT / p.breakMax)); }
     if (p.kind === 'gus' && p.say){ speech(p.x, p.y - 1.6, p.say); }
     if ((p.kind === 'owner' || p.kind === 'staff') && p.serving > 0){

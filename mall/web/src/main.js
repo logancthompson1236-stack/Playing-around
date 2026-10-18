@@ -7,7 +7,7 @@ import { initRender, resize, render, view, invalidate, clampCam, restroomBubble 
 import { initInput } from './input.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
-import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene } from './guide.js';
+import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene, runClerkScene, runStoreScene, runTroubleScene } from './guide.js';
 import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
 import { MEET_GUS, MEMORIES } from './story.js';
 
@@ -144,6 +144,8 @@ function dayTap(x, y){
   // Staff on their phones: tap the bubble to go have a word.
   if (!best) for (const p of sim.people){
     if (p.kind === 'staff' && p.slacking){ const d = Math.hypot(p.x - x, p.y - (p.look.costume ? 1.9 : 1.55) - y); if (d < bd){ bd = d; best = { type: 'nudge', staffId: p.id }; } }
+    // Troublemakers: tap their bubble or the kid themself.
+    if (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act')){ const d = Math.min(Math.hypot(p.x - x, p.y - 1.55 - y), Math.hypot(p.x - x, p.y - 0.6 - y)); if (d < bd + 0.2){ bd = d; best = { type: 'shoo', troubleId: p.id }; } }
   }
   // A restroom that needs mopping: its bubble, or the restroom itself.
   if (!best) for (const u of S.save.units){
@@ -193,6 +195,8 @@ function handleEvents(){
       case 'slack': tip('slacker'); break;
       case 'nudged': sfx('pop'); break;
       case 'restroomDirty': case 'grossRestroom': tip('restroom'); break;
+      case 'firstTrouble': sfx('error'); UI.toast('A troublemaker is causing a scene! Tap them to shoo them out.', 4200); break;
+      case 'shooed': sfx('chime'); break;
       case 'wish': sfx('wish'); UI.toast(e.text, 3200); break;
       case 'toast': UI.toast(e.text); break;
       case 'closing': sfx('bell'); UI.toast('Closing time! Last customers are heading out.'); break;
@@ -228,7 +232,10 @@ async function enterNight(report, gusVisited = false){
     const reward = await maybeMemory(gusVisited);
     if (typeof reward === 'string' && reward) UI.toast(reward, 3800);
   }
+  if (report && s.day === 1) await runClerkScene();
+  if (report && s.day === 2) await runStoreScene();
   if (s.level >= 3) await runDeeScene();
+  await runTroubleScene();
   await runExpandScene();
   nightTips(report);
 }

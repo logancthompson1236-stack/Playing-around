@@ -227,11 +227,12 @@ function styleTab(body){
   for (const [slot, { table, label }] of Object.entries(STYLE_SLOTS)){
     body.append(h('div', { class: 'section-label' }, label));
     for (const [id, d] of Object.entries(table)){
-      const have = ownsStyle(slot, id), inUse = s.style[slot] === id;
+      // Each style unlocks at its own level milestone.
+      const have = ownsStyle(slot, id), inUse = s.style[slot] === id, needs = d.level || 0, locked = s.level < needs;
       body.append(h('button', { class: `item ${locked && !have ? 'locked' : !inUse && (have || s.money >= d.cost) ? 'can' : ''}`, disabled: locked && !have, onclick: () => { sfx('tap'); closePanel(); startStyle(slot, id); } },
         iconCanvas(() => styleSwatch(slot, id)),
         h('span', { class: 'info' }, h('span', { class: 'name' }, d.name), h('span', { class: 'sub' }, d.sub + (d.ambience ? ' · +ambience' : ''))),
-        h('span', { class: 'price' }, inUse ? 'In use' : have ? 'Owned' : locked ? `Level ${C.STYLE_LEVEL}` : money(d.cost))));
+        h('span', { class: 'price' }, inUse ? 'In use' : have ? 'Owned' : locked ? `Level ${needs}` : money(d.cost))));
     }
   }
 }
@@ -258,7 +259,7 @@ function showStyleBar(){
   const bar = showPlacementBar({ label: `${d.name} ${noun}`, confirmLabel: s.style[slot] === id ? 'Keep' : have ? 'Use it' : `Buy · ${money(d.cost)}`,
     onCancel: () => { endStyle(); openBuild(3); }, onConfirm: confirmStyle,
     extra: { label: 'Next ›', onClick: () => {
-      const ids = Object.keys(table).filter(k => s.level >= C.STYLE_LEVEL || ownsStyle(slot, k));
+      const ids = Object.keys(table).filter(k => s.level >= (table[k].level || 0) || ownsStyle(slot, k));
       styling.id = ids[(ids.indexOf(styling.id) + 1) % ids.length]; showStyleBar();
     } } });
   if (short){ bar.info.textContent = `${d.name}: need ${money(d.cost)}`; bar.info.style.color = '#b3263e'; bar.confirm.disabled = true; }
@@ -495,7 +496,7 @@ export function openStaff(){
     const s = S.save, L = C.STAFF_LIMITS, count = role => s.staff.filter(m => m.role === role).length;
     const open = Object.entries(C.ROLES).filter(([, r]) => s.level >= r.level), next = Object.values(C.ROLES).find(r => s.level < r.level);
     const limits = open.map(([role, r]) => `${r.plural} ${count(role)}/${L[role][s.level]}`).join(' · ') + (next ? ` · ${next.plural} at level ${next.level}` : '');
-    body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, s.level < 3 ? 'You can start hiring at level 3. Until then, it’s all you.' : `${limits}. Wages come out each night.`));
+    body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, `${limits}. Wages come out each night.`));
     if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
     for (const m of s.staff){
       const ownStores = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o !== m && o.storeId === u.id));
@@ -505,7 +506,7 @@ export function openStaff(){
         h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { class: 'name', style: 'font:600 15px var(--display);display:block' }, m.name), h('span', { class: 'sub muted', style: 'font-size:12px;display:block' }, staffLine(m)), dreamLine(m, s.units.find(u => u.id === m.storeId)), sel),
         h('button', { class: 'btn small', onclick: async () => { if (await confirmBox(`Let ${m.name} go?`, 'Let go')){ s.staff = s.staff.filter(o => o !== m); if (m.dee) s.flags.hiredDee = false; writeSave(); redraw(); } } }, 'Let go')));
     }
-    if (s.level >= 3){
+    if (open.length){
       body.append(h('div', { class: 'section-label' }, 'Looking for work'));
       for (const a of applicants()){
         const look = staffLook(a.role, a.seed);
@@ -557,10 +558,11 @@ export function nightTips(report){
   const s = S.save;
   tip('night');
   const open = Object.entries(C.STORES).filter(([, d]) => !d.kiosk && d.level <= s.level).flatMap(([k]) => roomFor(k).map(r => r.cost));
-  if (open.length && s.money >= Math.min(...open)) tip('open', () => openBuild(0));
+  // Opening a second store is a Day 2 thing; night 1 is for hiring clerks.
+  if (s.day >= 2 && open.length && s.money >= Math.min(...open)) tip('open', () => openBuild(0));
   if (s.level >= 2 && !s.units.some(u => u.state === 'vacant' || u.state === 'derelict')) tip('newshell', () => openBuild(0));
   if (s.level >= 3){ tip('staff'); if (!s.flags.tips.staff) setToolDot('staff', true); }
-  if (s.level >= 4) tip('clerks');
+  if (s.day >= 2) tip('clerks');
   if (!s.fountain && s.level >= 2 && s.money >= C.FOUNTAIN.cost) tip('fountain', () => { panTo(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1); view.highlight = { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y, w: 2, h: 2 }; setTimeout(() => { view.highlight = null; }, 4000); });
   if (report && s.day >= 2 && !s.decor.some(d => d.type === 'bin')) tip('litter', () => openBuild(1));
   if (s.level >= C.STYLE_LEVEL) tip('style', () => openBuild(3));
