@@ -1,6 +1,6 @@
 import * as C from '../src/config.js';
 import { S, newSave, stores, addXp } from '../src/state.js';
-import { rebuildMap, validatePlacement, map } from '../src/map.js';
+import { rebuildMap, validatePlacement, map, clearEscalators } from '../src/map.js';
 import { sim, step, startDay, buildReport, addJob, setRandom, staffLook, roomInfo } from '../src/sim.js';
 const staffLookFor = m => staffLook(m.role, m.id);
 import { mulberry } from '../src/art.js';
@@ -91,7 +91,10 @@ function night(){
     break;
   }
   // Hire help when allowed.
-  const saving = stores(s).length < 8 && s.money < 1500;   // like a sensible player: stores first, frills later
+  // Like a sensible player: stores first, frills later, and save up for the next expansion once it unlocks.
+  const nextExp = C.EXPANSIONS.find(e => !s.expansions[e.id]);
+  const saving = stores(s).length < 8 && s.money < 1500;
+  const saveExp = saving || (nextExp && s.level >= nextExp.level && s.money < nextExp.cost + 1500);   // no frills while saving up
   const hire = (role, extra = {}) => s.staff.push({ id: s.nextId++, role, name: role[0].toUpperCase(), look: {}, skill: [1, 2, 2, 3][Math.floor(botRand() * 4)], ...extra });
   if (s.level >= 3 && has('janitor') < 1 && lim('janitor') >= 1) s.staff.push({ id: s.nextId++, role: 'janitor', name: 'Dee', look: {}, fast: true });
   if (s.level >= 1){
@@ -105,7 +108,7 @@ function night(){
   for (const role of ['guard', 'stocker', 'greeter', 'mascot', 'supervisor']) if (has(role) < lim(role) && !saving && s.money > 900) hire(role);
   if (!s.fountain && s.level >= 2 && s.money > C.FOUNTAIN.cost + 300){ s.money -= C.FOUNTAIN.cost; s.fountain = true; gain(50); }
   // Decor: a few trash cans first, then whatever's unlocked, a piece or two a night.
-  for (let n = 0; n < 2 && !saving && s.money > 500 && s.decor.length < 26; n++){
+  for (let n = 0; n < 2 && !saveExp && s.money > 500 && s.decor.length < 34; n++){
     const bins = s.decor.filter(d => d.type === 'bin').length;
     const pool = Object.entries(C.DECOR).filter(([k, d]) => d.level <= s.level && k !== 'bin').map(([k]) => k);
     const type = bins < 4 ? 'bin' : pool[(s.decor.length * 7) % pool.length];
@@ -116,7 +119,7 @@ function night(){
     s.decor.push({ id: s.nextId++, type, x: spot.x, y: spot.y, rot: 0 }); s.money -= def.cost; gain(5); rebuildMap(s);
   }
   // Mall styles: the cheapest new wallpaper or floor, once there's money to spare.
-  if (s.level >= C.STYLE_LEVEL && !saving){
+  if (s.level >= C.STYLE_LEVEL && !saveExp){
     const next = [['wall', C.WALLPAPERS], ['floor', C.FLOORS]].flatMap(([slot, T]) => Object.entries(T).filter(([id, d]) => !s.style[slot + 's'].includes(id) && (d.level || 0) <= s.level).map(([id, d]) => ({ slot, id, d }))).sort((a, b) => a.d.cost - b.d.cost)[0];
     if (next && s.money > next.d.cost + 2500){ s.money -= next.d.cost; s.style[next.slot + 's'].push(next.id); s.style[next.slot] = next.id; gain(C.STYLE_XP); }
   }
@@ -127,6 +130,7 @@ function night(){
     for (const l of e.lots) s.units.push({ id: s.nextId++, ...l, state: 'vacant', store: null, stock: 0 });
     if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
     for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
+    rebuildMap(s); clearEscalators(s);
     console.log(`      (day ${s.day}: opened the ${e.name})`);
   });
   rebuildMap(s);

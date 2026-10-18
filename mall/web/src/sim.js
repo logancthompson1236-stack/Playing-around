@@ -1,7 +1,7 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
-import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot } from './map.js';
+import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
 
 export const sim = {
@@ -80,9 +80,9 @@ const restrooms = () => S.save.units.filter(u => u.state === 'restroom');
 const HOLD_FROM = {
   pretzel: 'pretzel', candy: 'lolly', coffee: 'coffee', scoops: 'cone', arcade: 'plush', books: 'book', music: 'record', gadgets: 'gadget',
   dollar: ['bag', '#ffd23f'], boutique: ['bag', '#ff8fab'], pets: ['bag', '#06a77d'],
-  toys: 'toy', perfume: ['bag', '#c77dff'], gaming: 'game', shoes: 'shoebox', burger: 'burger',
+  toys: 'toy', perfume: ['bag', '#c77dff'], gaming: 'game', shoes: 'shoebox', burger: 'burger', hotdog: 'hotdog', pizza: 'pizza',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -114,7 +114,8 @@ export function startDay(opts = {}){
   // Each store draws a crowd, a little less once the mall is big. Mascots pull in extra.
   const draw = open.length <= 10 ? 8 * open.length : 80 + 5 * (open.length - 10);
   const mascots = s.staff.filter(m => m.role === 'mascot').reduce((a, m) => a + staffSkill(m), 0);
-  const [t0, t1, cut] = C.VISITOR_TAPER, taper = 1 - cut * clamp((s.level - t0) / (t1 - t0), 0, 1);
+  const [t0, t1, cut] = C.VISITOR_TAPER, [l0, l1, lcut] = C.LATE_CROWD;
+  const taper = (1 - cut * clamp((s.level - t0) / (t1 - t0), 0, 1)) * (1 - lcut * clamp((s.level - l0) / (l1 - l0), 0, 1));
   let V = (12 + draw + ambience) * (0.6 + 0.22 * rating) * (0.9 + rand() * 0.2) * C.VISITOR_SCALE * (1 + 0.06 * mascots) * taper;
   if (opts.tutorial) V *= 0.8;
   V = Math.round(V);
@@ -175,7 +176,11 @@ export function backToWork(p, nudged = false){
   if (nudged){ sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.4, t: 0, life: 1.1, text: 'Back to work!' }); emit('nudged', { name: p.name }); }
 }
 // The greeter stands just inside the doors, off to the side.
-const greeterPost = () => ({ x: C.ENTRANCE.x - 0.45, y: C.MAP_H - 1.3 });
+// A second greeter takes the other side.
+const greeterPost = (p = null) => {
+  const crew = sim.people.filter(q => q.role === 'greeter'), i = p ? Math.max(0, crew.indexOf(p)) : crew.length;
+  return i % 2 ? { x: C.ENTRANCE.x + C.ENTRANCE.w + 0.45, y: C.MAP_H - 1.3 } : { x: C.ENTRANCE.x - 0.45, y: C.MAP_H - 1.3 };
+};
 
 /* ---------- Movement ---------- */
 function moveDirect(p, gx, gy, dt, speedMul = 1){
@@ -193,9 +198,37 @@ function walkTo(p, gx, gy, dt, speedMul = 1){
   if (cx === tx && cy === ty) return moveDirect(p, gx, gy, dt, speedMul);
   const n = nextStep(cx, cy, tx, ty);
   if (!n) return moveDirect(p, gx, gy, dt, speedMul);
+  if (isRide(cx, n.x)){ startRide(p, escalatorAt(cx, cy), escalatorAt(n.x, n.y)); return false; }
   const last = n.x === tx && n.y === ty;
   moveDirect(p, last ? gx : n.x + 0.5, last ? gy : n.y + 0.5, dt, speedMul);
   return false;
+}
+// The escalator: step on, ride up (or down) and out of sight, then come in on the other floor's belt and step off.
+// Going up rises above the floor (z > 0); the second floor's belts sink into the stairwell (z < 0).
+function startRide(p, a, b){
+  if (!a || !b){ p.walking = false; return; }
+  p.ride = { a, b, k: 0, x0: p.x, y0: p.y }; p.walking = false;
+}
+function beltEnds(e, lane){
+  const near = e.dir > 0 ? e.x + 0.15 : e.x + e.w - 0.15, far = e.dir > 0 ? e.x + e.w - 0.2 : e.x + 0.2;
+  return { near, far, y: e.y + (lane ? 1.42 : 0.55) };
+}
+function stepRide(p, dt){
+  const r = p.ride, T = C.ESCALATOR_RIDE;
+  r.k += dt / T;
+  if (r.k < 1){
+    // Onto the near end of the departing belt, then along it.
+    const e = r.a, b = beltEnds(e, 0), on = 0.22, sign = e.floor ? -1 : 1;
+    if (r.k < on){ const t = r.k / on; p.x = lerp(r.x0, b.near, t); p.y = lerp(r.y0, b.y, t); p.rideZ = 0; p.walking = true; }
+    else { const t = (r.k - on) / (1 - on); p.x = lerp(b.near, b.far, t); p.y = b.y; p.rideZ = sign * 1.15 * t; p.walking = false; }
+    p.flip = e.dir < 0;
+  } else if (r.k < 2){
+    // In along the other floor's arriving belt, then a step off onto the landing.
+    const e = r.b, b = beltEnds(e, 1), off = 0.8, sign = e.floor ? -1 : 1, t0 = r.k - 1;
+    if (t0 < off){ const t = t0 / off; p.x = lerp(b.far, b.near, t); p.y = b.y; p.rideZ = sign * 1.15 * (1 - t); p.walking = false; }
+    else { const t = (t0 - off) / (1 - off); p.x = lerp(b.near, e.land.x + 0.5, t); p.y = lerp(b.y, e.land.y + 0.5, t); p.rideZ = 0; p.walking = true; }
+    p.flip = e.dir > 0;
+  } else { p.ride = null; p.rideZ = 0; p.x = r.b.land.x + 0.5; p.y = r.b.land.y + 0.5; }
 }
 // Run through a list of direct waypoints (used for stepping in and out of stores).
 function runPath(p, dt){
@@ -366,6 +399,20 @@ function updateCustomer(p, dt){
       if (walkTo(p, a.x, a.y, dt)){ p.state = 'useMachine'; p.timer = C.DECOR[p.machine.type].coin.secs * (0.8 + rand() * 0.4); p.flip = p.machine.x + 0.5 < p.x; }
       break;
     }
+    case 'toPlay': {
+      dropLitter(p, def);
+      const a = p.play.at;
+      if (!S.save.decor.includes(p.play.d)){ p.play = null; p.state = 'decide'; break; }
+      if (walkTo(p, a.x, a.y, dt)){ const pd = C.DECOR[p.play.d.type].play; p.state = 'playing'; p.timer = lerp(pd.secs[0], pd.secs[1], rand()); p.flip = false; p.faceBack = true; }
+      break;
+    }
+    case 'playing':
+      p.walking = false;
+      if ((p.timer -= dt) <= 0 || !S.save.decor.includes(p.play.d)){
+        p.mood = Math.min(1, p.mood + 0.15); p.faceBack = false; p.play = null; p.state = 'decide';
+        if (rand() < 0.6) sim.fx.push({ kind: 'heart', x: p.x, y: p.y - 1.2, t: 0, life: 1.0 });
+      }
+      break;
     case 'useMachine':
       p.walking = false;
       if ((p.timer -= dt) <= 0){ useMachine(p); p.state = 'decide'; }
@@ -510,6 +557,12 @@ function decide(p){
     p.usedMachine = true;
     if (m){ p.machine = m.d; p.machineAt = m.at; p.state = 'toMachine'; return; }
   }
+  // Families stop at a play area so the kid can run around a while.
+  if (!p.played && p.look.kid){
+    p.played = true;
+    const pa = findPlay(p);
+    if (pa){ p.play = pa; p.state = 'toPlay'; return; }
+  }
   if (!p.usedRestroom){
     p.usedRestroom = true;
     const rooms = restrooms().filter(u => { const a = unitAccess(u); return isWalk(a.x, a.y); });
@@ -538,6 +591,20 @@ function findSeat(p){
   }
   if (S.save.fountain) for (const f of fountainSpots()) opts.push({ access: { x: f.x + 0.5, y: f.y + 0.5 }, spot: { x: f.x + 0.5 + (rand() - 0.5) * 0.3, y: f.y + 0.5 } });
   return opts.length ? pick(opts) : null;
+}
+// A free spot at a kids play area (most families who pass one stop). The grown-up waits at the front.
+function findPlay(p){
+  let best = null, bd = 22;
+  for (const d of S.save.decor){
+    const def = C.DECOR[d.type]; if (!def.play) continue;
+    const used = sim.people.filter(q => q.play && q.play.d === d).map(q => q.play.slot);
+    const slot = [0, 1, 2].slice(0, def.play.kids).find(k => !used.includes(k));
+    if (slot === undefined) continue;
+    const a = decorAccess(d); if (!isWalk(a.x, a.y)) continue;
+    const dist = Math.hypot(a.x - p.x, a.y - p.y);
+    if (dist < bd && rand() < 0.7){ bd = dist; best = { d, slot, at: { x: d.x + 1.5 + (slot - 1) * 0.35, y: d.y + def.h + 0.45 } }; }
+  }
+  return best;
 }
 // Coin-op machines: each one has its own fans and odds. Nearest willing one wins.
 function findMachine(p){
@@ -590,6 +657,8 @@ function useMachine(p){
   p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
   if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; }
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
+  if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
+  if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
   if (d.type === 'claw'){
     if (rand() < CLAW_WIN){ p.holding = 'plush'; p.prize = pick(PRIZES); p.mood = Math.min(1, p.mood + 0.1); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.4, text: 'WIN!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 0.9 }); }
     else sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.2, text: 'So close!' });
@@ -712,6 +781,7 @@ const TRASH_FROM = {
   dollar: ['paper', 'bag'], boutique: ['paper'], pets: ['paper', 'bag'], books: ['paper', 'cup'],
   scoops: ['cone', 'cup'], music: ['paper', 'bag'], gadgets: ['bag', 'paper'], theater: ['popcorn', 'cup'], jumppark: ['can', 'cup'],
   toys: ['paper', 'bag'], perfume: ['paper'], gaming: ['bag', 'paper'], shoes: ['paper', 'bag'], burger: ['wrapper', 'cup'],
+  hotdog: ['wrapper', 'cup'], pizza: ['paper', 'cup'],
 };
 
 /* ---------- Owner and jobs ---------- */
@@ -848,8 +918,8 @@ function updateStaff(p, dt){
   }
   if (p.role === 'stocker') return updateStocker(p, dt);
   if (p.role === 'greeter'){
-    const g = greeterPost();
-    if (walkTo(p, g.x, g.y, dt)){ p.state = 'post'; p.walking = false; p.flip = false; }
+    const g = greeterPost(p);
+    if (walkTo(p, g.x, g.y, dt)){ p.state = 'post'; p.walking = false; p.flip = g.x > C.ENTRANCE.x + 1; }
     if (p.waveT > 0) p.waveT -= dt;
     return;
   }
@@ -900,9 +970,12 @@ function updateStaff(p, dt){
   // Nothing to clean: patrol. With more than one janitor, each keeps to their own slice of the mall.
   if (!p.wander || (p.wander.wait -= dt) < -6){
     const crew = sim.people.filter(q => q.role === 'janitor'), i = crew.indexOf(p), n = crew.length;
-    const x0 = Math.floor(map.w * i / n), x1 = Math.floor(map.w * (i + 1) / n);
+    // Slices run across both floors, ground floor first.
+    const cols = [];
+    for (const f of [0, 1]){ const r = floorRange(f); for (let x = r.x0; x < r.x1; x++) cols.push(x); }
+    const c0 = Math.floor(cols.length * i / n), c1 = Math.max(c0 + 1, Math.floor(cols.length * (i + 1) / n));
     for (let k = 0; k < 40; k++){
-      const x = x0 + Math.floor(rand() * (x1 - x0)), y = Math.floor(rand() * C.MAP_H);
+      const x = cols[c0 + Math.floor(rand() * (c1 - c0))], y = Math.floor(rand() * C.MAP_H);
       if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }
@@ -1135,9 +1208,10 @@ export function step(realDt){
     sim.closeT += dt;
     const left = sim.people.some(p => p.kind === 'customer');
     // Everyone heads out at closing; a bigger mall gets a little longer before the lights go off.
-    if (!left || sim.closeT > 8 + map.w * 0.3) sim.phase = 'done';
+    if (!left || sim.closeT > 8 + (C.MAP_W + map.f2w) * 0.3) sim.phase = 'done';
   }
   for (const p of sim.people){
+    if (p.ride){ stepRide(p, dt); continue; }
     if (p.kind === 'customer') updateCustomer(p, dt);
     else if (p.kind === 'owner') updateOwner(p, dt);
     else if (p.kind === 'staff') updateStaff(p, dt);
@@ -1158,7 +1232,7 @@ function beginClosing(){
     p.bubble = null; p.served = false;
     p.hidden = false; p.playing = false; freeStall(p);
     if (p.state === 'show' || p.state === 'toShow'){ leaveShow(p, S.save.units.find(v => v.id === p.storeId)); continue; }
-    p.faceBack = false;
+    p.faceBack = false; p.play = null;
     if (p.state === 'line'){ p.state = 'exit'; continue; }
     if (p.state === 'dine' || p.state === 'toDine') stopDining(p, S.save.units.find(v => v.id === p.storeId));
     if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'toStall', 'inStall', 'toSink', 'washing', 'dine', 'toDine'].includes(p.state)){

@@ -1,6 +1,7 @@
 // Vector painters. Everything draws in tile units on the current context `g`; PPT is device pixels per tile.
 // The renderer and the UI (portraits, intro panels) both call these.
 export const OUT = '#3d2b35';
+import * as A2 from './art2.js';
 // Older WebViews and Safari before 16 lack roundRect.
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
@@ -149,6 +150,39 @@ export function floor(kind, x, y, w, h, seed){
     for (let j = Math.ceil(y / 2) * 2; j <= y + h; j += 2){ g.moveTo(x, j); g.lineTo(x + w, j); }
     g.stroke();
   }
+  else if (kind === 'pizzeria'){ checker(0.5, '#fff6ea', '#e9c9b4'); grid(0.5, 'rgba(193,80,46,.15)', 0.02); }
+  else if (kind === 'mosaic'){
+    // Tiny glossy tiles in every color, in soft bands.
+    g.fillStyle = '#fff7ec'; g.fillRect(x, y, w, h);
+    // Mostly cream, with soft rainbow diagonals running through it.
+    const cs = ['#ffd3e0', '#ffe6bf', '#d9f0cf', '#cfeaf6', '#e2d6f6', '#ffdccb'];
+    for (let i = Math.floor(x * 4); i < (x + w) * 4; i++) for (let j = Math.floor(y * 4); j < (y + h) * 4; j++){
+      const v = hash(i, j, 5), band = Math.floor((i + j) / 3);
+      g.fillStyle = band % 3 === 0 || v < 0.12 ? cs[(Math.floor(band / 3) + (v < 0.12 ? 2 : 0)) % cs.length] : (v < 0.55 ? '#fff6ea' : '#fbefdf');
+      g.fillRect(i / 4 + 0.012, j / 4 + 0.012, 0.226, 0.226);
+    }
+  }
+  else if (kind === 'starlight'){
+    g.fillStyle = '#2a2f5c'; g.fillRect(x, y, w, h);
+    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++) for (let k = 0; k < 3; k++){
+      const v = hash(i, j, k + 20), sx = i + hash(i, j, k + 40), sy = j + hash(i, j, k + 60);
+      if (v < 0.5){ circ(sx, sy, 0.02 + v * 0.03); g.fillStyle = v < 0.15 ? '#f2d68a' : 'rgba(255,255,255,.6)'; g.fill(); }
+    }
+  }
+  else if (kind === 'bamboo'){
+    g.fillStyle = '#efdcb0'; g.fillRect(x, y, w, h);
+    for (let j = Math.floor(y * 5); j < (y + h) * 5; j++){
+      const yy = j / 5; g.fillStyle = j % 2 ? '#e8d3a3' : '#f2e2bb'; g.fillRect(x, yy, w, 0.2);
+      g.strokeStyle = 'rgba(140,110,60,.25)'; g.lineWidth = 0.015; g.beginPath(); g.moveTo(x, yy); g.lineTo(x + w, yy);
+      for (let i = Math.floor(x) + (j % 3) * 0.33; i < x + w; i += 1){ g.moveTo(i, yy + 0.04); g.lineTo(i, yy + 0.16); }
+      g.stroke();
+    }
+  }
+  else if (kind === 'goldterrazzo'){
+    g.fillStyle = '#f8f5ef'; g.fillRect(x, y, w, h);
+    for (let k = 0; k < w * h * 14; k++){ const v = R(); g.fillStyle = v < 0.25 ? 'rgba(212,176,106,.85)' : v < 0.6 ? 'rgba(160,150,140,.35)' : 'rgba(200,190,180,.4)'; g.fillRect(x + R() * w, y + R() * h, 0.05 + (v < 0.25 ? 0.03 : 0), 0.04); }
+    grid(2, 'rgba(205,165,85,.5)', 0.03);
+  }
   else if (kind === 'play'){ checker(1, '#e8f4ff', '#fff4d6'); grid(1, 'rgba(90,141,238,.18)', 0.025); for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){ const v = hash(i, j, 9); if (v < 0.3){ circ(i + 0.5, j + 0.5, 0.08); g.fillStyle = ['rgba(239,71,111,.35)', 'rgba(255,210,63,.45)', 'rgba(6,214,160,.35)'][Math.floor(v * 10) % 3]; g.fill(); } } }
   else if (kind === 'blush'){ checker(0.5, '#fff0f6', '#fbe3ef'); grid(1, 'rgba(199,125,255,.18)', 0.02); }
   else if (kind === 'neon'){ checker(1, '#241a4a', '#2c2158'); grid(1, 'rgba(76,201,240,.45)', 0.03); }
@@ -271,6 +305,8 @@ export function storeIcon(icon, x, y, s, mono = null){
   const c = col => mono || col;
   switch (icon){
     case 'pretzel': pretzelIcon(0, 0, 1); break;
+    case 'hotdog': A2.hotdogIcon(c); break;
+    case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
       circ(0, 0, 0.36); fs(c('#ff6b8b'), 0.09);
@@ -536,7 +572,7 @@ export function person(x, y, o){
     g.restore();
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger') && !o.back && !walking && (t % 3.2) < 0.8;
+  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza') && !o.back && !walking && (t % 3.2) < 0.8;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
     if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
@@ -606,6 +642,9 @@ function heldItem(kind, hx, hy, color, prize){
     case 'game': rr(hx - 0.07, hy - 0.16, 0.14, 0.19, 0.015); fs('#3a0ca3', 0.025); rr(hx - 0.05, hy - 0.13, 0.1, 0.09, 0.01); fs('#4cc9f0', 0); break;
     case 'shoebox': box(hx - 0.13, hy - 0.04, 0.26, 0.1, 0.12, '#ffe8d6', '#e76f51', 0, 0.02, 0.025); break;
     case 'burger': g.save(); g.translate(hx, hy - 0.1); g.scale(0.17, 0.17); storeIcon('burger', 0, 0, 1); g.restore(); break;
+    case 'hotdog': g.save(); g.translate(hx, hy - 0.08); g.scale(0.19, 0.19); storeIcon('hotdog', 0, 0, 1); g.restore(); break;
+    case 'pizza': g.save(); g.translate(hx, hy - 0.12); g.rotate(-0.3); g.scale(0.18, 0.18); storeIcon('pizza', 0, 0, 1); g.restore(); break;
+    case 'photos': rr(hx - 0.05, hy - 0.26, 0.1, 0.3, 0.01); fs('#fff', 0.015); for (let k = 0; k < 3; k++){ rr(hx - 0.04, hy - 0.25 + k * 0.095, 0.08, 0.08, 0.01); fs(['#ffd6e0', '#cdeefe', '#fff3c4'][k], 0.008); } break;
     case 'boombox':
       rr(hx - 0.16, hy - 0.16, 0.32, 0.2, 0.04); fs('#2b2d42', 0.025); circ(hx - 0.08, hy - 0.06, 0.055); fs('#a0a8b0', 0.015); circ(hx + 0.08, hy - 0.06, 0.055); fs('#a0a8b0', 0.015);
       g.beginPath(); g.arc(hx, hy - 0.16, 0.1, Math.PI, 0); g.strokeStyle = OUT; g.lineWidth = 0.02; g.stroke(); break;
@@ -651,8 +690,12 @@ export const WALLPAPER = {
   garden:  { face: '#dcefd4', dark: '#a8cf9d', cap: '#f8fcf1', base: '#b98d5f' },
   deco:    { face: '#2f6168', dark: '#244b51', cap: '#f2d68a', base: '#e2bb5e' },
   luxe:    { face: '#f6f3ef', dark: '#d8d1c9', cap: '#ffffff', base: '#4d4752' },
+  candy:   { face: '#fff0f4', dark: '#f7b8cb', cap: '#ffffff', base: '#e8577e' },
+  starry:  { face: '#24305e', dark: '#1a2347', cap: '#f2d68a', base: '#3b4a8a' },
+  tropic:  { face: '#fff6e0', dark: '#9fd4a4', cap: '#ffffff', base: '#2f9e6a' },
+  gala:    { face: '#5b2a5e', dark: '#43204a', cap: '#f2d68a', base: '#c9a227' },
 };
-const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble' };
+const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo' };
 let style = { wall: 'classic', floor: 'classic' };
 export function setStyle(st){ if (st) style = st; }
 export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
@@ -674,16 +717,36 @@ function marbleVeins(R, x, y, w, h = w){
 
 /* ---------- Mall structure ---------- */
 export const WALL_H = 1.25;
-export function mallBackWall(w, id = style.wall){
+export function mallBackWall(w, id = style.wall, x0 = 0, windows = false){
   const P = wallpaper(id), top = -WALL_H;
+  g.save(); g.translate(x0, 0);
   g.save(); g.beginPath(); g.rect(0, top, w, WALL_H); g.clip();
   g.fillStyle = P.face; g.fillRect(0, top, w, WALL_H);
   wallPattern(id, P, w, top);
+  if (windows) upperWindows(w, P, top);
   g.restore();
   g.fillStyle = P.base; g.fillRect(0, -0.22, w, 0.22);
   g.fillStyle = 'rgba(45,30,40,.15)'; g.fillRect(0, -0.06, w, 0.06);
   g.beginPath(); g.rect(0, top, w, WALL_H); fs(null);
   rr(-0.15, top - 0.22, w + 0.3, 0.22, 0.04); fs(P.cap);
+  g.restore();
+}
+// Upstairs, tall arched windows let the daylight in.
+function upperWindows(w, P, top){
+  for (let x = 1.6; x + 1.5 < w; x += 4){
+    const x0 = x, ww = 1.5, y0 = top + 0.16, y1 = -0.32, r = ww / 2;
+    const path = () => { g.beginPath(); g.moveTo(x0, y1); g.lineTo(x0, y0 + r); g.arc(x0 + r, y0 + r, r, Math.PI, 0); g.lineTo(x0 + ww, y1); g.closePath(); };
+    path();
+    const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#7cc4ea'); gr.addColorStop(1, '#d6f1fd');
+    g.fillStyle = gr; g.fill();
+    g.save(); path(); g.clip();
+    g.fillStyle = 'rgba(255,255,255,.9)'; for (const [cx, cy, cr] of [[0.45, 0.62, 0.17], [0.7, 0.55, 0.22], [0.98, 0.64, 0.15]]){ circ(x0 + cx, y0 + cy, cr); g.fill(); }
+    g.restore();
+    path(); g.strokeStyle = P.cap; g.lineWidth = 0.09; g.stroke();
+    g.beginPath(); g.moveTo(x0 + r, y0 + 0.02); g.lineTo(x0 + r, y1); g.moveTo(x0, y0 + r + 0.15); g.lineTo(x0 + ww, y0 + r + 0.15); g.strokeStyle = P.cap; g.lineWidth = 0.05; g.stroke();
+    path(); g.strokeStyle = OUT; g.lineWidth = 0.035; g.stroke();
+    g.fillStyle = P.cap; rr(x0 - 0.1, y1 - 0.02, ww + 0.2, 0.1, 0.03); fs(P.cap, 0.03);
+  }
 }
 // The pattern on the wall above the baseboard (from top down to y = -0.22).
 function wallPattern(id, P, w, top){
@@ -738,6 +801,42 @@ function wallPattern(id, P, w, top){
       g.fillStyle = 'rgba(80,70,70,.07)'; g.fillRect(i, top, 0.025, WALL_H);
     }
     g.fillStyle = '#d4b06a'; g.fillRect(0, -0.52, w, 0.035);
+  } else if (id === 'candy'){
+    // Pink stripes, a scalloped frosting band, and wrapped sweets dotted along it.
+    g.fillStyle = '#ffd6e2'; for (let x = 0; x < w; x += 0.5) g.fillRect(x, top, 0.25, WALL_H);
+    g.fillStyle = '#fffaf3'; g.fillRect(0, -0.62, w, 0.18);
+    for (let x = 0; x < w; x += 0.25){ g.beginPath(); g.arc(x + 0.125, -0.44, 0.125, 0, Math.PI); g.fill(); }
+    for (let i = 0; i < w; i++){
+      const cx = i + 0.5, cy = top + 0.35, c = ['#5cc8bf', '#ffd23f', '#9b7bff', '#ff8fab'][i % 4];
+      ell(cx, cy, 0.1, 0.07); fs(c, 0.025);
+      for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(cx + sx * 0.09, cy); g.lineTo(cx + sx * 0.18, cy - 0.06); g.lineTo(cx + sx * 0.18, cy + 0.06); g.closePath(); fs(c, 0.02); }
+    }
+  } else if (id === 'starry'){
+    // Twinkling gold stars and a crescent moon on midnight blue.
+    const R = mulberry(31);
+    for (let k = 0; k < w * 5; k++){ const sx = R() * w, sy = top + 0.08 + R() * (WALL_H - 0.4), r = 0.015 + R() * 0.025; circ(sx, sy, r); g.fillStyle = R() < 0.3 ? '#f2d68a' : 'rgba(255,255,255,.75)'; g.fill(); }
+    for (let i = 1.5; i < w; i += 3){
+      const sx = i + (Math.floor(i) % 2) * 0.4, sy = top + 0.4;
+      g.beginPath(); for (let k = 0; k < 10; k++){ const a = -Math.PI / 2 + k * Math.PI / 5, rr2 = k % 2 ? 0.05 : 0.12; g.lineTo(sx + Math.cos(a) * rr2, sy + Math.sin(a) * rr2); } g.closePath(); g.fillStyle = '#f2d68a'; g.fill();
+    }
+    for (let i = 4; i < w; i += 9){ circ(i, top + 0.42, 0.2); g.fillStyle = '#fff3c4'; g.fill(); circ(i + 0.09, top + 0.37, 0.18); g.fillStyle = P.face; g.fill(); }
+  } else if (id === 'tropic'){
+    // Big banana leaves fanning up from the baseboard.
+    for (let i = 0; i < w; i += 1.25){
+      for (const [a, len, c] of [[-0.9, 0.8, '#5bbf6a'], [-0.35, 0.95, '#4fa85e'], [0.3, 0.9, '#66c776'], [0.85, 0.75, '#4fa85e']]){
+        const bx = i + 0.6, by = -0.22, tx = bx + Math.sin(a) * len, ty = by - Math.cos(a) * len;
+        g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo((bx + tx) / 2 + Math.cos(a) * 0.2, (by + ty) / 2 + Math.sin(a) * 0.2, tx, ty); g.quadraticCurveTo((bx + tx) / 2 - Math.cos(a) * 0.2, (by + ty) / 2 - Math.sin(a) * 0.2, bx, by); g.fillStyle = c; g.fill();
+        g.beginPath(); g.moveTo(bx, by); g.lineTo(tx, ty); g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 0.02; g.stroke();
+      }
+    }
+    g.fillStyle = 'rgba(255,190,90,.6)'; for (let i = 0.3; i < w; i += 2.5){ circ(i, top + 0.25, 0.07); g.fill(); }
+  } else if (id === 'gala'){
+    // Velvet panels with gold frames, and a gold rail.
+    for (let i = 0; i < w; i += 1.5){
+      rr(i + 0.15, top + 0.16, 1.2, WALL_H - 0.5, 0.06); g.fillStyle = P.dark; g.fill(); g.strokeStyle = '#d4b06a'; g.lineWidth = 0.04; g.stroke();
+      circ(i + 0.75, top + 0.5, 0.06); g.fillStyle = '#d4b06a'; g.fill();
+    }
+    g.fillStyle = '#d4b06a'; g.fillRect(0, top + 0.06, w, 0.04);
   } else {
     g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
   }
@@ -758,6 +857,102 @@ export function entranceDoors(x, y, w, open){
   for (const [gx, gw] of [[x + 0.06 - gap, w / 2 - 0.06], [x + w / 2 + gap, w / 2 - 0.06]]){
     rr(gx, y - 0.48, gw, 0.5, 0.03); fs('rgba(185,228,245,.6)', 0.04);
   }
+}
+// Below the second floor's front railing: open sky and the town's rooftops.
+export function skyView(x, y, w, h){
+  const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#a9dcf5'); gr.addColorStop(1, '#f6dbe6');
+  g.fillStyle = gr; g.fillRect(x, y, w, h);
+  const R = mulberry(77);
+  g.fillStyle = 'rgba(255,255,255,.8)';
+  for (let cx = x + 1 + R() * 3; cx < x + w; cx += 5 + R() * 4){ const cy = y + 0.45 + R() * 0.3; circ(cx, cy, 0.22); g.fill(); circ(cx + 0.28, cy - 0.08, 0.28); g.fill(); circ(cx + 0.6, cy, 0.2); g.fill(); }
+  // Rooftops along the bottom, in a soft lavender haze.
+  for (let rx = x; rx < x + w; ){
+    const bw = 0.8 + R() * 1.6, bh = 0.35 + R() * 0.7;
+    g.fillStyle = R() < 0.5 ? '#c9b8dc' : '#bba9d1'; g.fillRect(rx, y + h - bh, bw + 0.02, bh);
+    g.fillStyle = 'rgba(255,240,200,.75)';
+    for (let wx = rx + 0.15; wx < rx + bw - 0.15; wx += 0.3) for (let wy = y + h - bh + 0.12; wy < y + h - 0.1; wy += 0.28) if (R() < 0.35) g.fillRect(wx, wy, 0.1, 0.1);
+    rx += bw;
+  }
+}
+// Upstairs there's no front door: a low wall topped with a glass railing, looking out.
+export function upperFrontWall(x0, x1, y){
+  const P = wallpaper();
+  rr(x0, y - 0.62, x1 - x0, 0.44, 0.04); fs('rgba(185,228,245,.45)', 0.035);
+  g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 0.03; g.beginPath();
+  for (let x = Math.ceil(x0); x < x1 - 0.5; x += 2){ g.moveTo(x + 0.2, y - 0.26); g.lineTo(x + 0.4, y - 0.56); }
+  g.stroke();
+  box(x0, y - 0.1, x1 - x0, 0.2, 0.3, P.cap, P.dark, 0, 0.04);
+  rr(x0, y - 0.7, x1 - x0, 0.1, 0.05); fs('#c9a46b', 0.035);
+}
+// The escalators. Ground floor: two belts rising toward the east wall, up into a bulkhead with the 2F sign.
+// Second floor: an open stairwell with railings round it and the belts sinking out of sight.
+// Layers: 'back' (floor plate, belts, back rail) under the riders, 'mid' (the rail between the belts), 'front'.
+const ESC_H = 1.15;
+export function escalator(e, t, layer){
+  const P = wallpaper(), up = e.floor === 0, near = e.dir > 0 ? e.x + 0.08 : e.x + e.w - 0.08, far = e.dir > 0 ? e.x + e.w - 0.05 : e.x + 0.05;
+  const lanes = [[e.y + 0.14, e.y + 0.96], [e.y + 1.04, e.y + 1.86]];
+  const lift = u => up ? -ESC_H * u : 0;   // how far up the screen a point u of the way along the belt is drawn
+  if (layer === 'back'){
+    if (up){
+      // Comb plates at the landing end, then the belts.
+      rr(Math.min(near, near - e.dir * 0.4), e.y + 0.08, 0.4, e.h - 0.16, 0.05); fs('#c9c4cf', 0.035);
+      lanes.forEach(([a, b], i) => {
+        g.beginPath(); g.moveTo(near, a); g.lineTo(far, a + lift(1)); g.lineTo(far, b + lift(1)); g.lineTo(near, b); g.closePath(); fs('#5f5a6b', 0.04);
+        // Steps sliding along: up the first belt, down the second.
+        g.strokeStyle = 'rgba(220,214,230,.55)'; g.lineWidth = 0.03; g.beginPath();
+        for (let k = 0; k < 9; k++){ const u = ((k / 9 + (i ? -1 : 1) * t * 0.35) % 1 + 1) % 1, x = near + (far - near) * u; g.moveTo(x, a + lift(u) + 0.04); g.lineTo(x, b + lift(u) - 0.04); }
+        g.stroke();
+        g.fillStyle = i ? '#ffd23f' : '#5cc8bf'; g.fillRect(near - e.dir * 0.06 - 0.03, a + 0.06, 0.06, b - a - 0.12);
+      });
+      railing(near, far, e.y + 0.1, true);
+    } else {
+      // The stairwell: a dark opening, belts dropping away into it.
+      g.save(); rr(e.x, e.y, e.w, e.h, 0.08); g.clip();
+      const gr = g.createLinearGradient(near, 0, far, 0); gr.addColorStop(0, '#8d869c'); gr.addColorStop(1, '#2d2236');
+      g.fillStyle = gr; g.fillRect(e.x, e.y, e.w, e.h);
+      lanes.forEach(([a, b], i) => {
+        g.beginPath(); g.moveTo(near, a); g.lineTo(far, a + 0.9); g.lineTo(far, b + 0.9); g.lineTo(near, b); g.closePath();
+        const bg = g.createLinearGradient(near, 0, far, 0); bg.addColorStop(0, '#6b6578'); bg.addColorStop(1, '#2d2236'); g.fillStyle = bg; g.fill();
+        g.strokeStyle = 'rgba(220,214,230,.35)'; g.lineWidth = 0.03; g.beginPath();
+        for (let k = 0; k < 9; k++){ const u = ((k / 9 + (i ? -1 : 1) * t * 0.35) % 1 + 1) % 1, x = near + (far - near) * u; g.moveTo(x, a + 0.9 * u + 0.04); g.lineTo(x, b + 0.9 * u - 0.04); }
+        g.stroke();
+      });
+      g.restore();
+      rr(e.x, e.y, e.w, e.h, 0.08); fs(null, 0.05);
+      rr(e.dir < 0 ? e.x + e.w - 0.32 : e.x, e.y + 0.06, 0.32, e.h - 0.12, 0.05); fs('#c9c4cf', 0.035);
+      railing(e.x + 0.05, e.x + e.w - 0.05, e.y + 0.08, false);
+    }
+    return;
+  }
+  if (layer === 'mid'){ railing(near, far, e.y + 1.0, up); return; }
+  // Front: the near-side rail, then (ground floor) the truss under the belts and the bulkhead they ride up into.
+  railing(near, far, e.y + e.h - 0.06, up);
+  if (up){
+    const y = e.y + e.h - 0.06;
+    g.beginPath(); g.moveTo(near + e.dir * 0.3, y); g.lineTo(far, y + lift(1) + 0.08); g.lineTo(far, y); g.closePath(); fs(P.dark, 0.04);
+    // The bulkhead the belts disappear into, with the 2F sign hanging off its front.
+    const bx = e.dir > 0 ? far - 0.42 : far + 0.07;
+    box(bx, e.y - 0.05, 0.35, e.h + 0.1, ESC_H + 0.95, P.cap, P.face, 0, 0.05);
+    g.fillStyle = 'rgba(45,30,40,.25)'; g.fillRect(bx + 0.04, e.y + e.h + 0.05 - ESC_H - 0.95 + 0.1, 0.27, ESC_H + 0.75);
+    const sx = bx + 0.18 - e.dir * 0.75, sy = e.y + e.h - ESC_H - 1.3;
+    rr(sx - 0.5, sy - 0.22, 1.0, 0.44, 0.1); fs('#3d2b56', 0.04);
+    text('▲ 2F', sx, sy + 0.01, 0.26, '#ffd23f', 700);
+  } else {
+    // A little sign on a post by the landing.
+    const px = e.dir < 0 ? e.x + e.w + 0.15 : e.x - 0.15, py = e.y + 0.2;
+    rr(px - 0.03, py - 1.0, 0.06, 1.0, 0.02); fs('#8d869c', 0.03);
+    rr(px - 0.42, py - 1.36, 0.84, 0.4, 0.1); fs('#3d2b56', 0.04);
+    text('▼ 1F', px, py - 1.16, 0.22, '#ffd23f', 700);
+  }
+}
+// A glass balustrade with a black handrail, sloping up with the belt (or flat round the stairwell).
+function railing(x0, x1, y, sloped){
+  const rise = sloped ? -ESC_H : 0, hh = 0.42;
+  const a = Math.min(x0, x1), b = Math.max(x0, x1), ra = sloped ? (x0 < x1 ? 0 : rise) : 0, rb = sloped ? (x0 < x1 ? rise : 0) : 0;
+  g.beginPath(); g.moveTo(a, y + ra); g.lineTo(b, y + rb); g.lineTo(b, y + rb - hh); g.lineTo(a, y + ra - hh); g.closePath();
+  g.fillStyle = 'rgba(185,228,245,.42)'; g.fill(); g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.025; g.stroke();
+  g.beginPath(); g.moveTo(a, y + ra - hh); g.lineTo(b, y + rb - hh); g.strokeStyle = '#2b2230'; g.lineWidth = 0.07; g.lineCap = 'round'; g.stroke();
+  g.beginPath(); g.moveTo(a, y + ra); g.lineTo(b, y + rb); g.strokeStyle = '#c9c4cf'; g.lineWidth = 0.05; g.stroke();
 }
 export function mallSign(x, y, name){
   rr(x - 2.2, y - 0.42, 4.4, 0.62, 0.18); fs('#fff8fa', 0.05);
@@ -824,7 +1019,7 @@ export function storeSpots(u){
   if (H >= 3) queue.push(at(W - 0.55, 2.55));
   const browse = [];
   // At the burger place the left side is tables, so folks look at the menu from the middle instead.
-  const lx0 = u.store === 'burger' ? 1.4 : 0.4;
+  const lx0 = u.store === 'burger' || u.store === 'pizza' ? 1.4 : 0.4;
   for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45) browse.push(at(lx, ly));
   if (!browse.length) browse.push(at(0.45, H - 0.4));
   const dx = doorX(u) + 0.5;
@@ -951,6 +1146,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
       break;
     case 'shoe':
       g.fillStyle = '#fbe9dc'; g.fillRect(x0, y0, w, H); g.fillStyle = '#f4d5bf'; for (let r = 0; r * 0.2 < H; r += 2) g.fillRect(x0, y0 + r * 0.2, w, 0.2); break;
+    case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
       for (let i = 0; i * 0.2 < w; i++) for (let j = 0; j * 0.2 < H; j++) if ((i + j) % 2){ g.fillStyle = '#ffd9a0'; g.fillRect(x0 + i * 0.2, y0 + j * 0.2, 0.2, 0.2); }
@@ -1011,6 +1207,7 @@ function wallPieceArt(ic, wx, wy, t){
     case 'shoe':    // slanted shelves of sneakers
       for (let r = 0; r < 2; r++){ rr(wx + 0.1, wy - 0.1 + r * 0.2, 0.7, 0.04, 0.01); fs('#c9a27e', 0.015); for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.22 + i * 0.22, wy - 0.15 + r * 0.2); g.scale(0.14, 0.14); storeIcon('shoe', 0, 0, 1, JAR[(i + r * 2) % JAR.length]); g.restore(); } }
       break;
+    case 'pizza': A2.pizzaMenu(wx, wy); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
       for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.2 + i * 0.25, wy - 0.1); g.scale(0.12, 0.12); storeIcon(['burger', 'cup', 'burger'][i], 0, 0, 1); g.restore(); text(['$5', '$2', '$7'][i], wx + 0.2 + i * 0.25, wy + 0.07, 0.08, '#fcbf49', 700); }
@@ -1108,6 +1305,9 @@ function counter(u, def){
     // Tester bottles on a little mirrored tray.
     rr(cx + 0.06, top + 0.12, 0.4, 0.08, 0.03); fs('#e9f6fb', 0.02);
     ['#e0b0ff', '#ff8fc8', '#ffd23f'].forEach((c2, i) => { rr(cx + 0.1 + i * 0.12, top - 0.02, 0.08, 0.14, 0.03); fs(c2, 0.015); rr(cx + 0.12 + i * 0.12, top - 0.06, 0.04, 0.05, 0.01); fs('#c9a227', 0.012); });
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (ic === 'pizza'){
+    A2.pizzaCounter(cx, top);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (ic === 'burger'){
     // A tray with a burger, fries and a drink waiting for pickup.
@@ -1243,6 +1443,8 @@ export function storeFurniture(u, def, t, layer){
       box(x, y, sw, 0.36, 0.85, '#f2d5bf', '#d9a98a');
       const top = y + 0.36 - 0.85;
       for (let r = 0; r < 3; r++){ g.fillStyle = '#b07a5a'; g.fillRect(x + 0.05, top + 0.26 + r * 0.22, sw - 0.1, 0.03); for (let i = 0; i < Math.floor(sw / 0.24); i++){ g.save(); g.translate(x + 0.17 + i * 0.24, top + 0.18 + r * 0.22); g.scale(0.13, 0.13); storeIcon('shoe', 0, 0, 1, JAR[(i + r * 3 + u.id) % JAR.length]); g.restore(); } }
+    } else if (ic === 'pizza'){
+      A2.pizzaOven(x, y, sw, t);
     } else if (ic === 'burger'){
       // The kitchen: a grill under a steel hood, a fryer, and a drink machine.
       box(x, y, sw, 0.4, 0.48, '#c9d1d9', '#a9b0ba');
@@ -1536,7 +1738,8 @@ export function kiosk(k, def, t){
   rr(x + 0.06, y - 0.03, 1.28, 0.12, 0.04); fs(def.trim, 0.03);
   storeIcon(def.icon, x + 0.7, y - 0.16, 0.28);
   for (const wx of [x + 0.22, x + 1.18]){ circ(wx, y + 0.45, 0.09); fs('#5a4a5a', 0.04); circ(wx, y + 0.45, 0.03); fs('#ccc', 0); }
-  if (def.icon === 'cone'){
+  if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
+  else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.
     rr(x + 0.12, y - 0.55, 1.16, 0.22, 0.05); fs('rgba(220,245,255,.85)', 0.03);
     ['#ff8fc8', '#7ed6c8', '#fff3d6', '#8a5a44'].forEach((c, i) => { ell(x + 0.3 + i * 0.27, y - 0.42, 0.11, 0.06); fs(c, 0.025); });
@@ -1601,6 +1804,13 @@ export function trashCan(x, y, full = 0){
 const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs: '#4a4f6a', backH: 0.72, seatH: 0.32, slats: true, metalArms: '#4a4f6a' };
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
+// A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
+const THUMB = { lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5] };
+export function decorThumb(type, w){
+  const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
+  g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
+  decor({ type, x: 0, y: 0, rot: 0, id: 1 }, 0);
+}
 export const decorState = new WeakMap();
 export function decor(d, t = 0){
   const r = d.rot || 0, x = d.x, y = d.y, live = decorState.get(d);
@@ -1617,6 +1827,13 @@ export function decor(d, t = 0){
     case 'gumball': gumball(x + 0.5, y + 0.8); break;
     case 'directory': directory(x, y, r); break;
     case 'tree': shadeTree(x + 0.5, y + 0.85); break;
+    case 'playarea': A2.playArea(d, t); break;
+    case 'topiary': A2.topiary(x + 0.5, y + 0.85); break;
+    case 'photobooth': A2.photobooth(x, y, r, t, live); break;
+    case 'aquarium': A2.aquarium(x, y, t); break;
+    case 'massage': A2.massageChair(x, y, r, live); break;
+    case 'piano': A2.piano(x, y, t); break;
+    case 'arch': A2.flowerArch(x, y); break;
   }
 }
 function seatPiece(x, y, r, st){

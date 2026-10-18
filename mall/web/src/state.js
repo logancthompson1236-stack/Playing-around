@@ -1,5 +1,5 @@
 // The save file and per-device settings. The save is plain JSON so it can later be shared for mall visits.
-import { START_CASH, START_UNITS, START_KIOSKS, STORES, DECOR, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, LAYOUT, EXPANSIONS, RESTROOM } from './config.js';
+import { START_CASH, START_UNITS, START_KIOSKS, STORES, DECOR, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, LAYOUT, EXPANSIONS, RESTROOM, F2X, MAP_W } from './config.js';
 
 const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
@@ -49,6 +49,16 @@ function upgradeSave(s){
   s.expansions = s.expansions || {};
   s.style = s.style || newStyle();
   if ((s.layout || 1) >= LAYOUT) return s;
+  // Layout 3: the East Wing and Garden Court became the second floor. Everything out there keeps its spot, just
+  // further along the grid (the escalator gets room made for it once the map is built: see clearEscalators).
+  if (s.layout === 2){
+    const shift = F2X - MAP_W;
+    for (const u of s.units) if (u.x >= MAP_W) u.x += shift;
+    for (const d of s.decor) if (d.x >= MAP_W) d.x += shift;
+    s.layout = LAYOUT;
+    if (s.expansions.east) s.flags.upstairs = true;
+    return s;
+  }
   const old = s.units, units = [];
   for (const u of START_UNITS) units.push({ id: s.nextId++, x: u.x, y: u.y, w: u.w, h: u.h, face: u.face, state: u.restroom ? 'restroom' : 'derelict', store: null, stock: 0 });
   for (const e of EXPANSIONS) if (s.expansions[e.id]){

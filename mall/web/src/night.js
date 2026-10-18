@@ -2,7 +2,7 @@
 import * as C from './config.js';
 import * as A from './art.js';
 import { S, writeSave, addXp, stores, staffSkill, wageOf, stars } from './state.js';
-import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, unitAccess, decorSize, decorAccess } from './map.js';
+import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, ESCALATOR_ID, unitAccess, decorSize, decorAccess, floorRange, floorOf, clearEscalators } from './map.js';
 import { sim, staffLook } from './sim.js';
 import { view, invalidate, poof, worldToScreen } from './render.js';
 import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portrait, showPlacementBar, hidePlacementBar, confirmBox, setToolDot } from './ui.js';
@@ -38,6 +38,7 @@ export function nightTap(wx, wy){
   // Tall things are drawn above their footprint, so also look one row down.
   const id = occAt(tx, ty) || occAt(tx, Math.floor(wy + 0.7));
   if (id === FOUNTAIN_ID) return fountainCard();
+  if (id === ESCALATOR_ID){ hideCard(); view.selected = null; return showCard({ title: 'Escalator', text: view.floor ? 'Down to the ground floor. Shoppers, staff and you ride it whenever where they’re going is downstairs.' : 'Up to the second floor. Shoppers, staff and you ride it whenever where they’re going is upstairs. Tap 2F on the left to look up there.' }); }
   if (id){
     const u = S.save.units.find(v => v.id === id);
     if (u) return unitCard(u);
@@ -146,8 +147,7 @@ function rotateInPlace(d){
 }
 // Decor drawn small for the Build list, scaled to fit the icon.
 function decorIcon(key){
-  const def = C.DECOR[key], tall = key === 'lamp' || key === 'tree', k = 1 / Math.max(def.w, tall ? 2.7 : 1.45);
-  return iconCanvas(() => { A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-def.w / 2, tall ? 0.38 : key === 'ride' ? -0.3 : -0.15); A.decor({ type: key, x: 0, y: 0, rot: 0 }, 0); });
+  return iconCanvas(() => A.decorThumb(key, C.DECOR[key].w));
 }
 function fountainCard(){
   const f = C.FOUNTAIN;
@@ -288,10 +288,11 @@ async function buyExpansion(e){
   for (const l of e.lots) s.units.push({ id: s.nextId++, x: l.x, y: l.y, w: l.w, h: l.h, face: l.face, state: 'vacant', store: null, stock: 0 });
   if (e.restroom) s.units.push({ id: s.nextId++, x: e.restroom.x, y: e.restroom.y, w: C.RESTROOM.w, h: C.RESTROOM.h, face: e.restroom.face, state: 'restroom', store: null, stock: 0 });
   for (const d of e.decor) s.decor.push({ id: s.nextId++, ...d });
+  rebuildMap(s); clearEscalators(s);
   sfx('build'); poof(e.x, 0, e.w, C.MAP_H);
   changed(e.xp);
   view.camTarget = { x: e.x + e.w / 2 - 2, y: 7.5, s: view.minS * 1.4 };
-  toast(`The ${e.name} is open! New storefronts are waiting.`, 3500);
+  toast(e.id === 'east' ? 'The Second Floor is open! Shoppers ride the escalator up. Tap 1F/2F to switch floors.' : `The ${e.name} is open! New storefronts are waiting.`, 4000);
 }
 
 /* ---------- Picking a storefront for a store ---------- */
@@ -316,6 +317,9 @@ function startPick(key){
 }
 // Zoom out just enough to see every spot.
 function frameSpots(spots){
+  // Spots on both floors: show this floor's if it has any (the other floor is a tap on 1F/2F away).
+  const here = spots.filter(({ u }) => floorOf(u.x) === view.floor);
+  if (here.length) spots = here;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const { u } of spots){ x0 = Math.min(x0, u.x); y0 = Math.min(y0, u.y - 1); x1 = Math.max(x1, u.x + u.w); y1 = Math.max(y1, u.y + u.h); }
   const fit = Math.min(view.W / (x1 - x0 + 2), (view.H - 150) / (y1 - y0 + 2));
@@ -399,7 +403,7 @@ function accessFor(x, y, face){
   if (place.kind === 'unit'){ const dx = x + Math.floor(place.w / 2); return face === 'down' ? { x: dx, y: y + place.h } : { x: dx, y: y - 1 }; }
   if (place.kind === 'kiosk') return { x: x + 1, y: y + 1 };
   const def = place.decor && C.DECOR[place.decor];
-  if (def && (def.seat || def.coin)) return decorAccess({ type: place.decor, x, y, rot: face || 0 });
+  if (def && (def.seat || def.coin || def.play)) return decorAccess({ type: place.decor, x, y, rot: face || 0 });
   return null;
 }
 const placeCost = v => (place.moveId ? 0 : place.cost) + v.zones.reduce((a, z) => a + z.cost, 0);
@@ -426,7 +430,8 @@ export function moveGhostTo(x, y, force = false){
   if (!place) return;
   const nx = Math.round(x - 0.5), ny = Math.round(y - 0.5);
   if (nx === place.x && ny === place.y && !force) return;
-  place.x = Math.max(0, Math.min(map.w - place.w, nx)); place.y = Math.max(0, Math.min(C.MAP_H - place.h, ny));
+  const fr = floorRange(view.floor);
+  place.x = Math.max(fr.x0, Math.min(fr.x1 - place.w, nx)); place.y = Math.max(0, Math.min(C.MAP_H - place.h, ny));
   refreshGhost();
 }
 export function grabGhost(wx, wy){

@@ -77,11 +77,23 @@ export function buildHud(on){
     h('div', { class: 'spacer' }),
     hud.open = h('button', { class: 'btn go open-doors', onclick: () => { sfx('tap'); on.open(); } }, 'Open Doors'),
   );
-  root.append(hud.top, hud.dayCtl, hud.night);
+  // Switch between the ground floor and the second floor (once it's open). A dot means something upstairs (or
+  // downstairs) needs you.
+  hud.floor = h('button', { class: 'floor-btn', 'aria-label': 'Switch floor', onclick: () => { sfx('tap'); on.floor(); } }, hud.floorLabel = h('b'), hud.floorDot = h('i', { class: 'dot', hidden: true }));
+  root.append(hud.top, hud.dayCtl, hud.night, hud.floor);
   setHudMode('none');
+}
+export function updateFloorBtn(show, floor, alert){
+  hud.floor.hidden = !show || hud.top.hidden;
+  if (!show) return;
+  const txt = floor ? '1F ▼' : '2F ▲';
+  if (hud.floorLabel.textContent !== txt) hud.floorLabel.textContent = txt;
+  hud.floor.setAttribute('aria-label', floor ? 'Go down to the ground floor' : 'Go up to the second floor');
+  hud.floorDot.hidden = !alert;
 }
 export function setHudMode(mode){
   hud.top.hidden = mode === 'none';
+  if (mode === 'none') hud.floor.hidden = true;
   hud.dayCtl.hidden = mode !== 'day';
   hud.night.hidden = mode !== 'night';
 }
@@ -462,9 +474,9 @@ export function unlockList(levels){
   const rows = [];
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
-    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = d.attraction ? `New ${d.w}×${d.h} attraction. It needs a big plot, like the ones in the East Wing.` : `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
+    if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = d.attraction ? `New ${d.w}×${d.h} attraction. It needs a big plot, like the ones on the second floor.` : `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
-    else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => { const k = 1 / Math.max(d.w, u.decor === 'lamp' || u.decor === 'tree' ? 2.7 : 1.45); A.g.translate(0.5, 0.5); A.g.scale(k, k); A.g.translate(-d.w / 2, u.decor === 'lamp' || u.decor === 'tree' ? 0.38 : u.decor === 'ride' ? -0.3 : -0.15); A.decor({ type: u.decor, x: 0, y: 0, rot: 0 }, 0); }; title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
+    else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => A.decorThumb(u.decor, d.w); title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){
       const r = C.ROLES[u.hire], n = C.STAFF_LIMITS[u.hire][lv];
       paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), stocker: () => A.storeIcon('box', 0.5, 0.55, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) }[u.hire];

@@ -1,9 +1,9 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
 import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores } from './state.js';
-import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map } from './map.js';
+import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, floorOf, hasUpstairs } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus } from './sim.js';
-import { initRender, resize, render, view, invalidate, clampCam, restroomBubble } from './render.js';
+import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
 import { initInput } from './input.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
@@ -36,6 +36,7 @@ UI.buildHud({
   notebook: () => openNotebook(),
   settings: () => settings(true),
   open: () => openDoors(),
+  floor: () => { view.camTarget = null; setFloor(view.floor ? 0 : 1); },
 });
 setLevelUpHandler(async levels => {
   await UI.showLevelUp(levels);
@@ -110,9 +111,20 @@ function remodelNote(s){
     UI.h('p', { style: 'margin:0 0 10px;line-height:1.45' }, `New floor plan: a wider concourse, storefronts side by side and bigger restrooms. Your stores moved to storefronts of the same size${bits.length ? ', and ' + bits.join('; ') : ''}.`),
     UI.h('div', { style: 'display:flex;justify-content:flex-end' }, UI.h('button', { class: 'btn primary', onclick: () => m.close() }, 'Let’s see it'))));
 }
+// v0.12: the East Wing (and Garden Court) moved upstairs.
+function upstairsNote(s, fixed){
+  if (!s.flags.upstairs) return;
+  delete s.flags.upstairs; writeSave();
+  const extra = fixed.moved ? ` A few things by the east end of the concourse moved over a little to make room for the escalator.` : '';
+  const m = UI.modal(UI.h('div', {}, UI.h('h2', {}, 'Your east wing went upstairs'),
+    UI.h('p', { style: 'margin:0 0 10px;line-height:1.45' }, `The East Wing${s.expansions.garden ? ' and Garden Court are' : ' is'} now the Second Floor${s.expansions.garden ? ' and its Sky Garden' : ''}, up an escalator at the east end of the concourse. Everything you built out there came along. Tap the 2F button on the left to look upstairs. Shoppers ride up on their own.${extra}${fixed.refund ? ` (${'$' + fixed.refund.toLocaleString()} refunded for what didn't fit.)` : ''}`),
+    UI.h('div', { style: 'display:flex;justify-content:flex-end' }, UI.h('button', { class: 'btn primary', onclick: () => m.close() }, 'Let’s see it'))));
+}
 function continueGame(){
-  rebuildMap(S.save); placeLeftovers(S.save); invalidate(); UI.resetMoneyDisplay();
-  remodelNote(S.save);
+  rebuildMap(S.save); placeLeftovers(S.save);
+  const fixed = clearEscalators(S.save); if (fixed.moved || fixed.refund) writeSave();
+  invalidate(); UI.resetMoneyDisplay();
+  remodelNote(S.save); upstairsNote(S.save, fixed);
   if (S.save.phase === 'night') enterNight(null); else beginDay();
 }
 
@@ -218,7 +230,7 @@ async function endDay(){
 async function enterNight(report, gusVisited = false){
   phase = 'night'; view.mode = 'night';
   sim.people = sim.people.filter(p => p.kind === 'owner'); sim.trash = []; sim.jobs = []; sim.fx = []; sim.phase = 'idle';
-  if (sim.owner){ sim.owner.atRegisterId = null; sim.owner.walking = false; sim.owner.x = C.ENTRANCE.x + 0.6; sim.owner.y = C.MAP_H - 3.5; }
+  if (sim.owner){ sim.owner.atRegisterId = null; sim.owner.walking = false; sim.owner.ride = null; sim.owner.rideZ = 0; sim.owner.x = C.ENTRANCE.x + 0.6; sim.owner.y = C.MAP_H - 3.5; }
   UI.setHudMode('night');
   setMusicMode('night');
   resetTipBudget();
@@ -269,14 +281,28 @@ function settings(inGame, onClose){
   UI.showSettings({ inGame, onClose, onChange: () => { writeSettings(); applySettings(); }, onRestart: () => { clearSave(); location.reload(); } });
 }
 
+// Something on the floor you're not looking at that wants attention: a shopper about to give up, a troublemaker,
+// staff on their phones or a filthy restroom.
+function otherFloorNeedsYou(){
+  const other = view.floor ? 0 : 1;
+  for (const p of sim.people){
+    if (floorOf(p.x) !== other) continue;
+    if (p.kind === 'customer' && p.state === 'queue' && p.patience / p.patienceMax < 0.35) return true;
+    if (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act')) return true;
+  }
+  return S.save.units.some(u => u.state === 'restroom' && floorOf(u.x) === other && (sim.rooms.get(u.id) || {}).dirt >= 70);
+}
+
 /* ---------- Frame loop ---------- */
 let last = performance.now(), hudT = 0;
+const perf = { step: 0, render: 0 };   // smoothed ms per frame, for playtests
 const t0 = performance.now();
 function frame(now){
   // A long gap between frames means the app was frozen in the background: come back paused.
   if (now - last > 1500 && phase === 'day' && !sim.paused) pauseMenu();
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const t = (now - t0) / 1000;
+  const p0 = performance.now();
   if (phase === 'day'){
     step(dt);
     pumpWaiters();
@@ -289,17 +315,23 @@ function frame(now){
     if (phase === 'night'){ stepGus(dt); updateTips(UI.panelOpen() || placing() || deeSceneRunning()); }
   }
   if (view.camTarget){
-    const c = view.cam, T = view.camTarget, k = Math.min(1, dt * 4), px = c.x, py = c.y, ps = c.s;
+    const c = view.cam, T = view.camTarget, k = Math.min(1, dt * 4);
+    // Heading for something on the other floor: switch floors and cut straight there.
+    if (floorOf(T.x) !== view.floor && (hasUpstairs() || floorOf(T.x) === 0)){ setFloor(floorOf(T.x)); c.x = T.x; }
+    const px = c.x, py = c.y, ps = c.s;
     c.x += (T.x - c.x) * k; c.y += (T.y - c.y) * k;
     if (T.s) c.s += (T.s - c.s) * k;
     clampCam();
     // Done once it has (nearly) stopped moving, including when the edge of the map holds it back.
     if (Math.abs(c.x - px) + Math.abs(c.y - py) + Math.abs(c.s - ps) / 40 < 0.003) view.camTarget = null;
   }
+  const p1 = performance.now();
   render(t);
-  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report') UI.updateHud(phase !== 'day'); }
+  const p2 = performance.now();
+  perf.step = perf.step * 0.95 + (p1 - p0) * 0.05; perf.render = perf.render * 0.95 + (p2 - p1) * 0.05;
+  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(hasUpstairs() && phase !== 'report', view.floor, phase === 'day' && otherFloorNeedsYou()); } }
   requestAnimationFrame(frame);
 }
 document.fonts && document.fonts.ready ? document.fonts.ready.then(() => { invalidate(); boot(); requestAnimationFrame(frame); }) : (boot(), requestAnimationFrame(frame));
 // Debug hooks for automated playtests.
-window.__mall = { S, sim, view, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };
+window.__mall = { S, sim, view, perf, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };

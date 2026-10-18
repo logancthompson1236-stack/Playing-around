@@ -75,14 +75,14 @@ export const MEMORIES = {
 export const EXPAND_SCENES = {
   east: [
     'Evening, boss. Had to come see it for myself. Full stores, music playing, kids running around.',
-    'You know, when I started here, the east wing was the busiest part of this whole mall. Rose sealed it off in ’09 to save on the heating bill.',
-    'With the kind of money you’re pulling in, you could open her back up. Twenty grand, give or take. Room to breathe, room for more shops.',
+    'You know there’s a whole second floor up there? Busiest part of the mall when I started. Rose shut the escalator off in ’09 to save on the heating bill.',
+    'With the kind of money you’re pulling in, you could open her back up. Twenty grand, give or take. Get that old escalator running and there’s room for big shops up top.',
     'Take a look under Build, then Fix up. Rose would’ve cried happy tears.',
   ],
   garden: [
-    'That east wing’s humming. Better than I ever saw it.',
-    'Rose had one dream she never got to. A garden court. Real trees, sunlight, somewhere to sit that doesn’t smell like pretzels.',
-    'There’s an empty lot past the east wing. Forty-five grand and it’s yours. Just saying.',
+    'That second floor’s humming. Better than I ever saw it.',
+    'Rose had one dream she never got to. A garden up there, under a glass roof. Real trees, sunlight, somewhere to sit that doesn’t smell like pretzels.',
+    'The far end of the second floor is still boarded up. Forty-five grand and it’s yours. Just saying.',
   ],
 };
 

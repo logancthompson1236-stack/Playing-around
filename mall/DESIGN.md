@@ -607,6 +607,19 @@ v0.11.0 changes, from playtest feedback:
 - **Side profiles:** people on side-facing benches, sofas and diner stools, and at side-facing soda machines, are drawn in profile, with one eye, a nose and their legs out to the side.
 - **Bigger take-home items:** pretzels (and the new items) are about twice as big, so you can see what everyone bought.
 
+v0.12.0 changes, from playtest feedback:
+- **A second floor instead of the East Wing:** the expansions are now upstairs. The Second Floor ($20,000, level 8) and the Sky Garden at its far end ($45,000, level 13, under a glass roof) have the same plots, storefronts and restrooms the East Wing and Garden Court had. An escalator at the east end of the ground floor's concourse links them: shoppers and staff ride up the belt and come up out of a stairwell upstairs (and back down). A 2F/1F button switches floors, with a red dot when the other floor has a shopper about to give up, a troublemaker or a filthy restroom. Gus's two expansion scenes now talk about the second floor.
+  - Under the hood both floors share one tile grid: the ground floor is columns 0–29, the second floor starts at column 40, and the empty columns between keep them from ever reaching each other. The landings are linked in pathfinding, so a walk to anywhere upstairs goes through the escalator.
+  - Older saves: everything built in the East Wing or Garden Court moves upstairs untouched. Anything that was where the escalator goes (or blocking its front) moves to the nearest free spot on the same floor; only what can't fit anywhere is refunded. A one-time note explains the move.
+- **Less lag:** the renderer only draws the floor on screen, only copies the visible part of the cached floor, and skips everything off screen (stores, decor, people, signs, lighting, bubbles). On a late-game save drawing went from about 24 ms to 4 ms a frame (headless, no GPU). The simulation itself costs under 1 ms, so both floors keep running at full detail.
+- **Levels 19–28:** XP per level grows from about 5,600 to 10,100 (level 28 at 120,900). Every level adds staff slots and something new:
+  - Top Dog hot dog stand (kiosk, level 19: a roller grill and condiments) and Slice Society pizzeria (3×3, level 22: brick oven, sit-down tables like the burger place).
+  - Decor: topiary bunny (19), photo booth (20, coin-op: they step in, the curtain closes, flashes, and they come out holding a photo strip), aquarium (21), massage chair (23, coin-op: they sit and buzz), grand piano (25, plays itself) and flower arch (27).
+  - Wallpapers Candy Stripe (19), Starry Night (21), Tropical Leaves (24), Golden Gala (27); floors Rainbow Mosaic (20), Starlight Carpet (23), Bamboo Deck (26), Gold Terrazzo (28). Prices run $6,500 to $14,000.
+- **Kids play area (level 15):** a 3×2 soft-play with a slide and a ball pit. Families passing one usually stop; the kid goes down the slide or dives into the balls while the grown-up waits out front. Up to three kids at once. Free, and a nice mood boost.
+- **Fewer late-game shoppers:** from level 12 to 18 the crowd shrinks by up to 15%, and stays that way. The balance bot reaches level 18 around day 45 and level 28 around day 80–85.
+- **Two greeters** from level 20 (one each side of the door), more guards, mascots and supervisors at the new levels.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

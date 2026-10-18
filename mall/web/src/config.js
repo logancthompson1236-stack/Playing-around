@@ -5,6 +5,7 @@ export const DAY_SECONDS = 150;        // real seconds for 9:00–21:00 at 1x sp
 export const VISITOR_SCALE = 0.756;    // 0.72 kept shoppers per minute like the old 4-minute days; v0.10 adds 5%
 export const VISITOR_TAPER = [4, 12, 0.2];   // from level 4 to 12, crowds grow 20% slower than the mall does
 export const WINDOW_SHOP = [8, 18, 0.25];    // from level 8 to 18, shoppers grow up to 25% pickier about buying
+export const LATE_CROWD = [12, 18, 0.15];    // v0.12: from level 12 to 18, 15% fewer shoppers (and it stays that way)
 export const LITTER_SCALE = 0.25;      // overall litter rate (each store and shopper type has its own weight)
 export const BIN_USE = 0.9;            // chance a shopper near a trash can uses it instead of the floor
 export const OPEN_HOUR = 9;
@@ -24,9 +25,13 @@ export const UTILITIES_PER_STORE = 5;
 
 // The old mall: 30×17 tiles inside, plus two rows of sidewalk and parking outside the front doors.
 // Layout v2: a four-row concourse, storefronts grouped side by side, and an open alcove by the restrooms.
-export const LAYOUT = 2;
-export const MAP_W = 30;              // the original building; expansions add wings to the east
-export const MAP_W_MAX = 58;          // room for the East Wing, the Garden Court, and more later
+// Layout v3 (v0.12): the expansions are a second floor, up the escalator. Both floors live on one tile grid:
+// the ground floor is columns 0–29, the second floor starts at column F2X, and the empty columns between keep
+// the two floors from ever touching (nothing reaches across a 10-tile gap).
+export const LAYOUT = 3;
+export const MAP_W = 30;              // the ground floor
+export const F2X = 40;                // where the second floor starts on the grid
+export const MAP_W_MAX = 68;          // F2X + the whole second floor (Second Floor 16 + Sky Garden 12)
 export const MAP_H = 17;
 export const OUTSIDE_H = 2;
 export const CONCOURSE = { y: 7, h: 4 };
@@ -74,21 +79,29 @@ export const RESTROOM_USE = 0.14;    // chance a shopper stops in on their way o
 export const RESTROOM_DIRT = 6;      // grime added per visit (out of 100)
 export const RESTROOM_MOP = 2.6;     // seconds to mop out (owner); janitors scale with stars
 
-// Big expansions: whole new wings east of the old building, with spaced-out storefronts and room to decorate.
+// Expansions: the second floor, up an escalator at the east end of the concourse. It opens in two parts.
+// Ids stay 'east' and 'garden' so older saves (where these were wings beside the ground floor) carry over.
 export const EXPANSIONS = [
-  { id: 'east', name: 'East Wing', cost: 20000, level: 8, x: 30, w: 16, xp: 300,
-    sub: 'Reopen the sealed east wing: 16 more columns of floor, two big plots for attractions, 4 storefronts and more restrooms',
-    lots: [{ x: 31, y: 3, w: 5, h: 4, face: 'down' }, { x: 37, y: 4, w: 3, h: 3, face: 'down' }, { x: 40, y: 4, w: 2, h: 3, face: 'down' },
-           { x: 31, y: 11, w: 5, h: 4, face: 'up' }, { x: 37, y: 11, w: 3, h: 3, face: 'up' }, { x: 40, y: 11, w: 2, h: 2, face: 'up' }],
-    restroom: { x: 42, y: 4, face: 'down' },
-    decor: [{ type: 'planter', x: 36, y: 13, rot: 1 }, { type: 'plant', x: 44, y: 12 }, { type: 'bench', x: 43, y: 14 }, { type: 'plant', x: 36, y: 5 }] },
-  { id: 'garden', name: 'Garden Court', cost: 45000, level: 13, x: 46, w: 12, xp: 500,
-    sub: 'A sunny garden court past the east wing: grass, shade trees, one more big plot, 3 storefronts and plenty of room',
-    lots: [{ x: 47, y: 4, w: 3, h: 3, face: 'down' }, { x: 51, y: 3, w: 5, h: 4, face: 'down' },
-           { x: 47, y: 11, w: 3, h: 3, face: 'up' }, { x: 51, y: 11, w: 2, h: 3, face: 'up' }],
-    garden: { x: 46, y: 7, w: 12, h: 4 },
-    decor: [{ type: 'tree', x: 47, y: 7 }, { type: 'tree', x: 50, y: 10 }, { type: 'tree', x: 54, y: 7 }, { type: 'tree', x: 56, y: 10 }, { type: 'sofa', x: 54, y: 14, rot: 0 }, { type: 'lamp', x: 46, y: 13 }] },
+  { id: 'east', name: 'Second Floor', cost: 20000, level: 8, x: 40, w: 16, xp: 300,
+    sub: 'Open up the sealed second floor, with an escalator from the concourse: two big plots for attractions, 4 storefronts and more restrooms',
+    lots: [{ x: 41, y: 3, w: 5, h: 4, face: 'down' }, { x: 47, y: 4, w: 3, h: 3, face: 'down' }, { x: 50, y: 4, w: 2, h: 3, face: 'down' },
+           { x: 41, y: 11, w: 5, h: 4, face: 'up' }, { x: 47, y: 11, w: 3, h: 3, face: 'up' }, { x: 50, y: 11, w: 2, h: 2, face: 'up' }],
+    restroom: { x: 52, y: 4, face: 'down' },
+    decor: [{ type: 'planter', x: 46, y: 13, rot: 1 }, { type: 'plant', x: 54, y: 12 }, { type: 'bench', x: 53, y: 14 }, { type: 'plant', x: 46, y: 5 }] },
+  { id: 'garden', name: 'Sky Garden', cost: 45000, level: 13, x: 56, w: 12, xp: 500,
+    sub: 'A sunny garden under a glass roof at the end of the second floor: grass, shade trees, one more big plot, 3 storefronts and plenty of room',
+    lots: [{ x: 57, y: 4, w: 3, h: 3, face: 'down' }, { x: 61, y: 3, w: 5, h: 4, face: 'down' },
+           { x: 57, y: 11, w: 3, h: 3, face: 'up' }, { x: 61, y: 11, w: 2, h: 3, face: 'up' }],
+    garden: { x: 56, y: 7, w: 12, h: 4 },
+    decor: [{ type: 'tree', x: 57, y: 7 }, { type: 'tree', x: 60, y: 10 }, { type: 'tree', x: 64, y: 7 }, { type: 'tree', x: 66, y: 10 }, { type: 'sofa', x: 64, y: 14, rot: 0 }, { type: 'lamp', x: 56, y: 13 }] },
 ];
+// The escalators, one at each end of the ride: at the east end of the ground floor's concourse and the west end of
+// the second floor's. land: the tile you step on and off from. The belts run away from the landing (dir: which way).
+export const ESCALATORS = [
+  { floor: 0, x: 27, y: 7, w: 3, h: 2, land: { x: 26, y: 8 }, dir: 1 },
+  { floor: 1, x: 40, y: 7, w: 3, h: 2, land: { x: 43, y: 8 }, dir: -1 },
+];
+export const ESCALATOR_RIDE = 1.5;    // seconds on each belt (up one, then off the other)
 export const EXPANSION_UTILITIES = 120;   // a bigger building costs more to light and heat, per wing
 
 export const RENOVATE_PER_TILE = 15;   // cost to clean out a boarded-up unit
@@ -116,6 +129,9 @@ export const STORES = {
   gaming:   { name: 'Level Up Games', w: 2, h: 3, cat: 'Tech',    level: 8,  cost: 1700, price: [35, 70], stock: 35, icon: 'controller', litter: 0.05, color: '#3a0ca3', trim: '#4cc9f0', floor: 'neon' },
   shoes:    { name: 'Sole Mates',     w: 2, h: 3, cat: 'Fashion', level: 9,  cost: 1600, price: [40, 85], stock: 35, icon: 'shoe',       litter: 0.04, color: '#e76f51', trim: '#ffe8d6', floor: 'wood' },
   burger:   { name: 'Big Bite Burgers', w: 3, h: 3, cat: 'Food',  level: 10, cost: 2200, price: [14, 24], stock: 70, icon: 'burger',     litter: 0.35, color: '#d62828', trim: '#fcbf49', floor: 'diner', dine: true },
+  // v0.12: a hot dog stand on the concourse and a sit-down pizzeria.
+  hotdog:   { name: 'Top Dog',        w: 2, h: 1, kiosk: true, cat: 'Food', level: 19, cost: 3200, price: [13, 21], stock: 70, icon: 'hotdog', litter: 0.32, color: '#ffbe0b', trim: '#d62828' },
+  pizza:    { name: 'Slice Society',  w: 3, h: 3, cat: 'Food',    level: 22, cost: 6500, price: [20, 34], stock: 70, icon: 'pizza',      litter: 0.3,  color: '#2a9d8f', trim: '#e63946', floor: 'pizzeria', dine: true },
 };
 // Prices went up 5% in v0.10 (the ranges above are the old ones).
 export const PRICE_SCALE = 1.05;
@@ -131,6 +147,10 @@ export const WALLPAPERS = {
   garden:  { name: 'Greenhouse',      level: 13, cost: 2600, ambience: 4, sub: 'Sage leaves over oak paneling' },
   deco:    { name: 'Art Deco',        level: 15, cost: 3600, ambience: 4, sub: 'Deep teal with golden fans' },
   luxe:    { name: 'Modern Luxe',     level: 17, cost: 5000, ambience: 5, sub: 'White marble with a thin gold line' },
+  candy:   { name: 'Candy Stripe',    level: 19, cost: 6500, ambience: 5, sub: 'Pink and cream stripes with little sweets dotted along' },
+  starry:  { name: 'Starry Night',    level: 21, cost: 8000, ambience: 6, sub: 'Midnight blue with twinkling gold stars and a crescent moon' },
+  tropic:  { name: 'Tropical Leaves', level: 24, cost: 10000, ambience: 6, sub: 'Big banana leaves on a sunny cream wall' },
+  gala:    { name: 'Golden Gala',     level: 27, cost: 12500, ambience: 7, sub: 'Plum velvet panels framed in gold' },
 };
 export const FLOORS = {
   classic:    { name: 'Classic Terrazzo', cost: 0,    ambience: 0, sub: 'Speckled cream tile with pink and teal diamonds' },
@@ -139,6 +159,10 @@ export const FLOORS = {
   flagstone:  { name: 'Garden Flagstone', level: 14, cost: 3200, ambience: 4, sub: 'Sandy stone pavers, like a garden path' },
   herring:    { name: 'Herringbone Oak',  level: 16, cost: 4200, ambience: 4, sub: 'Honey oak planks in a herringbone' },
   marble:     { name: 'Marble Hall',      level: 18, cost: 6000, ambience: 5, sub: 'Big marble slabs with gold seams' },
+  mosaic:     { name: 'Rainbow Mosaic',   level: 20, cost: 7000, ambience: 5, sub: 'Tiny glossy tiles in every color' },
+  starlight:  { name: 'Starlight Carpet', level: 23, cost: 9000, ambience: 6, sub: 'Soft navy carpet sprinkled with stars' },
+  bamboo:     { name: 'Bamboo Deck',      level: 26, cost: 11000, ambience: 6, sub: 'Pale bamboo planks, calm and bright' },
+  gold:       { name: 'Gold Terrazzo',    level: 28, cost: 14000, ambience: 7, sub: 'White terrazzo flecked with real gold' },
 };
 export const STYLE_XP = 30;
 
@@ -160,23 +184,32 @@ export const DECOR = {
   claw:      { name: 'Claw machine',    w: 1, h: 1, cost: 350, ambience: 1, level: 6, rot: true, coin: { price: [2, 3], who: ['family', 'teen', 'browser'], chance: 0.22, secs: 3.4 }, sub: 'Shoppers try to grab a plush prize' },
   directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 13, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
   tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 13, sub: 'A real tree, right indoors · +ambience' },
+  // play: families stop so the kid can play a while (free), the grown-up waiting at its front.
+  playarea:  { name: 'Kids play area',  w: 3, h: 2, cost: 1800, ambience: 4, level: 15, play: { kids: 3, secs: [6, 9] }, sub: 'A slide and a ball pit. Families stop so the kids can play' },
+  topiary:   { name: 'Topiary bunny',   w: 1, h: 1, cost: 450, ambience: 4, level: 19, sub: 'A hedge clipped into a bunny · +ambience' },
+  photobooth:{ name: 'Photo booth',     w: 1, h: 1, cost: 900, ambience: 2, level: 20, rot: true, coin: { price: [6, 9], who: ['teen', 'fashion', 'family'], chance: 0.2, secs: 2.6 }, sub: 'Strike a pose: teens and fashionistas love it' },
+  aquarium:  { name: 'Aquarium',        w: 2, h: 1, cost: 1500, ambience: 6, level: 21, sub: 'Tropical fish in a big glowing tank · +ambience' },
+  massage:   { name: 'Massage chair',   w: 1, h: 1, cost: 1100, ambience: 2, level: 23, rot: true, coin: { price: [5, 8], who: ['walker', 'fashion', 'browser'], chance: 0.2, secs: 4.0 }, sub: 'Tired feet pay for a few minutes of bliss' },
+  piano:     { name: 'Grand piano',     w: 2, h: 2, cost: 2600, ambience: 8, level: 25, sub: 'It plays itself, softly, all day · +ambience' },
+  arch:      { name: 'Flower arch',     w: 2, h: 1, cost: 1400, ambience: 6, level: 27, sub: 'A climbing-rose arch, perfect for photos · +ambience' },
 };
 export const BIN_RADIUS = 4;
 
 // Who shops here. `wants` weights which stores they wish for; hours are when they mostly show up.
 export const CUSTOMERS = {
-  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
-  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
-  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
-  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
-  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
+  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
+  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
+  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
+  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
+  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
 };
 
 // Relative arrivals per hour, 9:00 through 20:00.
 export const HOURLY = [0.9, 0.8, 1.0, 1.6, 1.4, 0.9, 1.3, 1.3, 1.2, 1.4, 1.1, 0.6];
 
-export const LEVEL_XP = [0, 0, 85, 255, 550, 980, 1530, 2300, 3230, 4760, 6460, 11000, 14100, 17600, 21500, 25900, 30800, 36300, 42400];   // XP needed to reach level n
-export const MAX_LEVEL = 18;
+export const LEVEL_XP = [0, 0, 85, 255, 550, 980, 1530, 2300, 3230, 4760, 6460, 11000, 14100, 17600, 21500, 25900, 30800, 36300, 42400,
+  48000, 54100, 60700, 67800, 75400, 83500, 92100, 101200, 110800, 120900];   // XP needed to reach level n
+export const MAX_LEVEL = 28;
 // Staff roles. Wages are per day, indexed by star rating (1–3).
 export const ROLES = {
   janitor: { name: 'Janitor', plural: 'Janitors', level: 3,  wage: [0, 28, 36, 46], desc: 'Sweeps up trash near them.' },
@@ -190,13 +223,13 @@ export const ROLES = {
 export const WAGES = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.wage]));
 // How many of each role you can employ at each level (index = level).
 export const STAFF_LIMITS = {
-  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6],
-  clerk:   [0, 2, 2, 2, 3, 3, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 13],
-  stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
-  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-  mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2],
-  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2],
-  guard:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8],
+  clerk:   [0, 2, 2, 2, 3, 3, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20],
+  stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6],
+  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
+  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4],
+  guard:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4],
 };
 export const SUPERVISOR_RADIUS = [0, 3, 4, 5];      // tiles they keep an eye on
 export const SUPERVISOR_BOOST = [0, 1.05, 1.09, 1.13];   // staff in range work this much faster (by the supervisor's stars)…
@@ -230,10 +263,20 @@ export const LEVEL_UNLOCKS = {
   12: [{ hire: 'greeter' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
   13: [{ decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
   14: [{ store: 'gadgets' }, { style: 'floor:flagstone' }, { staffSlots: true }],
-  15: [{ hire: 'mascot' }, { store: 'jumppark' }, { style: 'wall:deco' }, { staffSlots: true }],
+  15: [{ hire: 'mascot' }, { store: 'jumppark' }, { decor: 'playarea' }, { style: 'wall:deco' }, { staffSlots: true }],
   16: [{ style: 'floor:herring' }, { staffSlots: true }],
   17: [{ style: 'wall:luxe' }, { staffSlots: true }],
-  18: [{ style: 'floor:marble' }, { staffSlots: true }, { done: true }],
+  18: [{ style: 'floor:marble' }, { staffSlots: true }],
+  19: [{ store: 'hotdog' }, { decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
+  20: [{ decor: 'photobooth' }, { style: 'floor:mosaic' }, { staffSlots: true }],
+  21: [{ decor: 'aquarium' }, { style: 'wall:starry' }, { staffSlots: true }],
+  22: [{ store: 'pizza' }, { staffSlots: true }],
+  23: [{ decor: 'massage' }, { style: 'floor:starlight' }, { staffSlots: true }],
+  24: [{ style: 'wall:tropic' }, { staffSlots: true }],
+  25: [{ decor: 'piano' }, { staffSlots: true }],
+  26: [{ style: 'floor:bamboo' }, { staffSlots: true }],
+  27: [{ decor: 'arch' }, { style: 'wall:gala' }, { staffSlots: true }],
+  28: [{ style: 'floor:gold' }, { done: true }],
 };
 
 export const LOOKS = {
