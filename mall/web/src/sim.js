@@ -1,7 +1,7 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
-import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange } from './map.js';
+import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
 
 export const sim = {
@@ -136,7 +136,8 @@ export function startDay(opts = {}){
   planTrouble(opts.tutorial);
 }
 function makePerson(kind, look, x, y){
-  return { id: sim.nextId++, kind, look, x, y, t: rand() * 10, walking: false, flip: false, state: 'idle', timer: 0, speed: 1.4 };
+  // lane: where in each tile this person tends to walk, so a crowd spreads across a hallway instead of one file.
+  return { id: sim.nextId++, kind, look, x, y, t: rand() * 10, walking: false, flip: false, state: 'idle', timer: 0, speed: 1.4, lane: [(rand() - 0.5) * 0.6, (rand() - 0.5) * 0.5] };
 }
 function spawnStaff(st){
   const p = makePerson('staff', st.look, C.ENTRANCE.x + 1, C.MAP_H - 2.5);
@@ -197,10 +198,16 @@ function walkTo(p, gx, gy, dt, speedMul = 1){
   const tx = Math.floor(gx), ty = Math.floor(gy), cx = Math.floor(p.x), cy = Math.floor(p.y);
   if (cx === tx && cy === ty) return moveDirect(p, gx, gy, dt, speedMul);
   const n = nextStep(cx, cy, tx, ty);
-  if (!n) return moveDirect(p, gx, gy, dt, speedMul);
+  // No way through from here (stepping out of somewhere odd): head straight there, but never across the gap
+  // between floors. For the other floor, make for this floor's escalator instead.
+  if (!n){
+    if (floorOf(gx) === floorOf(p.x)) return moveDirect(p, gx, gy, dt, speedMul);
+    const e = C.ESCALATORS.find(q => q.floor === floorOf(p.x));
+    moveDirect(p, e.land.x + 0.5, e.land.y + 0.5, dt, speedMul); return false;
+  }
   if (isRide(cx, n.x)){ startRide(p, escalatorAt(cx, cy), escalatorAt(n.x, n.y)); return false; }
-  const last = n.x === tx && n.y === ty;
-  moveDirect(p, last ? gx : n.x + 0.5, last ? gy : n.y + 0.5, dt, speedMul);
+  const last = n.x === tx && n.y === ty, ln = p.lane || [0, 0];
+  moveDirect(p, last ? gx : n.x + 0.5 + ln[0], last ? gy : n.y + 0.5 + ln[1], dt, speedMul);
   return false;
 }
 // The escalator: step on, ride up (or down) and out of sight, then come in on the other floor's belt and step off.
@@ -213,22 +220,25 @@ function beltEnds(e, lane){
   const near = e.dir > 0 ? e.x + 0.15 : e.x + e.w - 0.15, far = e.dir > 0 ? e.x + e.w - 0.2 : e.x + 0.2;
   return { near, far, y: e.y + (lane ? 1.42 : 0.55) };
 }
+// On the ground floor riders only use the lower part of the belt (the top disappears into the bulkhead), fading out
+// near the top on the way up and fading in there on the way down. Upstairs they sink out of sight down the stairwell.
+const RIDE_TOP = [0.62, 1];
 function stepRide(p, dt){
   const r = p.ride, T = C.ESCALATOR_RIDE;
   r.k += dt / T;
   if (r.k < 1){
     // Onto the near end of the departing belt, then along it.
-    const e = r.a, b = beltEnds(e, 0), on = 0.22, sign = e.floor ? -1 : 1;
-    if (r.k < on){ const t = r.k / on; p.x = lerp(r.x0, b.near, t); p.y = lerp(r.y0, b.y, t); p.rideZ = 0; p.walking = true; }
-    else { const t = (r.k - on) / (1 - on); p.x = lerp(b.near, b.far, t); p.y = b.y; p.rideZ = sign * 1.15 * t; p.walking = false; }
+    const e = r.a, b = beltEnds(e, 0), on = 0.22, sign = e.floor ? -1 : 1, top = RIDE_TOP[e.floor];
+    if (r.k < on){ const t = r.k / on; p.x = lerp(r.x0, b.near, t); p.y = lerp(r.y0, b.y, t); p.rideZ = 0; p.walking = true; p.rideFade = 1; }
+    else { const t = (r.k - on) / (1 - on) * top; p.x = lerp(b.near, b.far, t); p.y = b.y; p.rideZ = sign * 1.15 * t; p.walking = false; p.rideFade = Math.min(1, (1 - (r.k - on) / (1 - on)) / 0.25); }
     p.flip = e.dir < 0;
   } else if (r.k < 2){
     // In along the other floor's arriving belt, then a step off onto the landing.
-    const e = r.b, b = beltEnds(e, 1), off = 0.8, sign = e.floor ? -1 : 1, t0 = r.k - 1;
-    if (t0 < off){ const t = t0 / off; p.x = lerp(b.far, b.near, t); p.y = b.y; p.rideZ = sign * 1.15 * (1 - t); p.walking = false; }
-    else { const t = (t0 - off) / (1 - off); p.x = lerp(b.near, e.land.x + 0.5, t); p.y = lerp(b.y, e.land.y + 0.5, t); p.rideZ = 0; p.walking = true; }
+    const e = r.b, b = beltEnds(e, 1), off = 0.8, sign = e.floor ? -1 : 1, t0 = r.k - 1, top = RIDE_TOP[e.floor];
+    if (t0 < off){ const t = t0 / off, u = top * (1 - t); p.x = lerp(b.near, b.far, u); p.y = b.y; p.rideZ = sign * 1.15 * u; p.walking = false; p.rideFade = Math.min(1, t / 0.25); }
+    else { const t = (t0 - off) / (1 - off); p.x = lerp(b.near, e.land.x + 0.5, t); p.y = lerp(b.y, e.land.y + 0.5, t); p.rideZ = 0; p.walking = true; p.rideFade = 1; }
     p.flip = e.dir > 0;
-  } else { p.ride = null; p.rideZ = 0; p.x = r.b.land.x + 0.5; p.y = r.b.land.y + 0.5; }
+  } else { p.ride = null; p.rideZ = 0; p.rideFade = 1; p.x = r.b.land.x + 0.5; p.y = r.b.land.y + 0.5; }
 }
 // Run through a list of direct waypoints (used for stepping in and out of stores).
 function runPath(p, dt){
@@ -520,14 +530,17 @@ function updateCustomer(p, dt){
       break;
     }
     case 'exit': {
+      // At closing folks wrap up and drift out over a few seconds, not all in one rush.
+      if (p.closeDelay > 0){ p.closeDelay -= dt; p.walking = false; break; }
       dropLitter(p, def);
       // Spread out a little across the doorway rather than leaving in two neat columns.
-      const ex = C.ENTRANCE.x + 0.5 + (p.id % 2) + ((p.id * 7) % 5 - 2) * 0.15, ey = C.MAP_H - 0.5;
-      if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 2 : 1)){ p.state = 'out'; }
+      if (p.exitX === undefined) p.exitX = C.ENTRANCE.x + 0.22 + rand() * (C.ENTRANCE.w - 0.44);
+      const ex = p.exitX, ey = C.MAP_H - 0.5;
+      if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 1.4 : 1)){ p.state = 'out'; }
       break;
     }
     case 'out':
-      if (moveDirect(p, p.x, C.MAP_H + 1.8, dt, sim.phase === 'closing' ? 2 : 1)){
+      if (moveDirect(p, p.x, C.MAP_H + 1.8, dt, sim.phase === 'closing' ? 1.4 : 1)){
         p.gone = true; sim.stats.moodSum += p.mood; sim.stats.moodN++;
       }
       break;
@@ -565,7 +578,7 @@ function decide(p){
   }
   if (!p.usedRestroom){
     p.usedRestroom = true;
-    const rooms = restrooms().filter(u => { const a = unitAccess(u); return isWalk(a.x, a.y); });
+    const rooms = restrooms().filter(u => { const a = unitAccess(u); return canReach(a.x, a.y); });
     if (rooms.length && rand() < C.RESTROOM_USE * (p.boughtFood ? 1.5 : 1)){
       let best = rooms[0], bd = Infinity;
       for (const u of rooms){ const f = spotsFor(u).front, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd){ bd = d; best = u; } }
@@ -582,7 +595,7 @@ function findSeat(p){
   const opts = [];
   for (const d of S.save.decor){
     const def = C.DECOR[d.type]; if (!def.seat) continue;
-    const a = decorAccess(d); if (!isWalk(a.x, a.y)) continue;
+    const a = decorAccess(d); if (!canReach(a.x, a.y)) continue;
     // Where to sit depends on which way the seat faces (and which way the sitter looks).
     const r = d.rot || 0, k = rand() < 0.5 ? 0.05 : 0.85, comfy = !!def.comfy;   // one end or the other, so two sitters don't stack up
     const spot = r === 0 ? { x: d.x + 0.55 + k, y: d.y + 0.62, comfy } : r === 2 ? { x: d.x + 0.55 + k, y: d.y + 0.45, back: true, comfy }
@@ -600,7 +613,7 @@ function findPlay(p){
     const used = sim.people.filter(q => q.play && q.play.d === d).map(q => q.play.slot);
     const slot = [0, 1, 2].slice(0, def.play.kids).find(k => !used.includes(k));
     if (slot === undefined) continue;
-    const a = decorAccess(d); if (!isWalk(a.x, a.y)) continue;
+    const a = decorAccess(d); if (!canReach(a.x, a.y)) continue;
     const dist = Math.hypot(a.x - p.x, a.y - p.y);
     if (dist < bd && rand() < 0.7){ bd = dist; best = { d, slot, at: { x: d.x + 1.5 + (slot - 1) * 0.35, y: d.y + def.h + 0.45 } }; }
   }
@@ -611,7 +624,7 @@ function findMachine(p){
   let best = null, bd = Infinity;
   for (const d of S.save.decor){
     const c = C.DECOR[d.type].coin; if (!c || (c.who && !c.who.includes(p.type))) continue;
-    const a = decorAccess(d); if (!isWalk(a.x, a.y) || rand() >= c.chance) continue;
+    const a = decorAccess(d); if (!canReach(a.x, a.y) || rand() >= c.chance) continue;
     const dist = Math.hypot(a.x + 0.5 - p.x, a.y + 0.5 - p.y);
     // At a kiddie ride facing down, the grown-up waits off to one side so the kid riding it stays in view.
     // At a soda machine they stand to the right, by the buttons, so the window and the tray stay in view;
@@ -659,6 +672,7 @@ function useMachine(p){
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
+  if (d.type === 'balloons' && p.look.kid){ p.look = { ...p.look, kid: { ...p.look.kid, balloon: pick(['#ef476f', '#5a8dee', '#ffd23f', '#06d6a0', '#9b5de5']) } }; p.mood = Math.min(1, p.mood + 0.08); }
   if (d.type === 'claw'){
     if (rand() < CLAW_WIN){ p.holding = 'plush'; p.prize = pick(PRIZES); p.mood = Math.min(1, p.mood + 0.1); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.4, text: 'WIN!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.6, t: 0, life: 0.9 }); }
     else sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.3, t: 0, life: 1.2, text: 'So close!' });
@@ -976,7 +990,7 @@ function updateStaff(p, dt){
     const c0 = Math.floor(cols.length * i / n), c1 = Math.max(c0 + 1, Math.floor(cols.length * (i + 1) / n));
     for (let k = 0; k < 40; k++){
       const x = cols[c0 + Math.floor(rand() * (c1 - c0))], y = Math.floor(rand() * C.MAP_H);
-      if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
+      if (canReach(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }
   if (p.wander && walkTo(p, p.wander.x, p.wander.y, dt, 0.6)){ p.walking = false; p.wander.wait -= dt; }
@@ -1039,7 +1053,7 @@ function updateSupervisor(p, dt){
   if (!p.round || (p.round.wait -= dt) < -3){
     const fronts = S.save.units.filter(u => u.state === 'store' || u.state === 'restroom');
     const u = fronts.length ? pick(fronts) : null;
-    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (isWalk(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
+    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
   }
   if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
 }
@@ -1067,7 +1081,7 @@ function spawnTrouble(){
 function troubleSpot(){
   for (let k = 0; k < 40; k++){
     const x = Math.floor(rand() * map.w), y = C.CONCOURSE.y + Math.floor(rand() * C.CONCOURSE.h);
-    if (isWalk(x, y)) return { x: x + 0.5, y: y + 0.5 };
+    if (canReach(x, y)) return { x: x + 0.5, y: y + 0.5 };
   }
   return { x: C.ENTRANCE.x + 1, y: C.MAP_H - 2 };
 }
@@ -1128,7 +1142,7 @@ function updateGuard(p, dt){
   if (!p.round || (p.round.wait -= dt) < -3){
     const fronts = S.save.units.filter(u => u.state === 'store');
     const u = fronts.length ? pick(fronts) : null;
-    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (isWalk(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
+    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
   }
   if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
 }
@@ -1137,7 +1151,7 @@ function updateMascot(p, dt){
   if (!p.wander || (p.wander.wait -= dt) < -4){
     for (let k = 0; k < 30; k++){
       const x = Math.floor(rand() * map.w), y = Math.floor(rand() * C.MAP_H);
-      if (isWalk(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
+      if (canReach(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }
   if (p.wander && walkTo(p, p.wander.x, p.wander.y, dt)){ p.walking = false; p.wander.wait -= dt; }
@@ -1208,7 +1222,7 @@ export function step(realDt){
     sim.closeT += dt;
     const left = sim.people.some(p => p.kind === 'customer');
     // Everyone heads out at closing; a bigger mall gets a little longer before the lights go off.
-    if (!left || sim.closeT > 8 + (C.MAP_W + map.f2w) * 0.3) sim.phase = 'done';
+    if (!left || sim.closeT > 12 + (C.MAP_W + map.f2w) * 0.35) sim.phase = 'done';
   }
   for (const p of sim.people){
     if (p.ride){ stepRide(p, dt); continue; }
@@ -1219,17 +1233,35 @@ export function step(realDt){
     else if (p.kind === 'trouble') updateTrouble(p, dt);
   }
   if (sim.phase === 'day') updateStores(dt);
+  else spreadCrowd(dt);
   sim.people = sim.people.filter(p => !p.gone);
   for (const tr of sim.trash) tr.t += dt;
   for (const f of sim.fx) f.t += dt;
   sim.fx = sim.fx.filter(f => f.t < f.life);
   if (sim.gus && sim.gus.gone) sim.gus = null;
 }
+// At closing everyone heads the same way: nudge walkers apart so they flow out as a crowd, not one squashed file.
+function spreadCrowd(dt){
+  const walkers = sim.people.filter(p => p.kind === 'customer' && p.walking && !p.ride && (p.state === 'exit' || p.state === 'out'));
+  for (let i = 0; i < walkers.length; i++){
+    const a = walkers[i]; let px = 0, py = 0;
+    for (let j = 0; j < walkers.length; j++){
+      if (i === j) continue;
+      const b = walkers[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
+      if (d > 0.001 && d < 0.42){ px += dx / d * (0.42 - d); py += dy / d * (0.42 - d) * 0.5; }
+    }
+    if (!px && !py) continue;
+    const nx = a.x + px * dt * 3, ny = a.y + py * dt * 3;
+    // Never into a wall, a store or (going out the front) off the doorway.
+    const outside = a.y >= C.MAP_H - 0.6;
+    if (outside ? nx > C.ENTRANCE.x + 0.15 && nx < C.ENTRANCE.x + C.ENTRANCE.w - 0.15 : isWalk(Math.floor(nx), Math.floor(ny)) && floorOf(nx) === floorOf(a.x)){ a.x = nx; if (!outside) a.y = ny; }
+  }
+}
 function beginClosing(){
   sim.phase = 'closing'; sim.t = C.DAY_SECONDS; sim.closeT = 0;
   for (const st of sim.storeState.values()) st.queue = [];
   for (const p of sim.people) if (p.kind === 'customer'){
-    p.bubble = null; p.served = false;
+    p.bubble = null; p.served = false; p.closeDelay = rand() * 5;
     p.hidden = false; p.playing = false; freeStall(p);
     if (p.state === 'show' || p.state === 'toShow'){ leaveShow(p, S.save.units.find(v => v.id === p.storeId)); continue; }
     p.faceBack = false; p.play = null;

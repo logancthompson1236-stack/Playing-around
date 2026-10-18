@@ -151,6 +151,9 @@ export const WALLPAPERS = {
   starry:  { name: 'Starry Night',    level: 21, cost: 8000, ambience: 6, sub: 'Midnight blue with twinkling gold stars and a crescent moon' },
   tropic:  { name: 'Tropical Leaves', level: 24, cost: 10000, ambience: 6, sub: 'Big banana leaves on a sunny cream wall' },
   gala:    { name: 'Golden Gala',     level: 27, cost: 12500, ambience: 7, sub: 'Plum velvet panels framed in gold' },
+  sakura:  { name: 'Cherry Blossom',  level: 30, cost: 15000, ambience: 7, sub: 'Pink blossom branches on soft cream' },
+  waves:   { name: 'Ocean Waves',     level: 33, cost: 17500, ambience: 8, sub: 'Rolling blue waves and little sailboats' },
+  crystal: { name: 'Crystal Palace',  level: 35, cost: 20000, ambience: 8, sub: 'Pale lilac with sparkling crystal facets' },
 };
 export const FLOORS = {
   classic:    { name: 'Classic Terrazzo', cost: 0,    ambience: 0, sub: 'Speckled cream tile with pink and teal diamonds' },
@@ -163,6 +166,9 @@ export const FLOORS = {
   starlight:  { name: 'Starlight Carpet', level: 23, cost: 9000, ambience: 6, sub: 'Soft navy carpet sprinkled with stars' },
   bamboo:     { name: 'Bamboo Deck',      level: 26, cost: 11000, ambience: 6, sub: 'Pale bamboo planks, calm and bright' },
   gold:       { name: 'Gold Terrazzo',    level: 28, cost: 14000, ambience: 7, sub: 'White terrazzo flecked with real gold' },
+  ocean:      { name: 'Seaside Tile',     level: 31, cost: 16000, ambience: 7, sub: 'Sea-glass blue tiles with sandy grout' },
+  velvet:     { name: 'Royal Carpet',     level: 34, cost: 18500, ambience: 8, sub: 'Deep red carpet with a gold border pattern' },
+  crystal:    { name: 'Crystal Marble',   level: 35, cost: 22000, ambience: 8, sub: 'Pearly marble with a soft rainbow shimmer' },
 };
 export const STYLE_XP = 30;
 
@@ -192,6 +198,11 @@ export const DECOR = {
   massage:   { name: 'Massage chair',   w: 1, h: 1, cost: 1100, ambience: 2, level: 23, rot: true, coin: { price: [5, 8], who: ['walker', 'fashion', 'browser'], chance: 0.2, secs: 4.0 }, sub: 'Tired feet pay for a few minutes of bliss' },
   piano:     { name: 'Grand piano',     w: 2, h: 2, cost: 2600, ambience: 8, level: 25, sub: 'It plays itself, softly, all day · +ambience' },
   arch:      { name: 'Flower arch',     w: 2, h: 1, cost: 1400, ambience: 6, level: 27, sub: 'A climbing-rose arch, perfect for photos · +ambience' },
+  balloons:  { name: 'Balloon cart',    w: 1, h: 1, cost: 1600, ambience: 3, level: 29, coin: { price: [4, 6], who: ['family'], chance: 0.4, secs: 1.2 }, sub: 'Kids get a balloon to carry around' },
+  statue:    { name: 'Wishing fountain', w: 1, h: 1, cost: 2200, ambience: 6, level: 30, sub: 'A little stone fountain that sparkles · +ambience' },
+  arcadecab: { name: 'Arcade cabinet',  w: 1, h: 1, cost: 1900, ambience: 2, level: 32, rot: true, coin: { price: [3, 5], who: ['teen', 'browser', 'family'], chance: 0.25, secs: 3.4 }, sub: 'A classic stand-up game: teens line up for it' },
+  bubbles:   { name: 'Bubble machine',  w: 1, h: 1, cost: 2000, ambience: 6, level: 33, sub: 'Floats bubbles over the crowd · +ambience' },
+  koi:       { name: 'Koi pond',        w: 2, h: 2, cost: 3800, ambience: 9, level: 34, sub: 'Orange and white koi under lily pads · +ambience' },
 };
 export const BIN_RADIUS = 4;
 
@@ -208,8 +219,9 @@ export const CUSTOMERS = {
 export const HOURLY = [0.9, 0.8, 1.0, 1.6, 1.4, 0.9, 1.3, 1.3, 1.2, 1.4, 1.1, 0.6];
 
 export const LEVEL_XP = [0, 0, 85, 255, 550, 980, 1530, 2300, 3230, 4760, 6460, 11000, 14100, 17600, 21500, 25900, 30800, 36300, 42400,
-  48000, 54100, 60700, 67800, 75400, 83500, 92100, 101200, 110800, 120900];   // XP needed to reach level n
-export const MAX_LEVEL = 28;
+  48000, 54100, 60700, 67800, 75400, 83500, 92100, 101200, 110800, 120900,
+  131500, 142600, 154200, 166300, 178900, 192000, 205600];   // XP needed to reach level n
+export const MAX_LEVEL = 35;
 // Staff roles. Wages are per day, indexed by star rating (1–3).
 export const ROLES = {
   janitor: { name: 'Janitor', plural: 'Janitors', level: 3,  wage: [0, 28, 36, 46], desc: 'Sweeps up trash near them.' },
@@ -223,13 +235,13 @@ export const ROLES = {
 export const WAGES = Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.wage]));
 // How many of each role you can employ at each level (index = level).
 export const STAFF_LIMITS = {
-  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8],
-  clerk:   [0, 2, 2, 2, 3, 3, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20],
-  stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6],
-  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-  mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3],
-  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4],
-  guard:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4],
+  janitor: [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10],
+  clerk:   [0, 2, 2, 2, 3, 3, 4, 5, 6, 7, 7, 8, 8, 9, 10, 10, 11, 12, 13, 14, 14, 15, 16, 16, 17, 18, 18, 19, 20, 21, 21, 22, 23, 23, 24, 25],
+  stocker: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7],
+  greeter: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  mascot:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4],
+  supervisor: [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5],
+  guard:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6],
 };
 export const SUPERVISOR_RADIUS = [0, 3, 4, 5];      // tiles they keep an eye on
 export const SUPERVISOR_BOOST = [0, 1.05, 1.09, 1.13];   // staff in range work this much faster (by the supervisor's stars)…
@@ -276,7 +288,14 @@ export const LEVEL_UNLOCKS = {
   25: [{ decor: 'piano' }, { staffSlots: true }],
   26: [{ style: 'floor:bamboo' }, { staffSlots: true }],
   27: [{ decor: 'arch' }, { style: 'wall:gala' }, { staffSlots: true }],
-  28: [{ style: 'floor:gold' }, { done: true }],
+  28: [{ style: 'floor:gold' }, { staffSlots: true }],
+  29: [{ decor: 'balloons' }, { staffSlots: true }],
+  30: [{ decor: 'statue' }, { style: 'wall:sakura' }, { staffSlots: true }],
+  31: [{ style: 'floor:ocean' }, { staffSlots: true }],
+  32: [{ decor: 'arcadecab' }, { staffSlots: true }],
+  33: [{ decor: 'bubbles' }, { style: 'wall:waves' }, { staffSlots: true }],
+  34: [{ decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],
+  35: [{ style: 'wall:crystal' }, { style: 'floor:crystal' }, { done: true }],
 };
 
 export const LOOKS = {

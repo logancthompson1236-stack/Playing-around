@@ -620,6 +620,15 @@ v0.12.0 changes, from playtest feedback:
 - **Fewer late-game shoppers:** from level 12 to 18 the crowd shrinks by up to 15%, and stays that way. The balance bot reaches level 18 around day 45 and level 28 around day 80–85.
 - **Two greeters** from level 20 (one each side of the door), more guards, mascots and supervisors at the new levels.
 
+v0.13.0 changes, from playtest feedback:
+- **Placement fix:** placing or moving something no longer fails with "would block the way to the restrooms" (or any store) when that place was already out of reach. Only what the new piece itself would cut off counts. On load (and when opening the second floor) the game also repairs anything nobody can reach, which could happen when the East Wing became a separate floor or the escalator closed off a corner: it moves the decor that walls it off, or failing that the stranded piece, to the nearest spot that works. Nothing is removed.
+- **No more walking through walls:** wandering staff, troublemakers, seats and machines only use spots you can actually walk to, and nobody ever cuts across the gap between floors. At closing, upstairs shoppers ride the escalator down.
+- **Closing time:** shoppers wrap up and leave over about five seconds instead of all at once, at a steadier pace, each with their own path through the hallway (people now walk in their own lane across each tile all day), so the crowd flows out instead of forming one squashed file.
+- **Escalator:** on the ground floor riders appear partway up the belt and fade in, instead of sliding out of the dark at the top; the 2F sign sits above the bulkhead.
+- **Staff panel:** tabs for All and each role you can hire, with the team grouped by role (best first) and applicants filtered to the role you're looking at.
+- **Levels 29–35:** balloon cart (29, kids get a balloon), wishing fountain (30), arcade cabinet (32), bubble machine (33), koi pond (34); wallpapers Cherry Blossom (30), Ocean Waves (33), Crystal Palace (35); floors Seaside Tile (31), Royal Carpet (34), Crystal Marble (35). More staff slots each level. The balance bot reaches level 28 around day 85 and level 35 around day 115.
+- **Evening light:** the end-of-day wash is about half as strong (warm gold turning to dusk) and stores start to glow from 7 PM, so the mall stays easy to see. Night mode is a little lighter too.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues

@@ -183,6 +183,29 @@ export function floor(kind, x, y, w, h, seed){
     for (let k = 0; k < w * h * 14; k++){ const v = R(); g.fillStyle = v < 0.25 ? 'rgba(212,176,106,.85)' : v < 0.6 ? 'rgba(160,150,140,.35)' : 'rgba(200,190,180,.4)'; g.fillRect(x + R() * w, y + R() * h, 0.05 + (v < 0.25 ? 0.03 : 0), 0.04); }
     grid(2, 'rgba(205,165,85,.5)', 0.03);
   }
+  else if (kind === 'seatile'){
+    g.fillStyle = '#eadfc8'; g.fillRect(x, y, w, h);
+    const cs = ['#a8dcd9', '#8ccfd6', '#bfe6e4', '#9fd3ea'];
+    for (let i = Math.floor(x * 2); i < (x + w) * 2; i++) for (let j = Math.floor(y * 2); j < (y + h) * 2; j++){ g.fillStyle = cs[Math.floor(hash(i, j, 7) * cs.length)]; rr(i / 2 + 0.03, j / 2 + 0.03, 0.44, 0.44, 0.05); g.fill(); }
+    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++) if (hash(i, j, 8) < 0.08){ g.fillStyle = '#f2c8aa'; g.save(); g.translate(i + 0.5, j + 0.5); for (let k = 0; k < 5; k++){ g.rotate(Math.PI * 2 / 5); ell(0, -0.08, 0.035, 0.08); g.fill(); } g.restore(); }
+  }
+  else if (kind === 'royal'){
+    g.fillStyle = '#9b2335'; g.fillRect(x, y, w, h);
+    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){
+      g.strokeStyle = 'rgba(242,214,138,.45)'; g.lineWidth = 0.025; g.beginPath(); g.moveTo(i + 0.5, j + 0.2); g.lineTo(i + 0.8, j + 0.5); g.lineTo(i + 0.5, j + 0.8); g.lineTo(i + 0.2, j + 0.5); g.closePath(); g.stroke();
+      circ(i + 0.5, j + 0.5, 0.05); g.fillStyle = 'rgba(242,214,138,.55)'; g.fill();
+    }
+  }
+  else if (kind === 'crystal'){
+    for (let i = Math.floor(x / 2) * 2; i < x + w; i += 2) for (let j = Math.floor(y / 2) * 2; j < y + h; j += 2){
+      const gr = g.createLinearGradient(i, j, i + 2, j + 2); gr.addColorStop(0, '#f7f3ff'); gr.addColorStop(0.5, '#fdf3f6'); gr.addColorStop(1, '#eef7fb');
+      g.fillStyle = gr; g.fillRect(i, j, 2, 2); marbleVeins(mulberry(i * 71 + j * 13 + 3), i, j, 2);
+    }
+    g.strokeStyle = 'rgba(190,170,240,.6)'; g.lineWidth = 0.03; g.beginPath();
+    for (let i = Math.ceil(x / 2) * 2; i <= x + w; i += 2){ g.moveTo(i, y); g.lineTo(i, y + h); }
+    for (let j = Math.ceil(y / 2) * 2; j <= y + h; j += 2){ g.moveTo(x, j); g.lineTo(x + w, j); }
+    g.stroke();
+  }
   else if (kind === 'play'){ checker(1, '#e8f4ff', '#fff4d6'); grid(1, 'rgba(90,141,238,.18)', 0.025); for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){ const v = hash(i, j, 9); if (v < 0.3){ circ(i + 0.5, j + 0.5, 0.08); g.fillStyle = ['rgba(239,71,111,.35)', 'rgba(255,210,63,.45)', 'rgba(6,214,160,.35)'][Math.floor(v * 10) % 3]; g.fill(); } } }
   else if (kind === 'blush'){ checker(0.5, '#fff0f6', '#fbe3ef'); grid(1, 'rgba(199,125,255,.18)', 0.02); }
   else if (kind === 'neon'){ checker(1, '#241a4a', '#2c2158'); grid(1, 'rgba(76,201,240,.45)', 0.03); }
@@ -694,8 +717,11 @@ export const WALLPAPER = {
   starry:  { face: '#24305e', dark: '#1a2347', cap: '#f2d68a', base: '#3b4a8a' },
   tropic:  { face: '#fff6e0', dark: '#9fd4a4', cap: '#ffffff', base: '#2f9e6a' },
   gala:    { face: '#5b2a5e', dark: '#43204a', cap: '#f2d68a', base: '#c9a227' },
+  sakura:  { face: '#fff4f0', dark: '#f4c6d0', cap: '#ffffff', base: '#8a5a5a' },
+  waves:   { face: '#e3f4fb', dark: '#9fd3ea', cap: '#ffffff', base: '#2a6f9a' },
+  crystal: { face: '#eee8fb', dark: '#cfc3ee', cap: '#ffffff', base: '#9b8ad0' },
 };
-const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo' };
+const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal' };
 let style = { wall: 'classic', floor: 'classic' };
 export function setStyle(st){ if (st) style = st; }
 export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
@@ -837,6 +863,33 @@ function wallPattern(id, P, w, top){
       circ(i + 0.75, top + 0.5, 0.06); g.fillStyle = '#d4b06a'; g.fill();
     }
     g.fillStyle = '#d4b06a'; g.fillRect(0, top + 0.06, w, 0.04);
+  } else if (id === 'sakura'){
+    // Dark blossom branches reaching in, dotted with pink flowers, and a few petals drifting.
+    const R = mulberry(41);
+    for (let i = 0; i < w; i += 2.5){
+      const bx = i + 0.2, by = top + 0.25;
+      g.strokeStyle = '#6b4a4a'; g.lineWidth = 0.05; g.lineCap = 'round'; g.beginPath(); g.moveTo(bx, top); g.quadraticCurveTo(bx + 0.6, by + 0.25, bx + 1.6, by + 0.1); g.moveTo(bx + 0.7, by + 0.15); g.quadraticCurveTo(bx + 0.9, by + 0.45, bx + 1.2, by + 0.5); g.stroke();
+      for (let k = 0; k < 9; k++){ const fx = bx + 0.2 + R() * 1.4, fy = by - 0.05 + R() * 0.55; circ(fx, fy, 0.06); g.fillStyle = R() < 0.5 ? '#ffb3c6' : '#ffc8d6'; g.fill(); circ(fx, fy, 0.018); g.fillStyle = '#e8577e'; g.fill(); }
+    }
+    for (let k = 0; k < w * 1.5; k++){ ell(R() * w, top + 0.6 + R() * 0.3, 0.035, 0.02, R() * 3); g.fillStyle = 'rgba(255,170,195,.8)'; g.fill(); }
+  } else if (id === 'waves'){
+    // Layered waves along the bottom, little sailboats bobbing on top.
+    for (const [yy, c] of [[-0.62, '#9fd3ea'], [-0.48, '#6fb8dc'], [-0.34, '#3f9fc4']]){
+      g.fillStyle = c; g.beginPath(); g.moveTo(0, -0.22);
+      for (let x = 0; x <= w + 0.5; x += 0.25) g.lineTo(x, yy + Math.sin(x * 3 + yy * 10) * 0.05);
+      g.lineTo(w + 0.5, -0.22); g.closePath(); g.fill();
+    }
+    for (let i = 1; i < w; i += 3.5){ const by = -0.66 + Math.sin(i * 3 - 6.2) * 0.05; g.fillStyle = '#c97b5a'; g.beginPath(); g.moveTo(i - 0.18, by); g.lineTo(i + 0.18, by); g.lineTo(i + 0.12, by + 0.07); g.lineTo(i - 0.12, by + 0.07); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(i, by - 0.32); g.lineTo(i, by - 0.02); g.lineTo(i + 0.16, by - 0.04); g.closePath(); g.fill(); }
+    g.fillStyle = 'rgba(255,255,255,.85)'; for (let i = 2; i < w; i += 4){ circ(i, top + 0.3, 0.1); g.fill(); circ(i + 0.14, top + 0.26, 0.13); g.fill(); circ(i + 0.3, top + 0.31, 0.09); g.fill(); }
+  } else if (id === 'crystal'){
+    // Faceted crystal diamonds in a lattice, a few catching the light.
+    for (let i = 0; i < w; i += 0.8) for (let k = 0; k < 2; k++){
+      const cx = i + 0.4 + (k % 2) * 0.4, cy = top + 0.35 + k * 0.4;
+      g.beginPath(); g.moveTo(cx, cy - 0.2); g.lineTo(cx + 0.14, cy); g.lineTo(cx, cy + 0.2); g.lineTo(cx - 0.14, cy); g.closePath();
+      g.fillStyle = ((i * 5 + k * 3) | 0) % 4 === 0 ? 'rgba(255,255,255,.9)' : 'rgba(190,170,240,.45)'; g.fill();
+      g.strokeStyle = 'rgba(155,138,208,.5)'; g.lineWidth = 0.015; g.stroke();
+      g.beginPath(); g.moveTo(cx - 0.14, cy); g.lineTo(cx + 0.14, cy); g.stroke();
+    }
   } else {
     g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
   }
@@ -934,7 +987,7 @@ export function escalator(e, t, layer){
     const bx = e.dir > 0 ? far - 0.42 : far + 0.07;
     box(bx, e.y - 0.05, 0.35, e.h + 0.1, ESC_H + 0.95, P.cap, P.face, 0, 0.05);
     g.fillStyle = 'rgba(45,30,40,.25)'; g.fillRect(bx + 0.04, e.y + e.h + 0.05 - ESC_H - 0.95 + 0.1, 0.27, ESC_H + 0.75);
-    const sx = bx + 0.18 - e.dir * 0.75, sy = e.y + e.h - ESC_H - 1.3;
+    const sx = bx + 0.18 - e.dir * 0.2, sy = e.y - 2.4;
     rr(sx - 0.5, sy - 0.22, 1.0, 0.44, 0.1); fs('#3d2b56', 0.04);
     text('▲ 2F', sx, sy + 0.01, 0.26, '#ffd23f', 700);
   } else {
@@ -1805,7 +1858,7 @@ const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
 // A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
-const THUMB = { lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5] };
+const THUMB = { balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5] };
 export function decorThumb(type, w){
   const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
   g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
@@ -1834,6 +1887,11 @@ export function decor(d, t = 0){
     case 'massage': A2.massageChair(x, y, r, live); break;
     case 'piano': A2.piano(x, y, t); break;
     case 'arch': A2.flowerArch(x, y); break;
+    case 'balloons': A2.balloonCart(x + 0.5, y + 0.8, t); break;
+    case 'statue': A2.littleFountain(x + 0.5, y + 0.82, t); break;
+    case 'arcadecab': A2.arcadeCabinet(x, y, r, t, live); break;
+    case 'bubbles': A2.bubbleMachine(x + 0.5, y + 0.82, t); break;
+    case 'koi': A2.koiPond(x, y, t); break;
   }
 }
 function seatPiece(x, y, r, st){

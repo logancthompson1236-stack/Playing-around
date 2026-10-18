@@ -239,15 +239,16 @@ export function decorSortY(d){
   if (d.type === 'planter') return d.y + z.h - 0.12;
   if (d.type === 'playarea') return d.y + 0.2;
   if (d.type === 'piano') return d.y + 1.5;
+  if (d.type === 'koi') return d.y + 0.3;
   return d.y + 0.8;
 }
 function drawPerson(p, t){
   // On the escalator: lifted up the rising belt, or sinking down the second floor's stairwell (cut off at the
   // floor's edge), fading out at the far end where they switch floors.
   if (p.ride && p.rideZ){
-    const z = p.rideZ, k = Math.min(1, Math.abs(z) / 1.15);
+    const z = p.rideZ;
     ctx.save();
-    ctx.globalAlpha = k > 0.75 ? Math.max(0, 1 - (k - 0.75) / 0.25) : 1;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.rideFade ?? 1));
     if (z < 0){ ctx.beginPath(); ctx.rect(p.x - 1.5, p.y - 3, 3, 3.08); ctx.clip(); }
     ctx.translate(0, -z * (z < 0 ? 1.1 : 1));
     drawPersonAt(p, t);
@@ -362,8 +363,9 @@ export function jobPoint(j){
 function drawLighting(t){
   const h = sim.phase === 'idle' ? 21 : clockHour();
   let tint = null, a = 0;
-  if (view.mode === 'night'){ tint = '20,16,60'; a = 0.42; }
-  else if (h > 18.5){ const k = Math.min(1, (h - 18.5) / 2.5); tint = `${Math.round(lerp(255, 60, k))},${Math.round(lerp(140, 40, k))},${Math.round(lerp(60, 110, k))}`; a = 0.1 + 0.18 * k; }
+  // Evening is a soft golden-to-dusk wash, light enough to keep everything easy to see; stores and lamps glow.
+  if (view.mode === 'night'){ tint = '24,20,70'; a = 0.32; }
+  else if (h > 18.5){ const k = Math.min(1, (h - 18.5) / 2.5); tint = `${Math.round(lerp(255, 96, k))},${Math.round(lerp(176, 80, k))},${Math.round(lerp(96, 160, k))}`; a = 0.05 + 0.1 * k; }
   if (!tint) return;
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = `rgba(${tint},${a})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -381,9 +383,10 @@ function drawLighting(t){
     }
     ctx.restore();
   }
-  if (view.mode === 'night'){
+  const glow = view.mode === 'night' ? 1 : h > 19 ? Math.min(1, (h - 19) / 1.5) * 0.8 : 0;
+  if (glow > 0){
     // Warm light spilling from open stores.
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = glow;
     for (const u of S.save.units){
       if (u.state !== 'store' || !seenRect(u.x - 2, u.y - 2, u.w + 4, u.h + 4)) continue;
       const cx = u.x + u.w / 2, cy = u.y + u.h / 2;

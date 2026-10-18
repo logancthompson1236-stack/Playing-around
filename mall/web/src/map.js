@@ -22,6 +22,7 @@ export const map = {
   garden: new Uint8Array(GW * GH),   // 1 where the floor is the garden court's grass
   w: MAP_W, f2w: 0,
   portals: new Map(),   // landing tile index -> the other floor's landing
+  reach: new Uint8Array(GW * GH),   // 1 where you can walk to from the doors
   fields: new Map(),
   walkCount: 0,
   rev: 0,
@@ -59,6 +60,7 @@ export function rebuildMap(save){
   map.walkCount = 0;
   for (let i = 0; i < GW * MAP_H; i++) if (map.floor[i] === FLOOR_CLEAN && !map.occ[i]) map.walkCount++;
   markHidden(save);
+  map.reach = reachFrom(map.occ);
   map.rev++;
 }
 // In the 3/4 view, tall things cover the row (or two) behind them. Litter never lands there.
@@ -69,7 +71,7 @@ function markHidden(save){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
     else row(u.x, u.w, u.y - 1);
   }
-  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
+  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
   row(0, MAP_W, MAP_H - 1); row(F2X, map.f2w, MAP_H - 1);
   if (map.f2w) for (const e of ESCALATORS) row(e.x, e.w, e.y - 1);
@@ -175,7 +177,7 @@ export function decorAccess(d){
 const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin || DECOR[type].play);
 export function fountainSpots(){
   const out = [];
-  for (const [x, y] of [[FOUNTAIN.x, FOUNTAIN.y + 2], [FOUNTAIN.x + 1, FOUNTAIN.y + 2], [FOUNTAIN.x - 1, FOUNTAIN.y + 1], [FOUNTAIN.x + 2, FOUNTAIN.y + 1], [FOUNTAIN.x, FOUNTAIN.y - 1], [FOUNTAIN.x + 1, FOUNTAIN.y - 1]]) if (isWalk(x, y)) out.push({ x, y });
+  for (const [x, y] of [[FOUNTAIN.x, FOUNTAIN.y + 2], [FOUNTAIN.x + 1, FOUNTAIN.y + 2], [FOUNTAIN.x - 1, FOUNTAIN.y + 1], [FOUNTAIN.x + 2, FOUNTAIN.y + 1], [FOUNTAIN.x, FOUNTAIN.y - 1], [FOUNTAIN.x + 1, FOUNTAIN.y - 1]]) if (canReach(x, y)) out.push({ x, y });
   return out;
 }
 export const ENTRY_TILE = { x: ENTRANCE.x, y: MAP_H - 1 };
@@ -215,24 +217,39 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
   } else if (kind === 'kiosk') access = { x: x + 1, y: y + 1 };
   else if (usable(kind)) access = decorAccess({ type: kind, x, y, rot: face || 0 });
   if (access && !isWalkWith(access.x, access.y, occ, x, y, w, h)) return { ok: false, reason: kind === 'unit' ? 'The door needs open walkway in front' : 'Needs open walkway in front' };
+  // Everything that needs visiting must still be reachable from the doors. Only what this change would cut off
+  // counts: something that was already out of reach (say, from an older layout) never blocks a new placement.
+  const before = reachFrom(occ);
   for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) occ[idx(i, j)] = 99999;
-  // Everything that needs visiting must still be reachable from the doors.
+  const seen = reachFrom(occ);
+  const need = needs(save, ignoreId);
+  if (access) need.push([access, 'this spot']);
+  for (const [a, name] of need){
+    const i = inBounds(a.x, a.y) ? idx(a.x, a.y) : -1;
+    if (i < 0 || (!seen[i] && (before[i] || name === 'this spot'))) return { ok: false, reason: `That would block the way to ${name}` };
+  }
+  return { ok: true };
+}
+// Every walkable tile you can get to from the front doors (escalator included).
+function reachFrom(occ){
   const seen = new Uint8Array(GW * GH), q = [[ENTRY_TILE.x, ENTRY_TILE.y]];
   seen[idx(ENTRY_TILE.x, ENTRY_TILE.y)] = 1;
   while (q.length){
     const [cx, cy] = q.pop();
     neighbors(cx, cy, occ, (nx, ny) => { const i = idx(nx, ny); if (!seen[i]){ seen[i] = 1; q.push([nx, ny]); } });
   }
-  const need = [];
-  for (const u of save.units) if (u.id !== ignoreId) need.push([unitAccess(u), u.state === 'store' ? STORES[u.store].name : u.state === 'restroom' ? 'the restrooms' : 'an empty unit']);
-  for (const d of save.decor) if (d.id !== ignoreId && usable(d.type)) need.push([decorAccess(d), `the ${DECOR[d.type].name.toLowerCase()}`]);
-  if (map.f2w) for (const e of ESCALATORS) need.push([e.land, 'the escalator']);
-  if (access) need.push([access, 'this spot']);
-  for (const [a, name] of need){
-    if (!inBounds(a.x, a.y) || !seen[idx(a.x, a.y)]) return { ok: false, reason: `That would block the way to ${name}` };
-  }
-  return { ok: true };
+  return seen;
 }
+// The spots people need to get to: storefront doors, the fronts of seats and machines, the escalator landings.
+function needs(save, ignoreId = 0){
+  const need = [];
+  for (const u of save.units) if (u.id !== ignoreId) need.push([unitAccess(u), u.state === 'store' ? STORES[u.store].name : u.state === 'restroom' ? 'the restrooms' : 'an empty unit', u]);
+  for (const d of save.decor) if (d.id !== ignoreId && usable(d.type)) need.push([decorAccess(d), `the ${DECOR[d.type].name.toLowerCase()}`, d]);
+  if (map.f2w) for (const e of ESCALATORS) need.push([e.land, 'the escalator', null]);
+  return need;
+}
+// Whether a tile can be walked to from the doors right now (worked out once per layout change).
+export const canReach = (x, y) => inBounds(x, y) && map.reach[idx(x, y)] === 1;
 function isWalkWith(x, y, occ, fx, fy, fw, fh){
   if (x >= fx && x < fx + fw && y >= fy && y < fy + fh) return false;
   return isWalk(x, y, occ);
@@ -245,42 +262,84 @@ export function zoneAt(x, y){
 }
 export function occAt(x, y){ return inBounds(x, y) ? map.occ[idx(x, y)] : 0; }
 
+// Ring by ring outward from (x0, y0), the nearest spot on the same floor where something fits.
+function nearestSpot(save, kind, x0, y0, w, h, face){
+  for (let r = 1; r < 30; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++){
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const x = x0 + dx, y = y0 + dy;
+    if (floorOf(x) !== floorOf(x0)) continue;
+    const f = kind === 'unit' ? (y + h <= 7 ? 'down' : 'up') : face;
+    if (validatePlacement(save, kind, x, y, w, h, f).ok) return { x, y, face: f };
+  }
+  return null;
+}
+const unitKind = u => u.kiosk ? 'kiosk' : 'unit';
+
 // Opening the second floor puts an escalator at the east end of the concourse. Anything the player had put where it
 // (or its landing) goes moves to the nearest spot that works on the same floor; only what truly can't fit is refunded.
 // (It also catches anything left straddling the old opening to the east wing, which is a wall now.)
+// Then fixReachability makes sure nothing ended up walled off.
 export function clearEscalators(save){
   const out = { moved: 0, refund: 0 };
   const over = (x, y, w, h, rx, ry, rw, rh) => x < rx + rw && x + w > rx && y < ry + rh && y + h > ry;
   const up = upstairsWidth(save) > 0;
   const hits = (x, y, w, h) => (x + w > MAP_W && x < F2X) || up && ESCALATORS.some(e => over(x, y, w, h, e.x, e.y, e.w, e.h) || over(x, y, w, h, e.land.x, e.land.y, 1, 1));
   // Also anything whose front (the tile you use it from) the escalator would cover.
-  const blocks = a => upstairsWidth(save) && ESCALATORS.some(e => over(a.x, a.y, 1, 1, e.x, e.y, e.w, e.h));
+  const blocks = a => up && ESCALATORS.some(e => over(a.x, a.y, 1, 1, e.x, e.y, e.w, e.h));
   const decor = save.decor.filter(d => { const z = decorSize(d); return hits(d.x, d.y, z.w, z.h) || (usable(d.type) && blocks(decorAccess(d))); });
   const units = save.units.filter(u => hits(u.x, u.y, u.w, u.h) || blocks(unitAccess(u)));
-  if (!decor.length && !units.length) return out;
-  save.decor = save.decor.filter(d => !decor.includes(d)); save.units = save.units.filter(u => !units.includes(u));
-  rebuildMap(save);
-  // Ring by ring outward from where it was, same floor only.
-  const near = (x0, y0, w, h, kind, face) => {
-    for (let r = 1; r < 30; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++){
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const x = x0 + dx, y = y0 + dy;
-      if (floorOf(x) !== floorOf(x0)) continue;
-      const f = kind === 'unit' ? (y + h <= 7 ? 'down' : 'up') : face;
-      if (validatePlacement(save, kind, x, y, w, h, f).ok) return { x, y, face: f };
+  if (decor.length || units.length){
+    save.decor = save.decor.filter(d => !decor.includes(d)); save.units = save.units.filter(u => !units.includes(u));
+    rebuildMap(save);
+    for (const u of units){
+      const at = nearestSpot(save, unitKind(u), u.x, u.y, u.w, u.h, u.face);
+      if (at){ u.x = at.x; u.y = at.y; if (!u.kiosk) u.face = at.face; save.units.push(u); rebuildMap(save); out.moved++; }
+      else { out.refund += u.state === 'store' ? STORES[u.store].cost : 0; for (const m of save.staff) if (m.storeId === u.id) m.storeId = null; }
     }
-    return null;
-  };
-  for (const u of units){
-    const at = near(u.x, u.y, u.w, u.h, u.kiosk ? 'kiosk' : 'unit', u.face);
-    if (at){ u.x = at.x; u.y = at.y; if (!u.kiosk) u.face = at.face; save.units.push(u); rebuildMap(save); out.moved++; }
-    else { out.refund += u.state === 'store' ? STORES[u.store].cost : 0; for (const m of save.staff) if (m.storeId === u.id) m.storeId = null; }
+    for (const d of decor){
+      const z = decorSize(d), at = nearestSpot(save, d.type, d.x, d.y, z.w, z.h, d.rot || 0);
+      if (at){ d.x = at.x; d.y = at.y; save.decor.push(d); rebuildMap(save); out.moved++; }
+      else out.refund += Math.round(DECOR[d.type].cost);
+    }
+    save.money += out.refund;
   }
-  for (const d of decor){
-    const z = decorSize(d), at = near(d.x, d.y, z.w, z.h, d.type, d.rot || 0);
-    if (at){ d.x = at.x; d.y = at.y; save.decor.push(d); rebuildMap(save); out.moved++; }
-    else out.refund += Math.round(DECOR[d.type].cost);
+  const r = fixReachability(save);
+  out.moved += r.moved; out.refund += r.refund;
+  return out;
+}
+// Storefronts, seats and machines nobody can walk to (say the escalator cut off a corner, or the old way round through
+// the east wing is a wall now). First try moving decor that walls them off; failing that, move the stranded thing
+// itself to the nearest spot people can reach. Nothing is removed unless there's truly no room anywhere.
+export function fixReachability(save){
+  const out = { moved: 0, refund: 0 };
+  for (let pass = 0; pass < 16; pass++){
+    rebuildMap(save);
+    const bad = needs(save).filter(([a]) => !canReach(a.x, a.y));
+    if (!bad.length) break;
+    const stranded = n => { const seen = reachFrom(n); return bad.filter(([a]) => !seen[idx(a.x, a.y)]).length; };
+    let best = null, bestN = bad.length;
+    for (const d of save.decor){
+      if (!bad.some(([a]) => Math.abs(d.x - a.x) + Math.abs(d.y - a.y) < 14)) continue;
+      const occ = map.occ.slice();
+      for (let i = 0; i < occ.length; i++) if (occ[i] === d.id) occ[i] = 0;
+      const n = stranded(occ);
+      if (n < bestN){ bestN = n; best = d; }
+    }
+    let item = best, kind = best && best.type;
+    if (!item){ const b = bad.find(([, , o]) => o); if (!b) break; item = b[2]; kind = item.type || unitKind(item); }
+    const isDecor = save.decor.includes(item);
+    if (isDecor) save.decor = save.decor.filter(d => d !== item); else save.units = save.units.filter(u => u !== item);
+    rebuildMap(save);
+    const z = isDecor ? decorSize(item) : { w: item.w, h: item.h };
+    const at = nearestSpot(save, kind, item.x, item.y, z.w, z.h, isDecor ? item.rot || 0 : item.face);
+    if (at){
+      item.x = at.x; item.y = at.y;
+      if (!isDecor && !item.kiosk) item.face = at.face;
+      (isDecor ? save.decor : save.units).push(item); out.moved++;
+    } else if (isDecor) out.refund += DECOR[item.type].cost;
+    else { (save.units).push(item); break; }   // a store with nowhere better to go stays put
   }
   save.money += out.refund;
+  rebuildMap(save);
   return out;
 }

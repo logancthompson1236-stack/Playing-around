@@ -495,15 +495,24 @@ function applicants(){
   if (s.level >= 3 && !f.hiredDee) out.unshift({ seed: 2004, role: 'janitor', name: 'Dee', dee: true, skill: 3 });
   return out;
 }
+// Staff is long by the late game: tabs pick a role (or All), and the team is grouped by role either way.
+const ROLE_ORDER = ['clerk', 'janitor', 'supervisor', 'stocker', 'guard', 'greeter', 'mascot'];
 export function openStaff(){
   endPick(); endPlacement(); hideCard(); view.selected = null; setToolDot('staff', false);
-  openPanel({ title: 'Staff', render: (body, tab, redraw) => {
+  const s0 = S.save, roles = ROLE_ORDER.filter(r => s0.level >= C.ROLES[r].level || s0.staff.some(m => m.role === r));
+  const tabs = roles.length > 1 ? ['All', ...roles.map(r => C.ROLES[r].plural)] : null;
+  openPanel({ title: 'Staff', tabs, render: (body, tab, redraw) => {
     const s = S.save, L = C.STAFF_LIMITS, count = role => s.staff.filter(m => m.role === role).length;
+    const only = tabs && tab > 0 ? roles[tab - 1] : null, shows = role => !only || role === only;
     const open = Object.entries(C.ROLES).filter(([, r]) => s.level >= r.level), next = Object.values(C.ROLES).find(r => s.level < r.level);
-    const limits = open.map(([role, r]) => `${r.plural} ${count(role)}/${L[role][s.level]}`).join(' · ') + (next ? ` · ${next.plural} at level ${next.level}` : '');
+    const limits = only ? `${C.ROLES[only].plural} ${count(only)}/${L[only][s.level]} · ${C.ROLES[only].desc}`
+      : open.map(([role, r]) => `${r.plural} ${count(role)}/${L[role][s.level]}`).join(' · ') + (next ? ` · ${next.plural} at level ${next.level}` : '');
     body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, `${limits}. Wages come out each night.`));
-    if (s.staff.length) body.append(h('div', { class: 'section-label' }, 'Working for you'));
-    for (const m of s.staff){
+    const team = s.staff.filter(m => shows(m.role)).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || staffSkill(b) - staffSkill(a) || a.name.localeCompare(b.name));
+    let lastRole = null;
+    if (team.length && only) body.append(h('div', { class: 'section-label' }, `Working for you (${team.length})`));
+    for (const m of team){
+      if (!only && m.role !== lastRole){ lastRole = m.role; body.append(h('div', { class: 'section-label' }, `${C.ROLES[m.role].plural} (${count(m.role)})`)); }
       const ownStores = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o !== m && o.storeId === u.id));
       const sel = m.role === 'clerk' ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); redraw(); } },
         h('option', { value: '' }, 'No register'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name + (m.dream === u.store ? ' ♥' : '')))) : null;
@@ -511,13 +520,15 @@ export function openStaff(){
         h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { class: 'name', style: 'font:600 15px var(--display);display:block' }, m.name), h('span', { class: 'sub muted', style: 'font-size:12px;display:block' }, staffLine(m)), dreamLine(m, s.units.find(u => u.id === m.storeId)), sel),
         h('button', { class: 'btn small', onclick: async () => { if (await confirmBox(`Let ${m.name} go?`, 'Let go')){ s.staff = s.staff.filter(o => o !== m); if (m.dee) s.flags.hiredDee = false; writeSave(); redraw(); } } }, 'Let go')));
     }
-    if (open.length){
+    if (!team.length && only) body.append(h('p', { class: 'muted', style: 'margin:6px 0 0;font-size:12.5px' }, `No ${C.ROLES[only].plural.toLowerCase()} yet.`));
+    const apps = open.length ? applicants().filter(a => shows(a.role)) : [];
+    if (apps.length){
       body.append(h('div', { class: 'section-label' }, 'Looking for work'));
-      for (const a of applicants()){
+      for (const a of apps){
         const look = staffLook(a.role, a.seed);
         const full = count(a.role) >= L[a.role][s.level];
         body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
-          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a), a.role === 'clerk' || a.role === 'janitor' ? null : h('span', { class: 'muted', style: 'font-size:11.5px;display:block' }, C.ROLES[a.role].desc)),
+          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a), a.role === 'clerk' || a.role === 'janitor' || only ? null : h('span', { class: 'muted', style: 'font-size:11.5px;display:block' }, C.ROLES[a.role].desc)),
           h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
             const open = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o.storeId === u.id));
             const free = open.find(u => u.store === a.dream) || open.find(u => !u.kiosk) || open[0];

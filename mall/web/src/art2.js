@@ -252,3 +252,87 @@ export function pizzaMenu(wx, wy){
   text('PIZZA', wx + 0.45, wy - 0.13, 0.11, '#fff', 700);
   for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.2 + i * 0.25, wy + 0.04); g.scale(0.09, 0.09); storeIcon('pizza', 0, 0, 1); g.restore(); }
 }
+
+/* ---------- Levels 29–35 ---------- */
+// Balloon cart: a little striped cart with a bunch of balloons bobbing on strings.
+export function balloonCart(x, y, t){
+  shadow(x, y, 0.32, 0.09);
+  const cols = ['#ef476f', '#ffd23f', '#5a8dee', '#06d6a0', '#9b5de5', '#ff9f43'];
+  for (let i = 0; i < 6; i++){
+    const a = -0.9 + i * 0.36, bx = x + Math.sin(a) * 0.32 + Math.sin(t * 1.6 + i) * 0.03, by = y - 1.25 - Math.cos(a) * 0.25 + Math.sin(t * 2 + i * 1.3) * 0.03;
+    g.beginPath(); g.moveTo(x, y - 0.5); g.quadraticCurveTo((x + bx) / 2, by + 0.35, bx, by + 0.14); g.strokeStyle = 'rgba(61,43,53,.5)'; g.lineWidth = 0.012; g.stroke();
+    ell(bx, by, 0.13, 0.16); fs(cols[i], 0.025);
+    ell(bx - 0.04, by - 0.05, 0.03, 0.045); g.fillStyle = 'rgba(255,255,255,.55)'; g.fill();
+  }
+  box(x - 0.28, y - 0.08, 0.56, 0.22, 0.4, '#fff3e0', '#ef476f');
+  g.fillStyle = '#fff3e0'; for (let k = 0; k < 3; k++) g.fillRect(x - 0.22 + k * 0.18, y + 0.14 - 0.4, 0.08, 0.38);
+  rr(x - 0.28, y + 0.14 - 0.4, 0.56, 0.4, 0.05); fs(null, 0.035);
+  for (const wx of [x - 0.18, x + 0.18]){ circ(wx, y + 0.16, 0.06); fs('#5a4a5a', 0.03); }
+}
+// Wishing fountain: a stone basin on a pedestal, water bubbling up and sparkling.
+export function littleFountain(x, y, t){
+  shadow(x, y, 0.38, 0.11);
+  ell(x, y - 0.12, 0.38, 0.17); fs('#c9c4cf', 0.04);
+  ell(x, y - 0.15, 0.31, 0.12); fs('#7fd3ea', 0.025);
+  rr(x - 0.07, y - 0.62, 0.14, 0.48, 0.04); fs('#d9d4de', 0.035);
+  ell(x, y - 0.62, 0.2, 0.08); fs('#c9c4cf', 0.035); ell(x, y - 0.63, 0.15, 0.05); fs('#a8e4f2', 0.015);
+  for (let i = 0; i < 4; i++){
+    const k = (t * 0.9 + i / 4) % 1, a = i * 1.57 + 0.4, dx = Math.cos(a) * 0.17 * k, h = Math.sin(k * Math.PI) * 0.22;
+    circ(x + dx, y - 0.66 - h + k * 0.48 * k, 0.025); g.fillStyle = 'rgba(200,240,255,.95)'; g.fill();
+  }
+  for (let i = 0; i < 2; i++){ const k = (t * 0.6 + i * 0.5) % 1; g.save(); g.globalAlpha = Math.sin(k * Math.PI); g.fillStyle = '#fff6c9'; circ(x - 0.15 + i * 0.3, y - 0.18, 0.03); g.fill(); g.restore(); }
+}
+// Arcade cabinet: a tall stand-up machine with a glowing screen, facing the way it's turned.
+export function arcadeCabinet(x, y, r, t, live){
+  shadow(x + 0.5, y + 0.85, 0.36, 0.09);
+  const side = r % 2 === 1;
+  box(x + 0.18, y + 0.3, 0.64, 0.55, 1.35, '#3a0ca3', r === 2 ? '#2a0880' : '#4361ee');
+  const top = y + 0.85 - 1.35;
+  if (r === 0){
+    rr(x + 0.16, top - 0.18, 0.68, 0.2, 0.04); fs('#ef476f', 0.03); text('GO!', x + 0.5, top - 0.08, 0.12, '#ffd23f', 700);
+    rr(x + 0.26, top + 0.1, 0.48, 0.38, 0.03); fs('#1c1240', 0.03);
+    const blink = live ? Math.floor(t * 6) % 2 : 0;
+    g.fillStyle = blink ? '#ffd23f' : '#4cc9f0'; g.fillRect(x + 0.32, top + 0.36, 0.08, 0.06);
+    g.fillStyle = '#ef476f'; g.fillRect(x + 0.5 + Math.sin(t * 2) * 0.12, top + 0.18, 0.07, 0.07);
+    g.fillStyle = '#7bd389'; g.fillRect(x + 0.6, top + 0.4, 0.06, 0.04);
+    rr(x + 0.2, top + 0.56, 0.6, 0.16, 0.03); fs('#2b2d42', 0.025);
+    circ(x + 0.36, top + 0.63, 0.04); fs('#ef476f', 0.015); circ(x + 0.58, top + 0.62, 0.035); fs('#ffd23f', 0.015); circ(x + 0.67, top + 0.65, 0.035); fs('#06d6a0', 0.015);
+  } else if (side){
+    rr(r === 1 ? x + 0.2 : x + 0.62, top + 0.1, 0.18, 0.5, 0.03); fs('#1c1240', 0.025);
+    g.fillStyle = 'rgba(76,201,240,.6)'; g.fillRect(r === 1 ? x + 0.22 : x + 0.64, top + 0.14, 0.04, 0.4);
+  }
+  for (let i = 0; i < 3; i++){ circ(x + 0.3 + i * 0.2, top - 0.22, 0.025); fs(live ? `hsl(${(t * 300 + i * 90) % 360},95%,65%)` : '#ffe9a8', 0); }
+}
+// Bubble machine: a little box on a stand blowing bubbles that drift up and pop.
+export function bubbleMachine(x, y, t){
+  shadow(x, y, 0.25, 0.08);
+  rr(x - 0.04, y - 0.55, 0.08, 0.5, 0.02); fs('#8d869c', 0.025);
+  box(x - 0.22, y - 0.55, 0.44, 0.28, 0.3, '#c0f0ff', '#5cc8bf');
+  circ(x + 0.1, y - 0.72, 0.07); fs('#2b2d42', 0.025);
+  for (let i = 0; i < 7; i++){
+    const k = (t * 0.25 + i / 7) % 1, bx = x + 0.15 + k * 0.6 + Math.sin(k * 8 + i) * 0.12, by = y - 0.8 - k * 1.3, r = 0.05 + (i % 3) * 0.025;
+    g.save(); g.globalAlpha = k < 0.85 ? 0.9 : (1 - k) / 0.15 * 0.9;
+    circ(bx, by, r); g.fillStyle = 'rgba(220,240,255,.25)'; g.fill(); g.strokeStyle = `hsla(${(i * 50 + t * 60) % 360},80%,70%,.9)`; g.lineWidth = 0.015; g.stroke();
+    circ(bx - r * 0.35, by - r * 0.35, r * 0.25); g.fillStyle = 'rgba(255,255,255,.8)'; g.fill();
+    g.restore();
+  }
+}
+// Koi pond (2×2): a stone-rimmed pond with lily pads and koi gliding in circles.
+export function koiPond(x, y, t){
+  ell(x + 1, y + 1.05, 0.98, 0.78); fs('#b8b0a8', 0.045);
+  for (let i = 0; i < 14; i++){ const a = i / 14 * Math.PI * 2; ell(x + 1 + Math.cos(a) * 0.9, y + 1.05 + Math.sin(a) * 0.7, 0.13, 0.08, a); fs(i % 2 ? '#cfc8c0' : '#bdb5ad', 0.02); }
+  ell(x + 1, y + 1.05, 0.78, 0.58);
+  const gr = g.createRadialGradient(x + 1, y + 1.05, 0.1, x + 1, y + 1.05, 0.8); gr.addColorStop(0, '#3f9fc4'); gr.addColorStop(1, '#2a6f9a');
+  g.fillStyle = gr; g.fill();
+  g.save(); ell(x + 1, y + 1.05, 0.76, 0.56); g.clip();
+  for (const [c, sp, rad, ph] of [['#ff7b39', 0.5, 0.45, 0], ['#fff6ea', 0.38, 0.3, 2], ['#ff9f43', 0.45, 0.55, 4]]){
+    const a = t * sp + ph, fx = x + 1 + Math.cos(a) * rad, fy = y + 1.05 + Math.sin(a) * rad * 0.7, dir = a + Math.PI / 2;
+    g.save(); g.translate(fx, fy); g.rotate(dir);
+    ell(0, 0, 0.13, 0.05); fs(c, 0.012); g.beginPath(); g.moveTo(-0.12, 0); g.lineTo(-0.2, -0.05); g.lineTo(-0.2, 0.05); g.closePath(); fs(c, 0.012);
+    if (c === '#fff6ea'){ circ(0.03, 0, 0.03); fs('#ef476f', 0); }
+    g.restore();
+  }
+  for (const [lx, ly, r] of [[0.55, 0.8, 0.14], [1.4, 1.25, 0.16], [1.25, 0.72, 0.1]]){ g.beginPath(); g.moveTo(x + lx, y + ly); g.arc(x + lx, y + ly, r, 0.4, Math.PI * 2); g.closePath(); fs('#5bbf6a', 0.02); }
+  circ(x + 1.45, y + 1.22, 0.05); fs('#ff8fab', 0.015);
+  g.restore();
+}
