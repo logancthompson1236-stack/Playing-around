@@ -196,7 +196,8 @@ export function render(t){
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
-  // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are.
+  // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are. Machines
+  // with a step-by-step routine (soda, gumballs) run it over exactly the shopper's turn.
   const users = new Map();
   for (const p of sim.people) if (p.state === 'useMachine' && p.machine) users.set(p.machine, p);
   // Casino tables: who's in which seat and how far along their round is, and whether the dealer's there.
@@ -207,7 +208,7 @@ export function render(t){
     if (d.id === view.hideId || !seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
-    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: (d.type === 'ride' || d.type === 'carousel') && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
+    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (STEPS.has(d.type) ? u.machineT || c.secs : c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: (d.type === 'ride' || d.type === 'carousel') && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
     if (d.type === 'foodcourt'){
       // The food court in layers, so people sit on the stools and behind the tables properly.
       add(d.y + 0.05, () => A4.foodCourt(d, 'base', 0, t));
@@ -285,18 +286,39 @@ function drawPerson(p, t){
   drawPersonAt(p, t);
 }
 // The kid at a play area: walks in from the grown-up, climbs the ladder and slides (or dives into the ball pit), then walks back.
-function playKidY(p){ return playKid(p, p.playEl || 0).y; }
-function drawPlayKid(p){
-  const q = playKid(p, p.playEl || 0), k = p.look.kid, pose = q.pose;
-  A.person(q.x, q.y - q.z, { ...k, t: p.t + 0.3, s: 0.68, mood: 'happy', flip: q.flip,
-    walk: pose === 'walk' || pose === 'climb', back: pose === 'climb' || (pose === 'walk' && q.up),
-    sit: pose === 'sit' || pose === 'slide', sitSide: pose === 'slide', play: pose === 'slide' || pose === 'hop' || pose === 'pit',
+export function playKidY(p){ return playKid(p, p.playEl || 0).y; }
+export function drawPlayKid(p){
+  const q = playKid(p, p.playEl || 0), k = p.look.kid, pose = q.pose, t = p.t;
+  A.person(q.x, q.y - q.z, { ...k, t: t + 0.3, s: 0.68, mood: 'happy', flip: q.flip,
+    walk: pose === 'walk' || pose === 'climb', stride: (p.playEl || 0) * (pose === 'climb' ? 0.5 : 1.7), side: pose === 'climb' ? 0 : 0.6,
+    back: pose === 'climb' || (pose === 'walk' && q.up),
+    sit: pose === 'sit' || pose === 'slide', sitSide: pose === 'slide', climb: pose === 'climb', cheer: pose === 'slide', splash: pose === 'pit', play: pose === 'hop',
     noShadow: q.z > 0.1 || pose === 'pit' || pose === 'hop' });
+  // In the ball pit, balls go flying.
+  if (pose === 'pit') for (let i = 0; i < 3; i++){
+    const f = (t * 1.1 + i * 0.37 + p.id * 0.13) % 1, dir = i === 1 ? 0.5 : i ? 1 : -1;
+    A.circ(q.x + dir * f * 0.32, q.y - q.z - 0.3 - Math.sin(f * Math.PI) * 0.38 + f * 0.15, 0.045); A.fs(BALL_COLS[(i + p.id) % BALL_COLS.length], 0.012);
+  }
 }
+const BALL_COLS = ['#ef476f', '#ffd23f', '#06d6a0', '#5a8dee', '#ff9f43'];
 const saveNow = () => S.save;
-function drawPersonAt(p, t){
+const STEPS = new Set(['vending', 'gumball']);
+// How far someone has walked (their stride, so their steps keep pace) and which way they're heading, smoothed so
+// a zigzag along the path doesn't flip them about. Heading mostly away from us, we see their back.
+function gait(p){
+  const dx = p.x - (p.gx ?? p.x), dy = p.y - (p.gy ?? p.y), d = Math.hypot(dx, dy);
+  p.gx = p.x; p.gy = p.y;
+  if (d < 1e-4 || d > 0.6) return;
+  p.stride = (p.stride || 0) + d;
+  const k = p.hx === undefined ? 1 : Math.min(1, d * 5);
+  p.hx = (p.hx ?? 0) + (dx / d - (p.hx ?? 0)) * k; p.hy = (p.hy ?? 0) + (dy / d - (p.hy ?? 0)) * k;
+  const n = Math.hypot(p.hx, p.hy) || 1; p.hx /= n; p.hy /= n;
+  if (p.hy < -0.62) p.away = true; else if (p.hy > -0.3) p.away = false;
+}
+export function drawPersonAt(p, t){
   const L = p.look;
-  const o = { ...L, t: p.t, walk: p.walking, flip: p.flip };
+  gait(p);
+  const o = { ...L, t: p.t, walk: p.walking, flip: p.flip, stride: p.stride, side: Math.abs(p.hx ?? 1), run: p.walking && p.speed >= 2.5 };
   if (p.kind === 'customer'){
     if (p.state === 'queue' && p.patience / p.patienceMax < 0.3) o.mood = 'wait';
     else if (p.mood > 0.8) o.mood = 'happy';
@@ -314,7 +336,7 @@ function drawPersonAt(p, t){
     if (L.kid){ o.kidBob = b - Math.abs(Math.sin(t * 6.5 + p.id + 1.7)) * 0.6; return A.family(p.x, p.y - b, o); }
     return A.person(p.x, p.y - b, o);
   }
-  if (p.faceBack) o.back = true;
+  if (p.faceBack || (p.walking && p.away)) o.back = true;
   // Seated on a bench, sofa, the fountain's rim or a cinema seat. Side-facing seats show the legs in profile.
   if (p.state === 'sit' || (p.state === 'show' && !p.bouncing)){ o.sit = true; if (p.seat && p.seat.flip !== undefined) o.sitSide = true; }
   if (p.state === 'dine'){ o.sit = true; o.sitSide = true; }
@@ -329,7 +351,8 @@ function drawPersonAt(p, t){
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
   // At the soda machine: face it and press a button, until the can drops.
-  if (machine === 'vending'){ const live = A.decorState.get(p.machine), r = p.machine.rot || 0; if (!r) o.back = true; o.reach = !live || live.k < 0.55; o.reachSide = r % 2 === 1; }
+  if (machine === 'vending') return drawVending(p, o, t);
+  if (machine === 'gumball') return drawGumball(p, o, t);
   if (machine && machine !== 'ride' && machine !== 'vending' && machine !== 'massage' && machine !== 'photobooth'){
     o.play = true;
     // Standing in front of a machine that faces down: we see their back, hands on the controls.
@@ -382,7 +405,7 @@ function drawPersonAt(p, t){
     return A.person(p.x, p.y, { ...o, kid: undefined, sit: true, sitSide: true, flip: sp.seats[p.court.seat].flip });
   }
   // A grown-up waiting at the play area, watching their kid.
-  if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true });
+  if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true, wave: (p.t + p.id) % 5.5 < 1.1 });
   if (L.kid){
     if (machine !== 'ride' && machine !== 'carousel') return A.family(p.x, p.y, o);
     // On the kiddie ride the grown-up watches. The kid hops up into the rocket's cockpit at the start and back
@@ -397,8 +420,64 @@ function drawPersonAt(p, t){
     }
     return;
   }
+  // A soda just out of the machine fizzes as it's cracked open.
+  if (p.holding === 'can' && p.holdT < 0.9 && p.boughtCan) o.fizz = p.holdT / 0.9;
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;
   A.person(p.x, p.y, o);
+}
+
+// At the soda machine, side on to it: coin in, punch a button, wait for the thunk, crouch to fish the can out of
+// the tray, stand up with it. At a machine facing us they step up beside it first (so the window and tray stay in
+// view) and back to where they were at the end; a kid along for it waits by the grown-up's spot.
+const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+function drawVending(p, o, t){
+  const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0, r = m.rot || 0, V = A.VEND, seg = (a, b) => ease((k - a) / (b - a));
+  if (p.look.kid) A.person(p.x - 0.38, p.y + 0.12, { ...p.look.kid, t: p.t + 0.3, s: 0.68, back: !r, flip: p.flip, mood: k > V.grab ? 'happy' : undefined });
+  const lerp2 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+  let x = p.x, y = p.y;
+  const so = { ...o, kid: undefined, back: false, reachSide: true, flip: r === 0 ? true : p.flip };
+  if (r === 0){
+    const u = seg(0, 0.07) * (1 - seg(0.88, 1));
+    x += (m.x + 1.1 - x) * u; y += (m.y + 1.0 - y) * u;
+    // Stepping up to it (seen from behind) or back off it (can in hand).
+    if (k < 0.07 || k > 0.88) return A.person(x, y, { ...o, kid: undefined, walk: true, stride: k * 3, side: 0.4, back: k < 0.07, flip: k > 0.88 ? m.x + 0.5 < p.x : false, hold: k > 0.88 ? 'can' : undefined, mood: k > 0.88 ? 'happy' : o.mood });
+  }
+  // Hand targets, from the feet, toward the machine: the coin slot, the button, the tray (crouched); and at rest.
+  const coin = r === 0 ? [0.35, -0.64] : [0.36, -0.62], btn = r === 0 ? [0.35, -0.835] : [0.37, -0.86], tray = r === 0 ? [0.52, -0.37] : [0.42, -0.3], rest = [0.18, -0.36], chest = [0.2, -0.42];
+  let h;
+  if (k < V.press) h = lerp2(rest, coin, seg(0.06, V.coin));
+  else if (k < V.drop) { h = lerp2(coin, btn, seg(V.press - 0.02, V.press + 0.03)); h[0] -= Math.max(0, Math.sin((k - V.press - 0.03) / 0.07 * Math.PI)) * 0.04; }
+  else if (k < 0.56) h = lerp2(btn, rest, seg(V.drop, V.drop + 0.06));
+  else if (k < V.grab + 0.02) h = lerp2(rest, tray, seg(0.56, 0.65));
+  else h = lerp2(tray, chest, seg(V.grab + 0.02, 0.82));
+  so.reachTo = h; so.crouch = seg(0.55, 0.64) * (1 - seg(V.grab + 0.02, 0.82));
+  if (k >= V.grab) so.reachHold = 'can';
+  if (k >= V.grab) so.mood = 'happy';
+  return A.person(x, y, so);
+}
+
+// At the gumball machine (a kid does the honours when there is one): step up beside it, turn the crank a full turn,
+// crouch for the gumball in the little door, pop it in, and step back.
+function drawGumball(p, o, t){
+  const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0, G = A.GUM, seg = (a, b) => ease((k - a) / (b - a));
+  const kid = p.look.kid, look = kid || p.look, s = kid ? 0.68 : 1, gx = m.x + 0.5, gy = m.y + 0.8;
+  const fx = kid ? p.x - 0.38 : p.x, fy = kid ? p.y + 0.12 : p.y, sx = gx + (kid ? 0.22 : 0.38), sy = gy + (kid ? 0.2 : 0.3);
+  const u = seg(0, 0.08) * (1 - seg(0.88, 1)), x = fx + (sx - fx) * u, y = fy + (sy - fy) * u;
+  // The grown-up steps aside to watch, so the machine stays in view.
+  if (kid) A.person(p.x - 0.5 * u, p.y, { ...o, kid: undefined, back: true, walk: u > 0 && u < 1, stride: k * 2.2, side: 1 });
+  const base = { ...look, t: p.t + (kid ? 0.3 : 0), s, mood: k > G.grab ? 'happy' : undefined };
+  if (k < 0.08 || k > 0.88) return A.person(x, y, { ...base, walk: true, stride: k * 2.2, side: 0.5, back: k < 0.08, flip: k > 0.88 ? sx > fx : false });
+  // Hand targets in the operator's own frame (facing the machine), from spots on it.
+  const at = (wx, wy) => [(sx - wx) / s, (wy - sy) / s], lerp2 = (a, b, v) => [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v];
+  const turn = k > G.crank && k < G.turned ? (k - G.crank) / (G.turned - G.crank) : 0, a = -Math.PI / 2 + turn * Math.PI * 2;
+  const crank = at(gx + Math.cos(a) * 0.045, gy - 0.34 + Math.sin(a) * 0.035), door = at(gx, gy - 0.19), rest = [0.18, -0.36], mouth = [0.2, -0.78];
+  let h;
+  if (k < G.turned) h = lerp2(rest, crank, seg(0.08, G.crank));
+  else if (k < 0.6) h = lerp2(crank, rest, seg(G.turned, G.turned + 0.06));
+  else if (k < G.grab) h = lerp2(rest, door, seg(0.6, 0.69));
+  else if (k < 0.8) h = lerp2(door, mouth, seg(G.grab, 0.8));
+  else h = lerp2(mouth, rest, seg(0.82, 0.88));
+  return A.person(x, y, { ...base, flip: true, reachSide: true, reachTo: h, crouch: seg(0.59, 0.67) * (1 - seg(G.grab, 0.8)) * (kid ? 0.6 : 1) });
 }
 
 // Show how far a trash can reaches while placing or selecting one.
