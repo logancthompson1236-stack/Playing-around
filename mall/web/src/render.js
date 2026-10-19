@@ -197,7 +197,7 @@ export function render(t){
     if (d.id === view.hideId || !seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
-    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1 }); else A.decorState.delete(d);
+    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: d.type === 'ride' && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
     add(decorSortY(d), () => d.type === 'playarea' ? A2.playArea(d, t) : A.decor(d, t));
     if (d.type === 'playarea'){ add(d.y + PIT.y + PIT.ry, () => A2.playFront(d, 'pit')); add(d.y + 0.9, () => A2.playFront(d, 'slide')); add(d.y + 1.9, () => A2.playFront(d, 'rail')); }
   }
@@ -359,10 +359,16 @@ function drawPersonAt(p, t){
   if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true });
   if (L.kid){
     if (machine !== 'ride') return A.family(p.x, p.y, o);
-    // On the kiddie ride the kid hops on, rocking with the rocket and cheering, while the grown-up watches.
-    const m = p.machine, sway = Math.sin(t * 4) * 0.12, bob = Math.abs(Math.sin(t * 4)) * 0.06;
-    A.person(p.x, p.y, { ...o, kid: undefined });
-    A.person(m.x + 0.5 + sway, m.y + 0.36 - bob, { ...L.kid, t: p.t + 0.3, s: 0.68, play: true, mood: 'happy' });
+    // On the kiddie ride the grown-up watches. The kid hops up into the rocket's cockpit at the start and back
+    // down at the end; in between the ride draws them sitting in it, rocking along.
+    const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0;
+    A.person(p.x, p.y, { ...o, kid: undefined, back: !(m.rot || 0) ? false : o.back });
+    const hop = k < A.RIDE_ON ? k / A.RIDE_ON : k > A.RIDE_OFF ? 1 - (k - A.RIDE_OFF) / (1 - A.RIDE_OFF) : -1;
+    if (hop >= 0){
+      const seat = A.rideSeat(m), fx = p.x - 0.38, fy = p.y + 0.12, e = hop * hop * (3 - 2 * hop);
+      const kx = fx + (seat.x - fx) * e, ky = fy + (seat.y - fy) * e - Math.sin(hop * Math.PI) * 0.35;
+      A.person(kx, ky, { ...L.kid, t: p.t + 0.3, s: 0.68, walk: hop > 0.05 && hop < 0.95, flip: seat.x < fx, play: hop > 0.3 && hop < 0.8, mood: 'happy', noShadow: hop > 0.1 });
+    }
     return;
   }
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;

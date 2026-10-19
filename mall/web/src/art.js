@@ -2140,30 +2140,89 @@ function vending(x, y, r, t = 0, live = null){
     rr(ex, top + 0.08, 0.08, 1.0, 0.02); fs('rgba(200,235,250,.95)', 0.02);
   }
 }
+// The kiddie ride: a fat little rocket on a coin-op base. A kid rides in the open cockpit (see rideSeat), rocking
+// with it; while it runs, the base lights chase and the rocket puffs exhaust. live.k is how far along the ride is
+// (0 to 1): the kid climbs on over the first bit and hops off over the last (the renderer draws those hops).
+export const RIDE_ON = 0.12, RIDE_OFF = 0.88;
+const rideAmp = k => k < RIDE_ON || k > RIDE_OFF ? 0 : Math.min(1, (k - RIDE_ON) / 0.08, (RIDE_OFF - k) / 0.08);
+// Where a seated rider goes (their feet, so to speak), for rotation r, with the rocket at rest.
+export function rideSeat(d){
+  const r = d.rot || 0, cx = d.x + 0.5, cy = d.y + 0.8;
+  return r === 1 ? { x: cx + 0.04, y: cy - 0.72 } : r === 3 ? { x: cx - 0.04, y: cy - 0.72 } : { x: cx, y: cy - 0.76 };
+}
 function kiddieRide(x, y, r, t, live){
-  // In use, it rocks side to side (the kid on it rocks with it; see the renderer).
-  const cx = x + 0.5, cy = y + 0.78, bob = live ? Math.abs(Math.sin(t * 4)) * 0.06 : Math.sin(t * 2.2) * 0.02, tilt = live ? Math.sin(t * 4) * 0.18 : 0;
-  shadow(cx, cy, 0.42, 0.12);
-  cylinder(cx, cy - 0.02, 0.38, 0.14, '#e0b52f', '#ffd23f');
-  rr(cx - 0.03, cy - 0.4, 0.06, 0.26, 0.02); fs('#a0a8b0', 0.025);
-  const by = cy - 0.62 - bob;
-  g.save(); g.translate(cx, cy - 0.4); g.rotate(tilt); g.translate(-cx, -(cy - 0.4));
-  if (live){ for (let i = 0; i < 3; i++){ circ(cx - 0.3 + i * 0.3, cy - 0.06, 0.03); fs(`hsl(${(t * 300 + i * 120) % 360},90%,60%)`, 0); } }
+  const cx = x + 0.5, cy = y + 0.8, k = live ? live.k : 0, amp = rideAmp(k);
+  const rock = Math.sin(t * 5) * amp, bob = Math.abs(Math.sin(t * 5)) * 0.05 * amp + (live ? 0 : Math.sin(t * 2) * 0.008);
+  const rider = live && live.rider && amp > 0 ? live.rider : null;
+  const BODY = '#ef476f', BODY2 = '#c23e63', NOSE = '#ffd23f', STRIPE = '#fff6ea', FIN = '#5a8dee', FIN2 = '#3f6fd1';
+  // The base: a round platform with a coin box and chasing lights.
+  shadow(cx, cy, 0.4, 0.12);
+  cylinder(cx, cy - 0.02, 0.33, 0.12, '#3fb8af', '#5cc8bf');
+  for (let i = 0; i < 6; i++){ const a = Math.PI * (0.15 + i * 0.14); circ(cx - Math.cos(a) * 0.26, cy - 0.06 + Math.sin(a) * 0.02, 0.028); fs(live && amp > 0 && (i + Math.floor(t * 8)) % 3 === 0 ? '#fff2a8' : '#ffd23f', 0.012); }
+  box(cx + 0.2, cy - 0.04, 0.15, 0.1, 0.22, '#ffd23f', '#e0b52f', 0, 0.03, 0.03);
+  rr(cx + 0.235, cy - 0.21, 0.08, 0.02, 0.01); fs('#3d405b', 0);
+  rr(cx - 0.04, cy - 0.42, 0.08, 0.3, 0.03); fs('#a0a8b0', 0.025);
+  const py = cy - 0.42;                                   // the pivot the rocket rocks on
+  g.save(); g.translate(cx, py - bob);
+  const puff = (px, py2, dir) => { if (!amp) return; for (let i = 0; i < 3; i++){ const q = ((t * 1.6 + i / 3) % 1); circ(px + dir * q * 0.35, py2 - q * 0.08, 0.04 + q * 0.06); g.fillStyle = `rgba(255,255,255,${0.55 * (1 - q)})`; g.fill(); } };
+  const flame = (fx, fy, dir, len) => { if (!amp) return; const f = len * (0.8 + Math.sin(t * 30) * 0.2); g.beginPath(); g.moveTo(fx, fy - 0.06); g.quadraticCurveTo(fx + dir * f, fy, fx, fy + 0.06); fs('#ff9f43', 0.02); g.beginPath(); g.moveTo(fx, fy - 0.03); g.quadraticCurveTo(fx + dir * f * 0.6, fy, fx, fy + 0.03); fs('#fff2a8', 0); };
   if (r === 1 || r === 3){
-    // Drawn nose-right; turned to face left it's mirrored.
-    g.save(); g.translate(cx, by); if (r === 1) g.scale(-1, 1);
-    g.beginPath(); g.moveTo(0.22, -0.02); g.lineTo(0.42, 0.1); g.lineTo(0.22, 0.2); g.closePath(); fs('#ef476f', 0.03);
-    ell(0, 0.0, 0.36, 0.2); fs('#5a8dee');
-    g.beginPath(); g.moveTo(-0.36, 0); g.quadraticCurveTo(-0.5, -0.02, -0.56, 0.0); g.quadraticCurveTo(-0.5, 0.04, -0.36, 0.02); fs('#ef476f', 0.03);
-    circ(-0.1, -0.03, 0.08); fs('#bfe7f7', 0.03);
-    g.beginPath(); g.moveTo(0.12, -0.16); g.lineTo(0.28, -0.32); g.lineTo(0.3, -0.12); g.closePath(); fs('#ef476f', 0.03);
+    // Side on: nose to the right (r 3) or mirrored to the left (r 1); it pitches nose up and down.
+    const m = r === 1 ? -1 : 1;
+    g.scale(m, 1); g.rotate(rock * 0.16);
+    const by = -0.24, RX = 0.44, RY = 0.27;              // body center (above the pivot) and size
+    puff(-RX - 0.08, by + 0.02, -1); flame(-RX - 0.03, by + 0.01, -1, 0.24);
+    rr(-RX - 0.09, by - 0.08, 0.12, 0.17, 0.03); fs('#6c7385', 0.025);               // nozzle
+    g.beginPath(); g.moveTo(-0.26, by - 0.16); g.lineTo(-0.5, by - 0.4); g.lineTo(-0.4, by - 0.1); g.closePath(); fs(FIN, 0.03);   // top fin
+    // The rider sits down into the cockpit: drawn first, so the body hides their legs.
+    if (rider){ g.save(); g.scale(m, 1); person(-0.04 * m, by - 0.06, { ...rider, t, s: 0.68, sit: true, sitSide: true, flip: m < 0, play: Math.sin(t * 2.5) > 0.3, mood: 'happy', noShadow: true }); g.restore(); }
+    const body = () => { g.beginPath(); g.ellipse(0, by, RX, RY, 0, 0, Math.PI * 2); };
+    // With a rider, the top of the body is cut away where the cockpit is, so they show through it.
+    g.save();
+    if (rider){ g.beginPath(); g.rect(-0.6, by - 0.5, 1.2, 1.2); g.ellipse(-0.04, by - RY + 0.03, 0.17, 0.12, 0, 0, Math.PI * 2); g.clip('evenodd'); }
+    body(); fs(BODY, 0.04);
+    g.save(); body(); g.clip();
+    g.fillStyle = NOSE; g.beginPath(); g.ellipse(RX, by, 0.2, 0.34, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(RX - 0.08, by - 0.12, 0.05, 0.08, -0.4, 0, Math.PI * 2); g.fill();
+    g.fillStyle = STRIPE; g.fillRect(-0.16, by - 0.34, 0.07, 0.68);
+    g.fillStyle = BODY2; g.fillRect(-0.5, by + 0.14, 1, 0.2);
+    g.fillStyle = 'rgba(255,255,255,.3)'; g.beginPath(); g.ellipse(-0.05, by - 0.16, 0.24, 0.05, 0, 0, Math.PI * 2); g.fill();
     g.restore();
+    body(); fs(null, 0.04);
+    g.beginPath(); g.ellipse(RX - 0.2, by, 0.03, RY * 0.92, 0, -Math.PI / 2, Math.PI / 2); g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.02; g.stroke();
+    circ(0.14, by + 0.04, 0.07); fs('#bfe7f7', 0.03); circ(0.12, by + 0.02, 0.022); g.fillStyle = 'rgba(255,255,255,.9)'; g.fill();   // porthole
+    g.restore();
+    g.beginPath(); g.moveTo(-0.26, by + 0.16); g.lineTo(-0.48, by + 0.34); g.lineTo(-0.34, by + 0.12); g.closePath(); fs(FIN2, 0.03);   // bottom fin
+    // The cockpit: its dark far side, the rider in it, the near lip over their lap, and a little windshield.
+    if (!rider){ ell(-0.04, by - RY + 0.03, 0.17, 0.06); fs('#3a2346', 0.03); }
+    g.beginPath(); g.ellipse(-0.04, by - RY + 0.03, 0.17, 0.06, 0, 0, Math.PI); g.strokeStyle = OUT; g.lineWidth = 0.05; g.stroke(); g.strokeStyle = '#ffd23f'; g.lineWidth = 0.025; g.stroke();
+    g.beginPath(); g.moveTo(0.11, by - RY + 0.03); g.quadraticCurveTo(0.22, by - RY - 0.12, 0.27, by - RY + 0.05); g.closePath(); fs('rgba(190,230,250,.75)', 0.025);
+  } else if (r === 0){
+    // Nose toward us: the yellow nose cone in the middle, fins out to the sides, the rider peeking over the top.
+    g.rotate(rock * 0.14);
+    const by = -0.24;
+    for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(sx * 0.18, by - 0.02); g.lineTo(sx * 0.42, by + 0.16); g.lineTo(sx * 0.2, by + 0.16); g.closePath(); fs(FIN, 0.03); }
+    g.beginPath(); g.moveTo(-0.05, by - 0.2); g.lineTo(0, by - 0.4); g.lineTo(0.05, by - 0.2); g.closePath(); fs(FIN2, 0.03);
+    if (rider) person(0, by - 0.1, { ...rider, t, s: 0.68, sit: true, play: Math.sin(t * 2.5) > 0.3, mood: 'happy', noShadow: true });
+    circ(0, by, 0.26); fs(BODY, 0.04);
+    g.save(); circ(0, by, 0.26); g.clip(); g.fillStyle = BODY2; g.fillRect(-0.3, by + 0.12, 0.6, 0.2); g.restore();
+    circ(0, by, 0.26); fs(null, 0.04);
+    circ(0, by + 0.02, 0.15); fs(STRIPE, 0.03);
+    circ(0, by + 0.02, 0.1); fs(NOSE, 0.03);
+    circ(-0.03, by - 0.01, 0.03); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
+    puff(-0.28, by + 0.12, -1); puff(0.28, by + 0.12, 1);
   } else {
-    for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(cx + sx * 0.16, by - 0.05); g.lineTo(cx + sx * 0.34, by + 0.12); g.lineTo(cx + sx * 0.18, by + 0.16); g.closePath(); fs('#ef476f', 0.03); }
-    circ(cx, by, 0.22); fs('#5a8dee');
-    if (r === 0){ circ(cx, by - 0.02, 0.1); fs('#bfe7f7', 0.03); circ(cx - 0.03, by - 0.05, 0.03); g.fillStyle = 'rgba(255,255,255,.8)'; g.fill(); }
-    else { circ(cx, by + 0.02, 0.1); fs('#3d405b', 0.03); circ(cx, by + 0.02, 0.05); fs('#ff9f43', 0); }
-    g.beginPath(); g.moveTo(cx - 0.1, by - 0.18); g.lineTo(cx, by - 0.42); g.lineTo(cx + 0.1, by - 0.18); fs('#ef476f', 0.03);
+    // Tail toward us: the nozzle (with flames when it's running), fins, the rider's back over the top.
+    g.rotate(rock * 0.14);
+    const by = -0.24;
+    if (rider) person(0, by - 0.1, { ...rider, t, s: 0.68, sit: true, back: true, play: Math.sin(t * 2.5) > 0.3, noShadow: true });
+    for (const sx of [-1, 1]){ g.beginPath(); g.moveTo(sx * 0.18, by - 0.02); g.lineTo(sx * 0.42, by + 0.16); g.lineTo(sx * 0.2, by + 0.16); g.closePath(); fs(FIN, 0.03); }
+    circ(0, by, 0.26); fs(BODY, 0.04);
+    g.save(); circ(0, by, 0.26); g.clip(); g.fillStyle = BODY2; g.fillRect(-0.3, by + 0.12, 0.6, 0.2); g.restore();
+    circ(0, by, 0.26); fs(null, 0.04);
+    circ(0, by + 0.02, 0.13); fs('#6c7385', 0.035); circ(0, by + 0.02, 0.08); fs('#3a3346', 0.02);
+    if (amp){ circ(0, by + 0.02, 0.06 + Math.sin(t * 30) * 0.015); fs('#ff9f43', 0); circ(0, by + 0.02, 0.035); fs('#fff2a8', 0); }
+    g.beginPath(); g.moveTo(-0.05, by - 0.2); g.lineTo(0, by - 0.42); g.lineTo(0.05, by - 0.2); g.closePath(); fs(FIN2, 0.03);
   }
   g.restore();
 }
