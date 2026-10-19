@@ -104,6 +104,22 @@ export const wageOf = m => WAGES[m.role][staffSkill(m)];
 export const stars = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 
 export function stores(save = S.save){ return save.units.filter(u => u.state === 'store'); }
+// Stores and kiosks with a register but nobody behind it.
+export function unstaffed(save = S.save){
+  return stores(save).filter(u => !STORES[u.store].attraction && !save.staff.some(m => m.storeId === u.id));
+}
+// Clerks without a register take the open ones, dream store first. Returns the names of who moved where.
+export function assignClerks(save = S.save){
+  const moved = [];
+  for (const m of save.staff){
+    if (m.role !== 'clerk' || m.storeId) continue;
+    const open = unstaffed(save);
+    if (!open.length) break;
+    const u = open.find(v => v.store === m.dream) || open[0];
+    m.storeId = u.id; moved.push({ name: m.name, store: STORES[u.store].name });
+  }
+  return moved;
+}
 export function unitById(id){ return S.save.units.find(u => u.id === id) || null; }
 
 // Adds XP and returns the list of levels gained.

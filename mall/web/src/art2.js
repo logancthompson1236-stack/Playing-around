@@ -1,22 +1,12 @@
 // v0.12 painters: the new decor (play area, topiary, photo booth, aquarium, massage chair, piano, flower arch) and
 // the hot dog stand and pizzeria's pieces. Same conventions as art.js: tile units, drawn on art.js's current `g`.
 import { g, rr, circ, ell, fs, box, shadow, text, storeIcon, mulberry, OUT } from './art.js';
+import { PIT, TOWER, LADDER_X, slidePath } from './play.js';
 
 const BALLS = ['#ef476f', '#ffd23f', '#5a8dee', '#06d6a0', '#ff9f43', '#9b5de5'];
 
 /* ---------- Kids play area (3×2) ---------- */
-// Where the kids play: the top of the slide, and two spots in the ball pit.
-export function playSpots(d){
-  return [
-    { x: d.x + 0.62, y: d.y + 0.95, kind: 'slide' },
-    { x: d.x + 2.05, y: d.y + 1.35, kind: 'pit' },
-    { x: d.x + 2.5, y: d.y + 1.0, kind: 'pit' },
-  ];
-}
-// The slide's path for a kid going down it, k from 0 (top) to 1 (bottom): x, y on the floor and z, the height.
-export function slidePath(d, k){
-  return { x: d.x + 0.62 + k * 0.85, y: d.y + 0.95 + k * 0.6, z: 0.75 * (1 - k) * (1 - k * 0.3) };
-}
+// A slide tower at the back left and a ball pit at the back right, on a padded mat. The layout lives in play.js.
 export function playArea(d, t){
   const x = d.x, y = d.y;
   shadow(x + 1.5, y + 1.95, 1.55, 0.14, 0.14);
@@ -29,30 +19,64 @@ export function playArea(d, t){
   g.stroke();
   for (const px of [x + 0.08, x + 1.5, x + 2.92]){ rr(px - 0.07, y - 0.55, 0.14, 0.68, 0.06); fs('#ef476f', 0.03); circ(px, y - 0.58, 0.09); fs('#ffd23f', 0.03); }
   // The ball pit: a padded ring full of balls.
-  ell(x + 2.15, y + 1.2, 0.72, 0.5); fs('#5a8dee', 0.04);
-  ell(x + 2.15, y + 1.16, 0.6, 0.4); fs('#e9f3ff', 0.02);
+  const px = x + PIT.x, py = y + PIT.y;
+  ell(px, py, PIT.rx, PIT.ry); fs('#5a8dee', 0.04);
+  ell(px, py - 0.03, PIT.rx - 0.11, PIT.ry - 0.09); fs('#e9f3ff', 0.02);
   const R = mulberry(d.id * 7 + 3);
-  for (let i = 0; i < 26; i++){ const a = R() * Math.PI * 2, rad = Math.sqrt(R()); circ(x + 2.15 + Math.cos(a) * rad * 0.52, y + 1.16 + Math.sin(a) * rad * 0.33, 0.07); fs(BALLS[i % BALLS.length], 0.012); }
-  // The slide tower: a little platform with a roof, a ladder at the back and a yellow slide curving down.
-  box(x + 0.3, y + 0.55, 0.64, 0.5, 0.75, '#ffd166', '#f4a261');
-  for (let k = 0; k < 4; k++){ rr(x + 0.36, y + 0.6 - 0.7 + k * 0.17, 0.14, 0.03, 0.01); fs('#e76f51', 0.01); }
-  for (const px of [x + 0.32, x + 0.88]){ rr(px, y + 0.55 - 1.45, 0.05, 0.75, 0.02); fs('#ef476f', 0.02); }
-  g.beginPath(); g.moveTo(x + 0.22, y - 0.85); g.lineTo(x + 0.62, y - 1.12); g.lineTo(x + 1.02, y - 0.85); g.closePath(); fs('#06d6a0', 0.035);
-  g.beginPath();
-  for (let k = 0; k <= 10; k++){ const p = slidePath(d, k / 10); (k ? g.lineTo : g.moveTo).call(g, p.x + 0.18, p.y - p.z - 0.05); }
-  for (let k = 10; k >= 0; k--){ const p = slidePath(d, k / 10); g.lineTo(p.x - 0.12, p.y - p.z + 0.12); }
-  g.closePath(); fs('#ffd23f', 0.04);
-  g.beginPath(); for (let k = 0; k <= 10; k++){ const p = slidePath(d, k / 10); (k ? g.lineTo : g.moveTo).call(g, p.x + 0.03, p.y - p.z + 0.03); } g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 0.035; g.stroke();
+  for (let i = 0; i < 26; i++){ const a = R() * Math.PI * 2, rad = Math.sqrt(R()); circ(px + Math.cos(a) * rad * (PIT.rx - 0.17), py - 0.03 + Math.sin(a) * rad * (PIT.ry - 0.12), 0.07); fs(BALLS[i % BALLS.length], 0.012); }
+  slideTower(d, t);
 }
-// In front of the kids: the near edge of the ball pit (so pit kids sink in among the balls) and the front fence.
-export function playFront(d){
-  const x = d.x, y = d.y;
-  g.save(); g.beginPath(); g.rect(x + 1.3, y + 1.2, 1.7, 0.6); g.clip();
-  const R = mulberry(d.id * 11 + 1);
-  for (let i = 0; i < 18; i++){ const a = Math.PI * (0.1 + R() * 0.8), rad = 0.7 + R() * 0.3; circ(x + 2.15 + Math.cos(a) * rad * 0.55, y + 1.16 + Math.sin(a) * rad * 0.36, 0.07); fs(BALLS[i % BALLS.length], 0.012); }
-  g.restore();
-  g.beginPath(); g.ellipse(x + 2.15, y + 1.2, 0.72, 0.5, 0, 0.05, Math.PI - 0.05); g.strokeStyle = '#5a8dee'; g.lineWidth = 0.14; g.stroke();
-  // A low padded rail along the front, open in the middle where the grown-ups stand.
+function slideTower(d, t){
+  const T = TOWER, x = d.x + T.x, y = d.y + T.y, top = y - T.h, roofZ = 0.55;
+  // Back posts and the striped roof up on top of them.
+  for (const qx of [x + 0.04, x + T.w - 0.04]){ rr(qx - 0.035, top - roofZ, 0.07, roofZ + 0.05, 0.03); fs('#5a8dee', 0.025); }
+  // The platform: a little blue cabin with a porthole and a yellow deck.
+  box(x, y, T.w, T.d, T.h, '#ffd23f', '#5a8dee');
+  circ(x + T.w * 0.72, y + T.d - T.h * 0.55, 0.11); fs('#bde0fe', 0.03);
+  rr(x + 0.04, y + T.d - 0.1, T.w - 0.08, 0.05, 0.02); fs('#3f6fd1', 0);
+  // The roof: a red-and-yellow peak.
+  const rx0 = x - 0.08, rx1 = x + T.w + 0.08, ry = top - roofZ + 0.02;
+  for (let i = 0; i < 4; i++){
+    const a = rx0 + (rx1 - rx0) * i / 4, b = rx0 + (rx1 - rx0) * (i + 1) / 4, mx = (rx0 + rx1) / 2;
+    g.beginPath(); g.moveTo(a, ry); g.lineTo(b, ry); g.lineTo(mx, ry - 0.42); g.closePath(); fs(i % 2 ? '#ffd23f' : '#ef476f', 0.03);
+  }
+  g.beginPath(); g.moveTo(rx0, ry); g.lineTo((rx0 + rx1) / 2, ry - 0.42); g.lineTo(rx1, ry); g.strokeStyle = OUT; g.lineWidth = 0.035; g.stroke();
+  // A pennant on top.
+  const fx = (rx0 + rx1) / 2, fy = ry - 0.42, wv = Math.sin(t * 4 + d.id) * 0.03;
+  g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 0.26); g.strokeStyle = OUT; g.lineWidth = 0.02; g.stroke();
+  g.beginPath(); g.moveTo(fx, fy - 0.26); g.lineTo(fx + 0.2, fy - 0.21 + wv); g.lineTo(fx, fy - 0.15); g.closePath(); fs('#06d6a0', 0.02);
+  // The ladder up the front, with hand grips over the top.
+  const lx = d.x + LADDER_X, lb = y + T.d + 0.06;
+  for (const sx of [lx - 0.1, lx + 0.1]){ rr(sx - 0.025, lb - T.h - 0.18, 0.05, T.h + 0.18, 0.02); fs('#ef476f', 0.02); }
+  for (let k = 1; k <= 4; k++){ rr(lx - 0.1, lb - k * T.h / 4.6, 0.2, 0.035, 0.015); fs('#ffd23f', 0.015); }
+  // The chute: a wide orange slide with raised yellow rails, curving down to a flat lip.
+  const N = 14, nx = -0.14, ny = 0.13, pts = [];
+  for (let k = 0; k <= N; k++) pts.push(slidePath(d, k / N));
+  const at = (q, s, lift = 0) => [q.x + nx * s, q.y + ny * s - q.z - lift];
+  g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, -1); (i ? g.lineTo : g.moveTo).call(g, a, b); });
+  for (let i = N; i >= 0; i--){ const [a, b] = at(pts[i], 1); g.lineTo(a, b); }
+  g.closePath(); fs('#ff9f1c', 0.04);
+  g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, 0.1); (i ? g.lineTo : g.moveTo).call(g, a, b); }); g.strokeStyle = 'rgba(255,240,200,.85)'; g.lineWidth = 0.07; g.stroke();
+  for (const s of [-1, 1]){
+    g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, s, 0.07); (i ? g.lineTo : g.moveTo).call(g, a, b); });
+    g.strokeStyle = OUT; g.lineWidth = 0.09; g.stroke(); g.strokeStyle = '#ffd23f'; g.lineWidth = 0.055; g.stroke();
+  }
+  // Little legs holding up the chute halfway down.
+  const mid = pts[Math.round(N * 0.55)];
+  for (const s of [-1, 1]){ const [a, b] = at(mid, s); rr(a - 0.025, b, 0.05, mid.z, 0.02); fs('#5a8dee', 0.02); }
+}
+// In front of the kids: the near half of the ball pit (so pit kids sink in among the balls), or the low front rail.
+export function playFront(d, part){
+  const x = d.x, y = d.y, px = x + PIT.x, py = y + PIT.y;
+  if (part === 'pit'){
+    g.save(); g.beginPath(); g.rect(px - PIT.rx, py, PIT.rx * 2, PIT.ry + 0.1); g.clip();
+    const R = mulberry(d.id * 11 + 1);
+    for (let i = 0; i < 18; i++){ const a = Math.PI * (0.1 + R() * 0.8), rad = 0.7 + R() * 0.3; circ(px + Math.cos(a) * rad * (PIT.rx - 0.15), py - 0.03 + Math.sin(a) * rad * (PIT.ry - 0.1), 0.07); fs(BALLS[i % BALLS.length], 0.012); }
+    g.restore();
+    g.beginPath(); g.ellipse(px, py, PIT.rx, PIT.ry, 0, 0.05, Math.PI - 0.05); g.strokeStyle = '#5a8dee'; g.lineWidth = 0.14; g.stroke();
+    return;
+  }
+  // A low padded rail along the front, open in the middle where the kids come and go.
   for (const [a, b] of [[x + 0.05, x + 1.05], [x + 1.95, x + 2.95]]){ rr(a, y + 1.86, b - a, 0.14, 0.06); fs('#ef476f', 0.03); rr(a, y + 1.72, b - a, 0.12, 0.06); fs('#ffd23f', 0.03); }
 }
 

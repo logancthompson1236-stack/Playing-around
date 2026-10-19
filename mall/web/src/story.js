@@ -138,7 +138,7 @@ export const TIPS = {
   night: { title: 'Nights are for building', text: 'Nothing’s on the clock till you hit Open Doors. Tap things in the mall to see what you can do.' },
   open: { title: 'Opening a store', text: 'Those boarded-up storefronts can be shops again. Tap Build, pick a store, then tap a glowing storefront to open it.' },
   newshell: { title: 'Out of storefronts', text: 'Every storefront’s taken. Pick a store under Build and tap Build new to put one up. Old storage gets cleared out as part of the job.' },
-  walkout: { title: 'Folks don’t wait forever', text: 'Watch the ring around their bubble. When it runs out, they leave grumpy.' },
+  walkout: { title: 'Folks don’t wait forever', text: 'If customers wait in line too long they get frustrated and leave (that’s the little storm cloud). Watch the ring around their bubble: tap it to rush to that register before it runs out, or hire clerks to keep the lines moving.' },
   wish: { title: 'Grey bubbles', text: 'Grey means we don’t have what they want. The report card keeps a list of what folks wished for.' },
   style: { title: 'A fresh look', text: 'The old lilac walls have had a good run. Under Build, then Style, you can pick new wallpaper and flooring for the whole mall. A fresh look brightens the ambience, too.' },
   litter: { title: 'Trash cans', text: 'Put a trash can out and most folks nearby will toss their trash in it instead of on the floor. Build, then Decor.' },

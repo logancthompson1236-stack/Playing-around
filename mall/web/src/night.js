@@ -1,7 +1,7 @@
 // Night mode: tapping things in the mall, the Build and Staff panels, and placing or moving things.
 import * as C from './config.js';
 import * as A from './art.js';
-import { S, writeSave, addXp, stores, staffSkill, wageOf, stars } from './state.js';
+import { S, writeSave, addXp, stores, staffSkill, wageOf, stars, assignClerks } from './state.js';
 import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, ESCALATOR_ID, unitAccess, decorSize, decorAccess, floorRange, floorOf, clearEscalators } from './map.js';
 import { sim, staffLook } from './sim.js';
 import { view, invalidate, poof, worldToScreen, setFloor } from './render.js';
@@ -21,6 +21,9 @@ export function panTo(x, y){ view.camTarget = { x, y }; }
 
 function changed(xp = 0){
   rebuildMap(S.save); invalidate();
+  const moved = assignClerks(S.save);
+  if (moved.length === 1) toast(`${moved[0].name} will run ${moved[0].store}`);
+  else if (moved.length) toast(`${moved.length} clerks took the open registers`);
   if (xp){ const gained = addXp(xp); if (gained.length) onLevelUp(gained); }
   writeSave();
 }
@@ -359,6 +362,8 @@ function startPlacement(p){
   const cas = (p.decor && C.DECOR[p.decor].casino) || (p.store && C.STORES[p.store].casino);
   if (cas && view.floor !== 2 && S.save.expansions.casino && p.x === undefined){ setFloor(2); view.cam.x = C.F3X + 6; }
   place = { ...p };
+  // While it's being moved, the piece leaves its old spot (shown empty) and follows the drag.
+  if (p.moveId){ view.hideId = p.moveId; invalidate(); }
   if (p.x === undefined){
     const c = view.cam; let best = null;
     // Start near the middle of the screen, on the nearest spot that works (clean floor first, then storage).
@@ -420,8 +425,17 @@ function refreshGhost(){
   place.ok = v.ok;
   const access = accessFor(place.x, place.y, place.face), cost = placeCost(v);
   const temp = { id: 9999, x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, state: place.restroom ? 'restroom' : 'store', store: place.store, stock: 1, kiosk: place.kind === 'kiosk' };
-  view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
-    if (place.kind === 'unit'){ const def = place.restroom ? C.RESTROOM : C.STORES[place.store]; A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def); if (!place.restroom) A.storeFurniture(temp, def, t, 'counter'); A.unitFront(temp, def, t); A.unitSign(temp, def); }
+  view.ghost = { x: place.x, y: place.y, w: place.w, h: place.h, face: place.face, ok: v.ok, access, moving: !!place.moveId, bin: place.decor === 'bin', zones: v.ok ? v.zones : [], preview: t => {
+    if (place.kind === 'unit'){
+      const def = place.restroom ? C.RESTROOM : C.STORES[place.store];
+      // The whole store comes along when it's moved: its floor, furniture and all.
+      if (place.moveId){ A.floor(def.floor || 'plain', temp.x, temp.y, temp.w, temp.h, place.moveId * 17); temp.id = place.moveId; }
+      A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def);
+      if (!place.restroom && !def.attraction) A.storeFurniture(temp, def, t, 'counter');
+      if (place.moveId && !def.attraction){ A.storeFurniture(temp, def, t, 'mid'); if (def.icon === 'shirt') A.storeFurniture(temp, def, t, 'teeTable'); }
+      if (place.moveId && def.dine) A.dineSpots(temp).tables.forEach((tb, i) => { A.dineTable(temp, i, 'stools'); A.dineTable(temp, i, 'table'); });
+      A.unitFront(temp, def, t); A.unitSign(temp, def);
+    }
     else if (place.kind === 'kiosk') A.kiosk(temp, C.STORES[place.store], t);
     else A.decor({ type: place.decor, x: place.x, y: place.y, rot: place.face || 0 }, t);
   } };
@@ -475,7 +489,7 @@ function confirmPlacement(){
   endPlacement();
   changed(xp);
 }
-export function endPlacement(){ place = null; view.ghost = null; hidePlacementBar(); }
+export function endPlacement(){ place = null; view.ghost = null; if (view.hideId){ view.hideId = 0; invalidate(); } hidePlacementBar(); }
 
 /* ---------- Staff ---------- */
 function applicants(){

@@ -26,7 +26,7 @@ for (let d = 1; d <= DAYS; d++){
   if (r.gained.length) for (const l of r.gained) if (l === 3) s.flags.pending.push('dee');
   night();
   if (DUMP && d === DAYS){ s.phase = 'night'; s.flags.memories.night1 = true; for (const m of s.staff) m.look = staffLookFor(m); (await import('node:fs')).writeFileSync(DUMP, JSON.stringify(s)); }
-  console.log(`${pad(d, 3)} ${pad(r.visitors, 5)} ${pad(r.served, 6)} ${pad(r.walkouts, 4)} ${pad(r.revenue, 6)} ${pad(r.profit, 7)} ${pad(Math.round(s.money), 7)} ${pad(s.level, 3)} ${pad(r.rating.toFixed(2), 6)} ${pad(r.grade, 5)} ${pad(stores(s).length, 6)} ${pad(s.staff.length, 5)}  C${r.ratings.clean.toFixed(1)} S${r.ratings.service.toFixed(1)} V${r.ratings.variety.toFixed(1)} A${r.ratings.ambience.toFixed(1)} happy ${Math.round(r.happy * 100)}%`);
+  console.log(`${pad(d, 3)} ${pad(r.visitors, 5)} ${pad(r.served, 6)} ${pad(r.walkouts, 4)} ${pad(r.revenue, 6)} ${pad(r.profit, 7)} ${pad(Math.round(s.money), 7)} ${pad(s.level, 3)} ${pad(r.rating.toFixed(2), 6)} ${pad(r.grade, 5)} ${pad(stores(s).length, 6)} ${pad(s.staff.length, 5)}  C${r.ratings.clean.toFixed(1)} S${r.ratings.service.toFixed(1)} V${r.ratings.variety.toFixed(1)} A${r.ratings.ambience.toFixed(1)} happy ${Math.round(r.happy * 100)}%${r.casino !== null && r.casino !== undefined ? ` casino ${r.casino}` : ""}`);
 }
 
 function player(){

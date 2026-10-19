@@ -3,6 +3,7 @@ import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
+import { playLength } from './play.js';
 
 export const sim = {
   t: 0, phase: 'idle', speed: 1, paused: false, clockFrozen: false, spawning: true,
@@ -111,7 +112,7 @@ export function startDay(opts = {}){
   sim.storeState.clear(); sim.rooms.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
-  sim.stats = { troubleT: 0, scared: 0, shooed: 0, troubles: 0, visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
+  sim.stats = { casino: 0, troubleT: 0, scared: 0, shooed: 0, troubles: 0, visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
   const open = stores(s);
   const rating = s.ratingHist.length ? s.rating : 1;
   const ambience = s.decor.length * 0.5 + (s.fountain ? 3 : 0);
@@ -447,11 +448,16 @@ function updateCustomer(p, dt){
       dropLitter(p, def);
       const a = p.play.at;
       if (!S.save.decor.includes(p.play.d)){ p.play = null; p.state = 'decide'; break; }
-      if (walkTo(p, a.x, a.y, dt)){ const pd = C.DECOR[p.play.d.type].play; p.state = 'playing'; p.timer = lerp(pd.secs[0], pd.secs[1], rand()); p.flip = false; p.faceBack = true; }
+      if (walkTo(p, a.x, a.y, dt)){
+        // The kid walks in from beside the grown-up, plays, and walks back; the visit lasts as long as that takes.
+        const pd = C.DECOR[p.play.d.type].play, d = p.play.d;
+        p.play.from = [p.x - 0.38 - d.x, p.y + 0.12 - d.y]; p.play.secs = lerp(pd.secs[0], pd.secs[1], rand());
+        p.state = 'playing'; p.playEl = 0; p.timer = playLength(p); p.flip = false; p.faceBack = true;
+      }
       break;
     }
     case 'playing':
-      p.walking = false;
+      p.walking = false; p.playEl += dt;
       if ((p.timer -= dt) <= 0 || !S.save.decor.includes(p.play.d)){
         p.mood = Math.min(1, p.mood + 0.15); p.faceBack = false; p.play = null; p.state = 'decide';
         if (rand() < 0.6) sim.fx.push({ kind: 'heart', x: p.x, y: p.y - 1.2, t: 0, life: 1.0 });
@@ -709,12 +715,13 @@ function useMachine(p){
   const d = p.machine, c = C.DECOR[d.type].coin;
   if (!S.save.decor.includes(d)) return;
   const price = Math.round(lerp(c.price[0], c.price[1], rand()));
-  S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price;
+  if (C.DECOR[d.type].casino) casinoTake(price, d.type); else { S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price; }
   p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
   if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; }
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
+  if ((d.type === 'slots' || d.type === 'goldslots') && p.machineWin) p.machinePaid = -casinoTake(-price * 3, d.type);
   if ((d.type === 'slots' || d.type === 'goldslots') && p.machineWin){ p.mood = Math.min(1, p.mood + 0.12); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.6, t: 0, life: 1.4, text: '7 7 7!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.9, t: 0, life: 0.9 }); }
   if (d.type === 'wheel'){ p.mood = Math.min(1, p.mood + 0.08); sim.fx.push({ kind: 'coin', x: d.x + 1, y: d.y - 1.5, t: 0, life: 1.3, text: pick(['Prize!', 'Spin again!', 'Winner!']) }); }
   if (d.type === 'balloons' && p.look.kid){ p.look = { ...p.look, kid: { ...p.look.kid, balloon: pick(['#ef476f', '#5a8dee', '#ffd23f', '#06d6a0', '#9b5de5']) } }; p.mood = Math.min(1, p.mood + 0.08); }
@@ -830,15 +837,17 @@ function completeSale(u, st, p){
 function startDining(p, u){
   const st = storeInfo(u), seats = dineSpots(u).seats;
   st.dine = st.dine || seats.map(() => null);
-  const i = st.dine.findIndex(id => id === null);
-  if (i < 0) return false;
+  // A family takes a whole table: the grown-up on one stool, the kid across from them.
+  let i;
+  if (p.look.kid){ const t = [0, 2].find(k => k + 1 < seats.length && st.dine[k] === null && st.dine[k + 1] === null); if (t === undefined) return false; i = t; st.dine[t + 1] = p.id; p.kidSeat = t + 1; }
+  else { i = st.dine.findIndex(id => id === null); if (i < 0) return false; }
   st.dine[i] = p.id; p.dineSeat = i; p.exit = [seats[i]]; p.state = 'toDine';
   return true;
 }
 function stopDining(p, u){
   const st = u && storeInfo(u);
-  if (st && st.dine && st.dine[p.dineSeat] === p.id) st.dine[p.dineSeat] = null;
-  p.dineSeat = undefined;
+  if (st && st.dine) st.dine = st.dine.map(id => id === p.id ? null : id);
+  p.dineSeat = undefined; p.kidSeat = undefined;
 }
 
 // What people leave behind after shopping at each store.
@@ -1074,16 +1083,24 @@ function findTable(p){
 // A round ends: the house takes the bet, and now and then the player wins big (and cheers).
 function settleTable(p){
   const d = p.table, g = C.DECOR[d.type].game, cdef = C.CUSTOMERS[p.type];
-  const price = Math.max(1, Math.round(lerp(g.price[0], g.price[1], rand()) * cdef.spend));
-  S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price;
-  sim.stats.byStore[d.type] = (sim.stats.byStore[d.type] || 0) + price;
-  const win = rand() < 0.42;
-  p.mood = Math.min(1, p.mood + (win ? 0.14 : 0.04));
-  sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.5, t: 0, life: 1.3, text: win ? pick(['WIN!', 'Jackpot!', 'Lucky!']) : pick(['So close!', 'Next time!']) });
-  if (win){ sim.fx.push({ kind: 'sparkle', x: p.x, y: p.y - 1.0, t: 0, life: 0.9 }); sim.fx.push({ kind: 'heart', x: p.x + 0.2, y: p.y - 1.2, t: 0, life: 1.0 }); }
-  sim.fx.push({ kind: 'coin', x: d.x + 1.5, y: d.y + 0.2, t: 0, life: 1.1, text: `+$${price}` });
-  p.tableWin = win;
-  emit('sale', { amount: price, store: d.type });
+  const bet = Math.max(1, Math.round(lerp(g.price[0], g.price[1], rand()) * cdef.spend));
+  // Most hands the house keeps the bet; sometimes the player wins and the house pays out, now and then big.
+  const r = rand(), big = r < 0.05, win = r < 0.38;
+  const net = casinoTake(win ? -Math.round(bet * (big ? 2.5 : 0.8)) : bet, d.type);
+  const won = net < 0 || (win && net === 0);
+  p.mood = Math.min(1, p.mood + (won ? 0.14 : 0.04));
+  sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.5, t: 0, life: 1.3, text: won ? (big && net < 0 ? 'JACKPOT!' : pick(['WIN!', 'Lucky!'])) : pick(['So close!', 'Next time!']) });
+  if (won){ sim.fx.push({ kind: 'sparkle', x: p.x, y: p.y - 1.0, t: 0, life: 0.9 }); sim.fx.push({ kind: 'heart', x: p.x + 0.2, y: p.y - 1.2, t: 0, life: 1.0 }); }
+  p.tableWin = won;
+}
+// Money in (or out) at the casino. Payouts never sink the casino more than a set amount below zero for the day:
+// past that, the house just doesn't pay out (the player's win turns into a push).
+export function casinoTake(amount, what, x, y){
+  const st = sim.stats, floor = -C.CASINO_MAX_LOSS;
+  if (amount < 0 && st.casino + amount < floor) amount = Math.min(0, floor - st.casino);
+  S.save.money += amount; st.revenue += amount; st.machines += amount; st.casino += amount;
+  st.byStore[what] = (st.byStore[what] || 0) + amount;
+  return amount;
 }
 function updateDealer(p, dt){
   const d = p.tableId && S.save.decor.find(v => v.id === p.tableId);
@@ -1344,6 +1361,7 @@ function spreadCrowd(dt){
 }
 function beginClosing(){
   sim.phase = 'closing'; sim.t = C.DAY_SECONDS; sim.closeT = 0;
+  for (const p of sim.people){ p.serving = 0; p.dealing = false; }
   for (const st of sim.storeState.values()) st.queue = [];
   for (const p of sim.people) if (p.kind === 'customer'){
     p.bubble = null; p.served = false; p.closeDelay = rand() * 5;
@@ -1427,7 +1445,7 @@ export function buildReport(){
     xpGain, levelBefore, levelAfter: s.level, gained,
     wishes, top: topUnit ? { name: C.STORES[topUnit.store].name, amount: top[1] } : null,
     restockShort: frac < 1, gusTrash: st.gusTrash, machines: st.machines, roomDirt,
-    troubles: st.troubles, scared: st.scared, shooed: st.shooed,
+    troubles: st.troubles, scared: st.scared, shooed: st.shooed, casino: S.save.expansions.casino ? st.casino : null,
   };
   s.stats.visitors += st.visitors; s.stats.served += st.served; s.stats.revenue += st.revenue; s.stats.lastVisitors = st.visitors;
   return report;

@@ -4,13 +4,14 @@ import * as A2 from './art2.js';
 import * as C from './config.js';
 import { S } from './state.js';
 import { sim, spotsFor, storeInfo, clockHour, roomInfo, tableDealer } from './sim.js';
+import { playKid, PIT } from './play.js';
 import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize, floorRange, hasUpstairs, topFloor } from './map.js';
 
 export const view = {
   W: 0, H: 0, dpr: 1,
   cam: { x: 13, y: 9, s: 56 }, minS: 24, maxS: 120,
   mode: 'day', night: 0,            // night: 0 day … 1 full night tint
-  ghost: null, highlight: null, selected: null, spots: null,
+  ghost: null, hideId: 0, highlight: null, selected: null, spots: null,
   cache: null, cacheRev: -1, cachePPT: 0, dirty: true,
   poofs: [], stylePreview: null, styleKey: '',
   floor: 0, cacheFloor: -1,         // which floor is on screen (the other one keeps running, just isn't drawn)
@@ -92,7 +93,7 @@ function buildCache(){
   if (!up){ c.save(); A.circ(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1, 1.3); c.strokeStyle = 'rgba(92,200,191,.55)'; c.lineWidth = 0.14; c.stroke(); c.restore(); }
   // Store interiors.
   for (const u of s.units){
-    if (u.kiosk || u.x < fr.x0 - 1 || u.x >= fr.x1) continue;
+    if (u.kiosk || u.x < fr.x0 - 1 || u.x >= fr.x1 || u.id === view.hideId) continue;
     const kind = u.state === 'derelict' ? 'dust' : u.state === 'vacant' ? 'plain' : (unitDef(u).floor || 'plain');
     A.floor(kind, u.x, u.y, u.w, u.h, u.id * 17);
     if (u.state === 'store' && !u.kiosk){
@@ -153,9 +154,11 @@ export function render(t){
   const add = (y, f) => Q.push([y, f]);
   // Dine-in tables: stools just behind whoever sits on them, the table top just in front.
   const addDine = u => A.dineSpots(u).tables.forEach((tb, i) => { add(tb.y + 0.0, () => A.dineTable(u, i, 'stools')); add(tb.y + 0.12, () => A.dineTable(u, i, 'table')); });
+  const manned = view.mode === 'night' ? new Set(s.staff.map(m => m.storeId).filter(Boolean)) : null;
   for (const u of s.units){
-    if (!seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) continue;
+    if (u.id === view.hideId || !seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) continue;
     const def = unitDef(u);
+    if (manned && u.state === 'store' && !def.attraction && !manned.has(u.id)) add(u.kiosk ? u.y + 1.05 : u.face === 'down' ? u.y + u.h + 0.32 : u.y - 0.12, () => A.helpWanted(u, t));
     if (u.kiosk){ add(u.y + 0.85, () => A.kiosk(u, def, t)); continue; }
     if (u.state === 'restroom') A.roomState.set(u, roomInfo(u));
     if (def && def.attraction){
@@ -171,13 +174,13 @@ export function render(t){
     }
     if (u.face === 'down'){
       add(u.y + 0.48, () => A.unitBack(u, def, t));
-      if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid')); if (def.icon === 'shirt') add(A.local(u, 0.95, 1.25, 0.7, 0.35)[1] + 0.35, () => A.storeFurniture(u, def, t, 'teeTable')); }
       if (u.state === 'store' && def.dine) addDine(u);
       if (u.state === 'restroom') add(u.y + u.h * 0.72, () => A.storeFurniture(u, def, t, 'mid'));
       add(u.y + u.h + 0.05, () => A.unitFront(u, def, t));
     } else {
       add(u.y + u.h, () => A.unitBack(u, def, t));
-      if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid')); }
+      if (u.state === 'store'){ const cb = A.storeSpots(u).counter; add(cb[1] + cb[3], () => A.storeFurniture(u, def, t, 'counter')); add(u.y + u.h * 0.45, () => A.storeFurniture(u, def, t, 'mid')); if (def.icon === 'shirt') add(A.local(u, 0.95, 1.25, 0.7, 0.35)[1] + 0.35, () => A.storeFurniture(u, def, t, 'teeTable')); }
       if (u.state === 'store' && def.dine) addDine(u);
       // The sink counter's front edge, so people washing (just below it) are drawn in front of it.
       if (u.state === 'restroom') add(u.y + 0.72, () => A.storeFurniture(u, def, t, 'mid'));
@@ -191,12 +194,12 @@ export function render(t){
   const players = new Map();
   for (const p of sim.people) if (p.state === 'atTable' && p.table){ let a = players.get(p.table); if (!a) players.set(p.table, a = [null, null, null]); a[p.seat] = { k: Math.min(1, Math.max(0, 1 - p.timer / p.tableMax)), win: p.tableWin, done: p.tableWin !== null && p.tableWin !== undefined }; }
   for (const d of s.decor){
-    if (!seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
+    if (d.id === view.hideId || !seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
     else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1 }); else A.decorState.delete(d);
     add(decorSortY(d), () => A.decor(d, t));
-    if (d.type === 'playarea') add(d.y + 1.9, () => A2.playFront(d));
+    if (d.type === 'playarea'){ add(d.y + PIT.y + PIT.ry, () => A2.playFront(d, 'pit')); add(d.y + 1.9, () => A2.playFront(d, 'rail')); }
   }
   if (!up && seenRect(C.FOUNTAIN.x - 1, C.FOUNTAIN.y - 2, 4, 5)) add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
   // The escalator: its belts under the riders, its glass sides in front of them.
@@ -220,12 +223,12 @@ export function render(t){
     const m = p.state === 'useMachine' && p.machine && p.machine.type === 'massage' ? p.machine : null;
     add(m ? m.y + 0.9 : p.y, () => drawPerson(p, t));
     // At the play area the kid runs off to play: drawn there, among the slide and the balls.
-    if (p.state === 'playing' && p.play && p.look.kid) add(playKidY(p, t), () => drawPlayKid(p, t));
+    if (p.state === 'playing' && p.play && p.play.from && p.look.kid) add(playKidY(p), () => drawPlayKid(p));
   }
   Q.sort((a, b) => a[0] - b[0]);
   for (const [, f] of Q) f();
   // Signs over storefronts that face up hang above everything, so nobody's head covers a store's name.
-  for (const u of s.units) if (!u.kiosk && seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) A.unitSign(u, unitDef(u));
+  for (const u of s.units) if (!u.kiosk && u.id !== view.hideId && seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) A.unitSign(u, unitDef(u));
 
   if (!up) A.text(s.player.mall, C.ENTRANCE.x + 1, C.MAP_H + 0.62, 0.3, 'rgba(255,255,255,.85)', 700, 'Fredoka', 6);
   drawLighting(t);
@@ -263,21 +266,16 @@ function drawPerson(p, t){
   }
   drawPersonAt(p, t);
 }
-// The kid at a play area: going down the slide over and over, or bobbing about in the ball pit.
-function playKidSpot(p, t){
-  const d = p.play.d, sp = A2.playSpots(d)[p.play.slot];
-  if (sp.kind === 'slide'){
-    const k = (t * 0.45 + p.id * 0.37) % 1.4;
-    if (k < 1){ const q = A2.slidePath(d, k); return { x: q.x, y: q.y, z: q.z + 0.05, slide: true }; }
-    return { x: sp.x, y: sp.y, z: 0.78, slide: false };
-  }
-  return { x: sp.x, y: sp.y, z: -Math.abs(Math.sin(t * 3 + p.id)) * 0.12 - 0.05, pit: true };
+// The kid at a play area: walks in from the grown-up, climbs the ladder and slides (or dives into the ball pit), then walks back.
+function playKidY(p){ return playKid(p, p.playEl || 0).y; }
+function drawPlayKid(p){
+  const q = playKid(p, p.playEl || 0), k = p.look.kid, pose = q.pose;
+  A.person(q.x, q.y - q.z, { ...k, t: p.t + 0.3, s: 0.68, mood: 'happy', flip: q.flip,
+    walk: pose === 'walk' || pose === 'climb', back: pose === 'climb' || (pose === 'walk' && q.up),
+    sit: pose === 'sit' || pose === 'slide', sitSide: pose === 'slide', play: pose === 'slide' || pose === 'hop' || pose === 'pit',
+    noShadow: q.z > 0.1 || pose === 'pit' || pose === 'hop' });
 }
-function playKidY(p, t){ return playKidSpot(p, t).y; }
-function drawPlayKid(p, t){
-  const q = playKidSpot(p, t), k = p.look.kid;
-  A.person(q.x, q.y - q.z, { ...k, t: p.t + 0.3, s: 0.68, play: !q.slide, sit: q.slide, mood: 'happy', noShadow: q.z > 0.1 || q.pit });
-}
+const saveNow = () => S.save;
 function drawPersonAt(p, t){
   const L = p.look;
   const o = { ...L, t: p.t, walk: p.walking, flip: p.flip };
@@ -351,6 +349,12 @@ function drawPersonAt(p, t){
     const so = { ...o, kid: undefined, sit: true, sitSide: !!st.side, back: !!st.back, flip: st.side ? st.flip : o.flip, play: false, mood: 'happy' };
     return A.person(m.x + st.x + j, m.y + st.y, so);
   }
+  // A family at a diner table: the grown-up on one stool, the kid on the stool across from them.
+  if (p.state === 'dine' && L.kid && p.kidSeat !== undefined){
+    const u = saveNow().units.find(v => v.id === p.storeId), seat = u && A.dineSpots(u).seats[p.kidSeat];
+    if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, hold: o.hold === 'burger' || o.hold === 'pizza' ? o.hold : undefined });
+    return A.person(p.x, p.y, { ...o, kid: undefined });
+  }
   // A grown-up waiting at the play area, watching their kid.
   if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true });
   if (L.kid){
@@ -404,7 +408,7 @@ function drawLighting(t){
   ctx.fillStyle = `rgba(${tint},${a})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
   // Lamp posts glow once the light starts to go.
-  const lamps = S.save.decor.filter(d => d.type === 'lamp' && seen(d.x, d.y - 1.4, 2.5));
+  const lamps = S.save.decor.filter(d => d.type === 'lamp' && d.id !== view.hideId && seen(d.x, d.y - 1.4, 2.5));
   if (lamps.length && (view.mode === 'night' || h > 18.5)){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const k = view.mode === 'night' ? 1 : Math.min(1, (h - 18.5) / 1.5);
@@ -436,7 +440,8 @@ function drawGhost(t){
   const gh = view.ghost; if (!gh) return;
   const ok = gh.ok;
   ctx.save();
-  ctx.globalAlpha = 0.55;
+  // Something being moved is shown solid, as it'll look, with its old spot left empty; something new is see-through.
+  ctx.globalAlpha = gh.moving ? 0.92 : 0.55;
   if (gh.preview) gh.preview(t);
   ctx.globalAlpha = 1;
   // Storage that gets cleared out as part of this build.
@@ -475,7 +480,7 @@ function drawOverlays(t){
     if (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act')) A.bubble(p.x, p.y - 1.55, 'angry', 'want', 1, p.state === 'act' ? Math.abs(Math.sin(t * 6)) : 0);
     if (p.kind === 'staff' && p.slacking){ A.bubble(p.x, p.y - (p.look.costume ? 1.9 : 1.55), 'phone', 'want', Math.max(0, p.breakT / p.breakMax)); }
     if (p.kind === 'gus' && p.say){ speech(p.x, p.y - 1.6, p.say); }
-    if ((p.kind === 'owner' || p.kind === 'staff') && p.serving > 0){
+    if ((p.kind === 'owner' || p.kind === 'staff') && p.serving > 0 && sim.phase === 'day'){
       A.ell(p.x, p.y - 1.42, 0.24, 0.07); A.fs('rgba(255,255,255,.9)', 0.03);
       A.rr(p.x - 0.22, p.y - 1.47, 0.44 * Math.min(1, p.serving), 0.1, 0.05); A.fs('#4cc38a', 0);
     }

@@ -718,3 +718,13 @@ Use **[Capacitor](https://capacitorjs.com)**. It wraps the same web build as a n
 1. **Monetization details:** rewarded ads only, or also a paid Remove Ads option?
 2. **Day length:** is about 5 minutes per day right? This is easy to tune once the prototype is playable.
 3. **Final name:** *Mall Revival* for now. Revisit before the store listing.
+
+v0.16.0, from playtest feedback:
+- **Diner families sit together.** At Big Bite Burgers a family takes a whole table: the grown-up on one stool, the kid on the stool across from them (no more kids on the floor).
+- **Paws & Claws** has a puppy in the play pen instead of the bouncing duck. **Threads'** tee table is sorted on its own, so shoppers walk in front of and behind it properly, and they don't browse from inside it.
+- **Walkouts** get an early tip: customers who wait too long get frustrated and leave.
+- **Closing:** service progress bars clear when the doors close.
+- **Clerks:** clerks without a register take newly opened or empty stores and stands on their own (dream store first), at night after any change and at the start of each night and day. At night, any store or stand still without a clerk puts out a Help Wanted sandwich board.
+- **Casino swings:** table wins pay the player out of the house (most hands the house keeps the bet; about 1 in 3 the player wins 0.8× and 1 in 20 wins 2.5×), and slot jackpots pay 3×. The house edge stays positive overall, but a run of big winners can sink a day's casino take below zero, never more than $2,500 (past that, wins push). The report shows the casino line in red on those days.
+- **Playground redone.** A colorful slide tower (blue cabin, ladder up the front, striped roof, pennant) with a wide orange chute and yellow rails at the back left; the ball pit moved to the back right, clear of the slide's mouth. Slide kids walk in from their grown-up, climb the ladder, slide down, run around to the ladder and go again, and always finish at the bottom of the slide before walking back out through the gap in the front rail. Pit kids hop in and out. The routines live in `web/src/play.js`, and a visit lasts as long as the routine.
+- **Moving things** at night: the piece leaves its old spot (shown empty, floor and all) and the whole store, furniture included, follows the drag, drawn solid, so you can see the space you'd gain or lose.

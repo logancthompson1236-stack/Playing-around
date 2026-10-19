@@ -1,6 +1,6 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
-import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores } from './state.js';
+import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks } from './state.js';
 import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, floorOf, hasUpstairs, topFloor } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
@@ -148,6 +148,7 @@ function continueGame(){
 /* ---------- Day ---------- */
 function beginDay(){
   const s = S.save;
+  assignClerks(s);
   closeNightUi(); UI.hideCard(); UI.clearHint();
   const tutorial = !s.flags.tutorial;
   gusToday = tutorial || gusWantsToVisit() || (s.day > 1 && Math.random() < Math.min(0.7, 0.2 + 0.04 * stores(s).length));
@@ -217,7 +218,7 @@ function handleEvents(){
       case 'sale': sfx('coin'); break;
       case 'cleaned': sfx('sweep'); break;
       case 'binned': sfx('plop'); break;
-      case 'walkout': sfx('walkout'); if (S.save.flags.tutorial) tip('walkout'); break;
+      case 'walkout': sfx('walkout'); if (S.save.flags.tutorial) tip('walkout', null, true); break;
       case 'greyWish': if (S.save.day >= 2) tip('wish'); break;
       case 'trash': if (sim.trash.length >= 8) tip('litter'); break;
       case 'stockout': UI.toast(`${e.name} ran out of stock`); tip('stockout'); break;
@@ -245,7 +246,7 @@ async function endDay(){
   enterNight(report, gusToday);
 }
 async function enterNight(report, gusVisited = false){
-  phase = 'night'; view.mode = 'night';
+  phase = 'night'; view.mode = 'night'; assignClerks(S.save);
   sim.people = sim.people.filter(p => p.kind === 'owner'); sim.trash = []; sim.jobs = []; sim.fx = []; sim.phase = 'idle';
   if (sim.owner){ sim.owner.atRegisterId = null; sim.owner.walking = false; sim.owner.ride = null; sim.owner.rideZ = 0; sim.owner.x = C.ENTRANCE.x + 0.6; sim.owner.y = C.MAP_H - 3.5; }
   UI.setHudMode('night');

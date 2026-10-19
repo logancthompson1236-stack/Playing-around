@@ -1151,7 +1151,11 @@ export function storeSpots(u){
   const browse = [];
   // At the burger place the left side is tables, so folks look at the menu from the middle instead.
   const lx0 = u.store === 'burger' || u.store === 'pizza' ? 1.4 : 0.4;
-  for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45) browse.push(at(lx, ly));
+  for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45){
+    // Not standing in the middle of Threads' tee table or on the mannequin.
+    if (u.store === 'boutique' && H >= 3 && ((lx > 0.75 && lx < 1.75 && ly > 1.1 && ly < 1.75) || (lx < 0.7 && ly > 1.7))) continue;
+    browse.push(at(lx, ly));
+  }
   if (!browse.length) browse.push(at(0.45, H - 0.4));
   const dx = doorX(u) + 0.5;
   const door = { x: dx, y: u.face === 'down' ? u.y + u.h - 0.25 : u.y + 0.25 };
@@ -1604,6 +1608,13 @@ export function storeFurniture(u, def, t, layer){
     return;
   }
   // Mid-room pieces
+  if (layer === 'teeTable'){
+    // Threads' table of folded tees, sorted on its own so shoppers walk in front of and behind it properly.
+    if (ic !== 'shirt' || H < 3) return;
+    const [tx, ty] = local(u, 0.95, 1.25, 0.7, 0.35);
+    if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
+      return;
+  }
   if (ic === 'vr'){
     // Glowing play pads where folks try the headsets.
     for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
@@ -1638,8 +1649,6 @@ export function storeFurniture(u, def, t, layer){
     rr(x - 0.03, y - 0.3, 0.06, 0.3, 0.02); fs('#a89a8a', 0.025); rr(x - 0.12, y - 0.04, 0.24, 0.05, 0.02); fs('#a89a8a', 0.02);
     g.beginPath(); g.moveTo(x - 0.12, y - 0.82); g.lineTo(x + 0.12, y - 0.82); g.lineTo(x + 0.2, y - 0.3); g.lineTo(x - 0.2, y - 0.3); g.closePath(); fs('#ff8fab', 0.03);
     rr(x - 0.13, y - 0.86, 0.26, 0.1, 0.04); fs('#e8577e', 0.02); circ(x, y - 0.98, 0.13); fs('#efe4d6', 0.03);
-    const [tx, ty] = local(u, 0.95, 1.25, 0.7, 0.35);
-    if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
   }
   if (ic === 'paw' && H >= 3){ const [x, y] = local(u, 0.25, 1.55, 1.1, 0.9); rr(x, y, 1.1, 0.9, 0.06); fs('rgba(255,248,220,.9)', 0.035); g.strokeStyle = '#b08968'; g.lineWidth = 0.04; g.beginPath(); for (let i = 0; i <= 5; i++){ g.moveTo(x + i * 0.22, y + 0.9); g.lineTo(x + i * 0.22, y + 0.9 - 0.3); } g.moveTo(x, y + 0.6); g.lineTo(x + 1.1, y + 0.6); g.stroke(); puppy(x + 0.55, y + 0.55, t); ell(x + 0.25, y + 0.3, 0.1, 0.04); fs('#ef476f', 0.015); }
   if (ic === 'cup'){
@@ -1848,13 +1857,26 @@ export function theaterRow(u, def, row){
     for (const ax of [x - 0.06, x + 0.6]){ box(ax, y - 0.1, 0.07, 0.32, 0.3, '#5a2a3e', '#3d1e2c', 0, 0.02, 0.03); }
   }
 }
+// A little puppy in the pet shop's pen: floppy ears, a wagging tail, and a happy hop now and then.
 function puppy(x, y, t){
-  const hop = Math.max(0, Math.sin(t * 3)) * 0.06;
-  shadow(x, y, 0.16, 0.05);
-  ell(x, y - 0.14 - hop, 0.17, 0.11); fs('#e9c46a', 0.03);
-  circ(x + 0.15, y - 0.26 - hop, 0.1); fs('#e9c46a', 0.03);
-  ell(x + 0.1, y - 0.33 - hop, 0.04, 0.07, -0.4); fs('#b08968', 0.02);
-  circ(x + 0.18, y - 0.27 - hop, 0.015); fs(OUT, 0);
+  const hop = Math.max(0, Math.sin(t * 2.4)) ** 3 * 0.08, wag = Math.sin(t * 14) * 0.5;
+  const fur = '#d9a066', dark = '#a8743f';
+  shadow(x, y, 0.2, 0.06);
+  g.save(); g.translate(0, -hop);
+  // Tail, then legs, body and head (facing right).
+  g.save(); g.translate(x - 0.17, y - 0.2); g.rotate(-0.9 + wag * 0.4); rr(-0.02, -0.15, 0.05, 0.16, 0.025); fs(fur, 0.025); g.restore();
+  for (const lx of [-0.12, -0.04, 0.06, 0.13]){ rr(x + lx - 0.025, y - 0.12, 0.05, 0.12, 0.02); fs(lx > 0 ? fur : dark, 0.02); }
+  ell(x, y - 0.17, 0.19, 0.1); fs(fur, 0.03);
+  ell(x - 0.02, y - 0.13, 0.11, 0.05); fs('#f3d9b1', 0);
+  circ(x + 0.17, y - 0.3, 0.11); fs(fur, 0.03);
+  ell(x + 0.26, y - 0.27, 0.06, 0.045); fs('#f3d9b1', 0.02);
+  circ(x + 0.31, y - 0.285, 0.018); fs(OUT, 0);
+  ell(x + 0.1, y - 0.3, 0.045, 0.09, 0.35); fs(dark, 0.02);       // floppy ear
+  circ(x + 0.2, y - 0.33, 0.016); fs(OUT, 0);                      // eye
+  g.beginPath(); g.arc(x + 0.26, y - 0.245, 0.025, 0.2, Math.PI - 0.2); g.strokeStyle = OUT; g.lineWidth = 0.012; g.stroke();
+  if (Math.sin(t * 2.4) > 0.9) { rr(x + 0.26, y - 0.24, 0.03, 0.04, 0.012); fs('#ff8fab', 0); }   // tongue out at the top of a hop
+  rr(x + 0.07, y - 0.24, 0.1, 0.03, 0.012); fs('#ef476f', 0.012);   // collar
+  g.restore();
 }
 
 // The front layer: glass with a door gap (or boards when derelict), side walls, and the sign for doors facing up.
@@ -1882,6 +1904,29 @@ export function unitFront(u, def, t){
   if (u.face === 'down' && u.state === 'store' && def.icon === 'joystick'){
     g.save(); g.shadowColor = '#ff5fa2'; g.shadowBlur = 0.3 * PPT; rr(u.x + 0.08, yF + 0.14 - 0.44, u.w - 0.16, 0.04, 0.02); g.fillStyle = '#ff9cc8'; g.fill(); g.restore();
   }
+}
+
+// At night, a sandwich board out front of any store or kiosk with nobody to run its register.
+export function helpWanted(u, t){
+  let x, y;
+  if (u.kiosk){ x = u.x + 0.35; y = u.y + 1.05; }
+  else {
+    const dx = doorX(u);
+    x = dx + 1 + 0.45 <= u.x + u.w ? dx + 1.4 : dx - 0.4;
+    y = u.face === 'down' ? u.y + u.h + 0.32 : u.y - 0.12;
+  }
+  const bob = Math.sin(t * 3 + u.id) * 0.03;
+  shadow(x, y, 0.32, 0.08);
+  for (const lx of [-0.24, 0.24]){ g.beginPath(); g.moveTo(x + lx * 0.6, y - 0.7); g.lineTo(x + lx, y); g.strokeStyle = '#8a6a4a'; g.lineWidth = 0.05; g.stroke(); }
+  g.save(); g.translate(x, y - 0.42 + bob);
+  g.shadowColor = 'rgba(255,214,64,.9)'; g.shadowBlur = 0.25 * PPT;
+  rr(-0.33, -0.3, 0.66, 0.5, 0.05); fs('#ffd23f', 0.04);
+  g.restore(); g.save(); g.translate(x, y - 0.42 + bob);
+  rr(-0.28, -0.25, 0.56, 0.4, 0.035); fs('#fffaf0', 0.025);
+  text('HELP', 0, -0.13, 0.13, '#d62839', 700);
+  text('WANTED', 0, 0.02, 0.12, '#d62839', 700);
+  text('ask inside', 0, 0.11, 0.06, '#5a4a5a', 600);
+  g.restore();
 }
 
 /* ---------- Kiosk ---------- */

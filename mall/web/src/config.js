@@ -204,6 +204,8 @@ export const STYLE_XP = 30;
 
 // Troublemakers (from level 10): rowdy teens who blast music, kick over trash cans and spook shoppers.
 // Tap one to shoo them out, or hire a security guard. Count per day ramps from min to max over these levels.
+// The most the casino can end up losing in a day before the house stops paying out (big winners happen, within reason).
+export const CASINO_MAX_LOSS = 2500;
 export const TROUBLE = { level: 10, perDay: [1, 4], ramp: [10, 18], radius: 3.2, moodHit: 0.18, scareChance: 0.2, stay: [25, 45], guardRadius: [0, 4, 5, 6] };
 
 // rot: can be turned to face four ways. seat: shoppers sit on it. coin: a coin-op machine shoppers pay to use.
@@ -221,7 +223,7 @@ export const DECOR = {
   directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 13, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
   tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 13, sub: 'A real tree, right indoors · +ambience' },
   // play: families stop so the kid can play a while (free), the grown-up waiting at its front.
-  playarea:  { name: 'Kids play area',  w: 3, h: 2, cost: 1800, ambience: 4, level: 15, play: { kids: 3, secs: [6, 9] }, sub: 'A slide and a ball pit. Families stop so the kids can play' },
+  playarea:  { name: 'Kids play area',  w: 3, h: 2, cost: 1800, ambience: 4, level: 15, play: { kids: 3, secs: [8, 12] }, sub: 'A slide and a ball pit. Families stop so the kids can play' },
   topiary:   { name: 'Topiary bunny',   w: 1, h: 1, cost: 450, ambience: 4, level: 19, sub: 'A hedge clipped into a bunny · +ambience' },
   photobooth:{ name: 'Photo booth',     w: 1, h: 1, cost: 900, ambience: 2, level: 20, rot: true, coin: { price: [6, 9], who: ['teen', 'fashion', 'family'], chance: 0.2, secs: 2.6 }, sub: 'Strike a pose: teens and fashionistas love it' },
   aquarium:  { name: 'Aquarium',        w: 2, h: 1, cost: 1500, ambience: 6, level: 21, sub: 'Tropical fish in a big glowing tank · +ambience' },
@@ -235,13 +237,13 @@ export const DECOR = {
   koi:       { name: 'Koi pond',        w: 2, h: 2, cost: 3800, ambience: 9, level: 34, sub: 'Orange and white koi under lily pads · +ambience' },
   // Casino floor only (casino: true). game: a table game run by a dealer, with three seats along its front.
   slots:     { name: 'Slot machine',    w: 1, h: 1, cost: 2500, ambience: 2, level: 30, casino: true, rot: true, coin: { price: [6, 14], who: ['walker', 'fashion', 'browser', 'highroller'], chance: 0.4, secs: 3.4 }, sub: 'Pull the lever, watch the reels' },
-  blackjack: { name: 'Blackjack table', w: 3, h: 2, cost: 7000, ambience: 3, level: 32, casino: true, game: { kind: 'blackjack', price: [18, 42], secs: [7, 10] }, sub: 'Three seats and a dealer. Needs a dealer to open' },
+  blackjack: { name: 'Blackjack table', w: 3, h: 2, cost: 7000, ambience: 3, level: 32, casino: true, game: { kind: 'blackjack', price: [36, 84], secs: [7, 10] }, sub: 'Three seats and a dealer. Needs a dealer to open' },
   neon:      { name: 'Neon sign',       w: 2, h: 1, cost: 2200, ambience: 6, level: 34, casino: true, sub: 'A big flashing CASINO sign · +ambience' },
-  roulette:  { name: 'Roulette table',  w: 3, h: 2, cost: 9000, ambience: 3, level: 36, casino: true, game: { kind: 'roulette', price: [16, 48], secs: [8, 11] }, sub: 'Spin the wheel! Needs a dealer to open' },
+  roulette:  { name: 'Roulette table',  w: 3, h: 2, cost: 9000, ambience: 3, level: 36, casino: true, game: { kind: 'roulette', price: [32, 96], secs: [8, 11] }, sub: 'Spin the wheel! Needs a dealer to open' },
   rope:      { name: 'Velvet rope',     w: 1, h: 1, cost: 600,  ambience: 2, level: 37, casino: true, sub: 'Brass posts and red velvet · +ambience' },
-  poker:     { name: 'Poker table',     w: 3, h: 2, cost: 10000, ambience: 3, level: 38, casino: true, game: { kind: 'poker', price: [24, 60], secs: [9, 12] }, sub: 'Cards, chips and poker faces. Needs a dealer to open' },
+  poker:     { name: 'Poker table',     w: 3, h: 2, cost: 10000, ambience: 3, level: 38, casino: true, game: { kind: 'poker', price: [48, 120], secs: [9, 12] }, sub: 'Cards, chips and poker faces. Needs a dealer to open' },
   jackpot:   { name: 'Jackpot board',   w: 2, h: 1, cost: 4200, ambience: 6, level: 40, casino: true, sub: 'A glowing jackpot counter that never stops climbing · +ambience' },
-  craps:     { name: 'Craps table',     w: 3, h: 2, cost: 11000, ambience: 3, level: 41, casino: true, game: { kind: 'craps', price: [16, 44], secs: [7, 10] }, sub: 'Roll the dice, the whole table cheers. Needs a dealer to open' },
+  craps:     { name: 'Craps table',     w: 3, h: 2, cost: 11000, ambience: 3, level: 41, casino: true, game: { kind: 'craps', price: [32, 88], secs: [7, 10] }, sub: 'Roll the dice, the whole table cheers. Needs a dealer to open' },
   dicestatue:{ name: 'Golden dice',     w: 1, h: 1, cost: 3600, ambience: 6, level: 43, casino: true, sub: 'A pair of giant golden dice on a pedestal · +ambience' },
   wheel:     { name: 'Prize wheel',     w: 2, h: 1, cost: 6500, ambience: 3, level: 44, casino: true, coin: { price: [5, 10], who: ['walker', 'fashion', 'browser', 'highroller', 'family', 'teen'], chance: 0.3, secs: 4.2 }, sub: 'A giant wheel anyone can spin for a prize' },
   champagne: { name: 'Champagne tower', w: 1, h: 1, cost: 4800, ambience: 7, level: 45, casino: true, sub: 'Glasses stacked high, bubbling over · +ambience' },
