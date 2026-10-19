@@ -182,9 +182,11 @@ export function decorSize(d){ const def = DECOR[d.type], side = (d.rot || 0) % 2
 // The tile a shopper stands on to use a seat or a machine: the one it faces.
 export function decorAccess(d){
   const r = d.rot || 0, z = decorSize(d);
+  // The food court is walked into through the gap in the middle of its front rail.
+  if (DECOR[d.type] && DECOR[d.type].court) return { x: d.x + 2, y: d.y + z.h };
   return r === 0 ? { x: d.x, y: d.y + z.h } : r === 1 ? { x: d.x - 1, y: d.y } : r === 2 ? { x: d.x, y: d.y - 1 } : { x: d.x + z.w, y: d.y };
 }
-const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin || DECOR[type].play || DECOR[type].game);
+const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin || DECOR[type].play || DECOR[type].game || DECOR[type].court);
 export function fountainSpots(){
   const out = [];
   for (const [x, y] of [[FOUNTAIN.x, FOUNTAIN.y + 2], [FOUNTAIN.x + 1, FOUNTAIN.y + 2], [FOUNTAIN.x - 1, FOUNTAIN.y + 1], [FOUNTAIN.x + 2, FOUNTAIN.y + 1], [FOUNTAIN.x, FOUNTAIN.y - 1], [FOUNTAIN.x + 1, FOUNTAIN.y - 1]]) if (canReach(x, y)) out.push({ x, y });

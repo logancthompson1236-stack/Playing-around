@@ -4,6 +4,7 @@ import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
 import { playLength } from './play.js';
+import { courtSpots } from './art4.js';
 
 export const sim = {
   t: 0, phase: 'idle', speed: 1, paused: false, clockFrozen: false, spawning: true,
@@ -87,8 +88,9 @@ const HOLD_FROM = {
   plants: 'plant', jewelry: ['bag', '#1d3557'], boba: 'boba', vr: ['bag', '#240046'], bakery: 'cupcake', comics: 'comic',
   chips: 'chips', lounge: 'cocktail', giftshop: ['bag', '#f2c14e'],
   lemonade: 'lemonade', sports: 'ball', beauty: ['bag', '#ff5d8f'], tacos: 'taco',
+  noodle: 'noodles', cotton: 'cotton', crafty: ['bag', '#9b5de5'], sushi: 'sushi',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco', 'noodles', 'cotton', 'sushi']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -405,6 +407,28 @@ function updateCustomer(p, dt){
       leaveStore(p, u);
       break;
     }
+    case 'toCourt': {
+      dropLitter(p, def);
+      if (!S.save.decor.includes(p.court.d)){ p.court = null; p.state = 'decide'; break; }
+      const sp = courtSpots(p.court.d), s = courtSeat(p);
+      if (walkTo(p, sp.entry.x, sp.entry.y, dt)){ p.exit = [{ x: sp.aisleX, y: sp.entry.y - 0.4 }, { x: sp.aisleX, y: s.y }, s]; p.state = 'courtIn'; }
+      break;
+    }
+    case 'courtIn':
+      if (runPath(p, dt)){ p.state = 'court'; p.timer = 7 + rand() * 5; p.holdT = 0; p.flip = courtSeat(p).flip; }
+      break;
+    case 'court':
+      // Eating: the food stays in hand till it's gone.
+      p.walking = false; p.holdT = 0;
+      if ((p.timer -= dt) <= 0 || !S.save.decor.includes(p.court.d)){
+        p.holding = null; p.mood = Math.min(1, p.mood + 0.1);
+        if (rand() < 0.5) sim.fx.push({ kind: 'heart', x: p.x, y: p.y - 1.2, t: 0, life: 1.0 });
+        p.exit = courtOut(p); p.state = 'courtOut';
+      }
+      break;
+    case 'courtOut':
+      if (runPath(p, dt)){ p.court = null; p.state = 'decide'; }
+      break;
     case 'toSeat': {
       dropLitter(p, def);
       if (walkTo(p, p.seatAccess.x, p.seatAccess.y, dt)){ p.exit = [p.seat]; p.state = 'seatIn'; }
@@ -589,6 +613,12 @@ function updateCustomer(p, dt){
 }
 function decide(p){
   if (sim.phase === 'closing'){ p.state = 'exit'; return; }
+  // Carrying something to eat and there's a food court: most sit down to eat it there.
+  if (p.holding && SNACKS.has(p.holding) && !p.ateAtCourt && rand() < 0.8){
+    p.ateAtCourt = true;
+    const c = findCourt(p);
+    if (c){ p.court = c; p.state = 'toCourt'; return; }
+  }
   while (p.wishes.length){
     const want = p.wishes.shift();
     const options = stores(S.save).filter(u => u.store === want);
@@ -655,6 +685,27 @@ function findSeat(p){
   if (S.save.fountain) for (const f of fountainSpots()) opts.push({ access: { x: f.x + 0.5, y: f.y + 0.5 }, spot: { x: f.x + 0.5 + (rand() - 0.5) * 0.3, y: f.y + 0.5 } });
   return opts.length ? pick(opts) : null;
 }
+// A free seat at a food court (a family takes a whole table: the grown-up on one stool, the kid across).
+function findCourt(p){
+  let best = null, bd = 26;
+  for (const d of S.save.decor){
+    if (!C.DECOR[d.type].court) continue;
+    const sp = courtSpots(d), e = sp.entry;
+    if (!canReach(Math.floor(e.x), Math.floor(e.y))) continue;
+    const taken = new Set();
+    for (const q of sim.people) if (q.court && q.court.d === d){ taken.add(q.court.seat); if (q.court.kidSeat !== undefined) taken.add(q.court.kidSeat); }
+    let seat = -1, kidSeat;
+    if (p.look.kid){ const t = [0, 1, 2, 3].find(t => !taken.has(t * 2) && !taken.has(t * 2 + 1)); if (t !== undefined){ seat = t * 2; kidSeat = t * 2 + 1; } }
+    else seat = sp.seats.findIndex((_, i) => !taken.has(i));
+    if (seat < 0) continue;
+    const dist = Math.hypot(e.x - p.x, e.y - p.y);
+    if (dist < bd){ bd = dist; best = { d, seat, kidSeat }; }
+  }
+  return best;
+}
+const courtSeat = p => courtSpots(p.court.d).seats[p.court.seat];
+// The way back out of the food court: up the aisle, out the gap in the front rail.
+const courtOut = p => { const sp = courtSpots(p.court.d), s = courtSeat(p); return [{ x: sp.aisleX, y: s.y }, sp.entry]; };
 // A free spot at a kids play area (most families who pass one stop). The grown-up waits at the front.
 function findPlay(p){
   let best = null, bd = 22;
@@ -861,6 +912,7 @@ const TRASH_FROM = {
   plants: ['paper'], jewelry: ['paper'], boba: ['cup'], vr: ['paper', 'can'], bakery: ['wrapper', 'paper'], comics: ['paper', 'bag'],
   chips: ['paper'], lounge: ['cup'], giftshop: ['paper', 'bag'],
   lemonade: ['cup'], sports: ['paper', 'bag'], beauty: ['paper'], tacos: ['wrapper', 'paper'],
+  noodle: ['cup', 'paper'], cotton: ['paper'], crafty: ['paper', 'bag'], sushi: ['paper', 'cup'],
 };
 
 /* ---------- Owner and jobs ---------- */
@@ -1371,6 +1423,8 @@ function beginClosing(){
     if (p.state === 'show' || p.state === 'toShow'){ leaveShow(p, S.save.units.find(v => v.id === p.storeId)); continue; }
     p.faceBack = false; p.play = null; p.table = null;
     if (p.state === 'line'){ p.state = 'exit'; continue; }
+    if ((p.state === 'court' || p.state === 'courtIn') && p.court){ p.exit = courtOut(p); p.state = 'courtOut'; continue; }
+    if (p.state === 'toCourt'){ p.court = null; p.state = 'exit'; continue; }
     if (p.state === 'dine' || p.state === 'toDine') stopDining(p, S.save.units.find(v => v.id === p.storeId));
     if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'toStall', 'inStall', 'toSink', 'washing', 'dine', 'toDine'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);

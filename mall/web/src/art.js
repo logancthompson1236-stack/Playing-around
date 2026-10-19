@@ -372,7 +372,7 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'vr': A2.vrIcon(c); break;
     case 'cupcake': A2.cupcakeIcon(c); break;
     case 'comic': A2.comicIcon(c); break;
-    case 'lemon': case 'ball': case 'lipstick': case 'taco': A4.icon(icon, c); break;
+    case 'lemon': case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'cotton': case 'brush': case 'sushi': A4.icon(icon, c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -1291,7 +1291,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
       g.fillStyle = '#fbe9dc'; g.fillRect(x0, y0, w, H); g.fillStyle = '#f4d5bf'; for (let r = 0; r * 0.2 < H; r += 2) g.fillRect(x0, y0 + r * 0.2, w, 0.2); break;
     case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
-    case 'ball': case 'lipstick': case 'taco': A4.wallpaper(ic, x0, y0, w, H); break;
+    case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallpaper(ic, x0, y0, w, H); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
@@ -1355,7 +1355,7 @@ function wallPieceArt(ic, wx, wy, t){
       break;
     case 'pizza': A2.pizzaMenu(wx, wy); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
-    case 'ball': case 'lipstick': case 'taco': A4.wallPiece(ic, wx, wy, t); break;
+    case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallPiece(ic, wx, wy, t); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
@@ -1462,7 +1462,7 @@ function counter(u, def){
     A2.newCounter(ic, cx, top);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (A4.ICONS.includes(ic)){
-    A4.counter(ic, cx, top);
+    A4.counter(ic, cx, top, performance.now() / 1000);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (ic === 'pizza'){
     A2.pizzaCounter(cx, top);
@@ -1956,6 +1956,7 @@ export function kiosk(k, def, t){
   for (const wx of [x + 0.22, x + 1.18]){ circ(wx, y + 0.45, 0.09); fs('#5a4a5a', 0.04); circ(wx, y + 0.45, 0.03); fs('#ccc', 0); }
   if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
   else if (def.icon === 'lemon') A4.lemonCounter(x, y, t);
+  else if (def.icon === 'cotton') A4.cottonCounter(x, y, t);
   else if (def.icon === 'boba') A2.bobaCounter(x, y, t);
   else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.
@@ -2023,7 +2024,7 @@ const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
 // A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
-const THUMB = { slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5] };
+const THUMB = { slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35] };
 export function decorThumb(type, w){
   const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
   g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
@@ -2048,6 +2049,9 @@ export function decor(d, t = 0){
     // In the mall the pit's near edge, the chute and the front rail are their own layers (render.js); thumbnails and
     // the placement preview get the whole thing at once.
     case 'playarea': A2.playArea(d, t); for (const part of ['pit', 'slide', 'rail']) A2.playFront(d, part); break;
+    case 'foodcourt': A4.foodCourt(d, 'all', 0, t); break;
+    case 'carousel': A4.carousel(d, t, live, person); break;
+    case 'clock': A4.mallClock(x + 0.5, y + 0.8, t); break;
     case 'topiary': A2.topiary(x + 0.5, y + 0.85); break;
     case 'photobooth': A2.photobooth(x, y, r, t, live); break;
     case 'aquarium': A2.aquarium(x, y, t); break;

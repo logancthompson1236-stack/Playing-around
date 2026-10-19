@@ -9,7 +9,7 @@ import { startTitleScene } from './titlescene.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
 import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene, runClerkScene, runStoreScene, runTroubleScene, setNightIntro } from './guide.js';
-import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler } from './night.js';
+import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragGhost, nightTips, closeNightUi, setLevelUpHandler, setEscalatorHandler } from './night.js';
 import { MEET_GUS, MEMORIES } from './story.js';
 
 const canvas = document.getElementById('world');
@@ -59,6 +59,7 @@ initInput(canvas, {
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !window.Capacitor && window.top === window)
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 
+setEscalatorHandler((x, y) => rideEscalatorAt(x, y));
 /* ---------- Title ---------- */
 function boot(){
   const saved = loadSave();
@@ -194,6 +195,8 @@ function dayTap(x, y){
     for (const tr of sim.trash){ const d = Math.hypot(tr.x - x, tr.y - y); if (d < td){ td = d; best = { type: 'clean', trashId: tr.id }; } }
   }
   if (!best && sim.wishCoin && Math.hypot(C.FOUNTAIN.x + 1 - x, C.FOUNTAIN.y - 0.5 - y) < 0.6) best = { type: 'wish' };
+  // Tap an escalator to hop to the floor at its other end.
+  if (!best && rideEscalatorAt(x, y)) return;
   if (!best && sim.gus){
     const g = sim.gus;
     if (Math.hypot(g.x - x, g.y - 0.6 - y) < 0.6){
@@ -317,6 +320,17 @@ function floorsNeedingYou(){
   return [[...need].some(f => f > view.floor), [...need].some(f => f < view.floor)];
 }
 
+// The escalator under (x, y), if any: switch to the floor at its other end and look at where it comes out.
+export function rideEscalatorAt(x, y){
+  const e = map.esc.find(q => x >= q.x && x < q.x + q.w && y >= q.y - 1.2 && y < q.y + q.h + 0.2);
+  if (!e) return false;
+  const to = map.esc.find(q => q.id === e.to);
+  if (!to) return false;
+  setFloor(to.floor); view.cam.x = to.land.x + 0.5; view.cam.y = to.land.y; view.camTarget = { x: to.land.x + 0.5, y: to.land.y };
+  clampCam(); sfx('tap');
+  UI.toast(['Ground floor', 'Second floor', 'Casino floor'][to.floor] || `Floor ${to.floor + 1}`, 1200);
+  return true;
+}
 /* ---------- Frame loop ---------- */
 let last = performance.now(), hudT = 0;
 const perf = { step: 0, render: 0 };   // smoothed ms per frame, for playtests
@@ -360,4 +374,4 @@ function frame(now){
 }
 document.fonts && document.fonts.ready ? document.fonts.ready.then(() => { invalidate(); boot(); requestAnimationFrame(frame); }) : (boot(), requestAnimationFrame(frame));
 // Debug hooks for automated playtests.
-window.__mall = { S, sim, view, perf, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };
+window.__mall = { S, sim, view, perf, ride: rideEscalatorAt, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };

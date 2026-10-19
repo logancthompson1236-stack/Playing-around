@@ -18,6 +18,9 @@ const shellCost = (w, h) => w * h * C.BUILD_PER_TILE;
 let place = null, pick = null, styling = null;
 export let onLevelUp = () => {};
 export function setLevelUpHandler(fn){ onLevelUp = fn; }
+// Tapping an escalator at night hops floors too (main.js does the hop).
+let onEscalator = () => {};
+export function setEscalatorHandler(fn){ onEscalator = fn; }
 export function panTo(x, y){ view.camTarget = { x, y }; }
 
 function changed(xp = 0){
@@ -43,7 +46,7 @@ export function nightTap(wx, wy){
   // Tall things are drawn above their footprint, so also look one row down.
   const id = occAt(tx, ty) || occAt(tx, Math.floor(wy + 0.7));
   if (id === FOUNTAIN_ID) return fountainCard();
-  if (id === ESCALATOR_ID){ hideCard(); view.selected = null; return showCard({ title: 'Escalator', text: 'Shoppers, staff and you ride the escalators whenever where they’re going is on another floor. The ▲ and ▼ buttons on the left switch which floor you’re looking at.' }); }
+  if (id === ESCALATOR_ID){ hideCard(); view.selected = null; onEscalator(wx, wy); return; }
   if (id){
     const u = S.save.units.find(v => v.id === id);
     if (u) return unitCard(u);
@@ -388,7 +391,7 @@ async function buyExpansion(e){
   sfx('build'); poof(e.x, 0, e.w, C.MAP_H);
   changed(e.xp);
   view.camTarget = { x: e.x + e.w / 2 - 2, y: 7.5, s: view.minS * 1.4 };
-  toast(e.id === 'east' ? 'The Second Floor is open! Shoppers ride the escalator up. Tap the floor buttons to switch floors.'
+  toast(e.id === 'east' ? 'The Second Floor is open: a blank slate to build on! Tap the escalator to go up.'
     : e.id === 'casino' ? 'The Lucky Star Casino is open on the third floor! Hire dealers under Staff to run the tables.' : `The ${e.name} is open! New storefronts are waiting.`, 4500);
 }
 

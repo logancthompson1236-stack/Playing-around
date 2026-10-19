@@ -12,6 +12,10 @@ export const SHELVES = [
 export const shelfColor = id => (SHELVES.find(s => s.id === id) || {}).color || '#3fb8af';
 
 export const STORE_INFO = {
+  noodle:   ['food', 'Steaming bowls of ramen, slurped at a little counter under paper lanterns.'],
+  cotton:   ['food', 'Spun sugar clouds in pink and blue, made right in front of you.'],
+  crafty:   ['retail', 'Paint, yarn, glitter and an easel to try it all out. Rainy-day heaven.'],
+  sushi:    ['food', 'Little plates ride round on a conveyor belt. Grab one, grab two, stay for a bite.'],
   lemonade: ['food', 'Fresh-squeezed and ice cold, with a lemon slice on top. Tastes like summer.'],
   tacos:    ['food', 'Sizzling tortillas, fresh salsa and a little fiesta in every bite.'],
   sports:   ['retail', 'Balls, bikes and jerseys. Game day starts here, and there’s a hoop to shoot at.'],
@@ -56,6 +60,9 @@ export const DECOR_INFO = {
   sofa:       ['scenery', 'So comfy that shoppers forget where they parked.'],
   directory:  ['scenery', '“You are here.” Helps shoppers find stores they didn’t know you had.'],
   tree:       ['scenery', 'A real tree, indoors. Very fancy, very leafy.'],
+  clock:      ['scenery', 'A grand old four-faced clock that really keeps time. Meet you under the clock!'],
+  foodcourt:  ['food', 'Tables, stools and a big FOOD COURT sign. Shoppers with snacks sit down to eat.'],
+  carousel:   ['fun', 'Painted horses go round and round. Kids wave every time they pass.'],
   topiary:    ['scenery', 'Somebody clipped a hedge into a bunny. Instant photo spot.'],
   aquarium:   ['scenery', 'Tropical fish in a big glowing tank. Kids could watch all day.'],
   piano:      ['scenery', 'A gleaming grand that plays itself, softly, all day long.'],

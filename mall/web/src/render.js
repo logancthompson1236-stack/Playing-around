@@ -1,6 +1,7 @@
 // Draws the world: a cached floor layer, then everything with height sorted by its base row, then overlays.
 import * as A from './art.js';
 import * as A2 from './art2.js';
+import * as A4 from './art4.js';
 import * as C from './config.js';
 import { S } from './state.js';
 import { sim, spotsFor, storeInfo, clockHour, roomInfo, tableDealer } from './sim.js';
@@ -193,11 +194,19 @@ export function render(t){
   // Casino tables: who's in which seat and how far along their round is, and whether the dealer's there.
   const players = new Map();
   for (const p of sim.people) if (p.state === 'atTable' && p.table){ let a = players.get(p.table); if (!a) players.set(p.table, a = [null, null, null]); a[p.seat] = { k: Math.min(1, Math.max(0, 1 - p.timer / p.tableMax)), win: p.tableWin, done: p.tableWin !== null && p.tableWin !== undefined }; }
+  A4.setHour(sim.phase === 'idle' ? 21 : clockHour());
   for (const d of s.decor){
     if (d.id === view.hideId || !seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
-    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: d.type === 'ride' && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
+    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: (d.type === 'ride' || d.type === 'carousel') && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
+    if (d.type === 'foodcourt'){
+      // The food court in layers, so people sit on the stools and behind the tables properly.
+      add(d.y + 0.05, () => A4.foodCourt(d, 'base', 0, t));
+      A4.courtSpots(d).tables.forEach((tb, i) => { add(tb.y, () => A4.foodCourt(d, 'stools', i, t)); add(tb.y + 0.12, () => A4.foodCourt(d, 'table', i, t)); });
+      add(d.y + 2.92, () => A4.foodCourt(d, 'front', 0, t));
+      continue;
+    }
     add(decorSortY(d), () => d.type === 'playarea' ? A2.playArea(d, t) : A.decor(d, t));
     if (d.type === 'playarea'){ add(d.y + PIT.y + PIT.ry, () => A2.playFront(d, 'pit')); add(d.y + 0.9, () => A2.playFront(d, 'slide')); add(d.y + 1.9, () => A2.playFront(d, 'rail')); }
   }
@@ -246,6 +255,7 @@ export function decorSortY(d){
   if (d.type === 'bench' || d.type === 'sofa') return r === 0 ? d.y + 0.6 : r === 2 ? d.y + 0.9 : d.y + 0.3;
   if (d.type === 'planter') return d.y + z.h - 0.12;
   if (d.type === 'playarea') return d.y + 0.2;
+  if (d.type === 'carousel') return d.y + 2.6;
   if (d.type === 'piano') return d.y + 1.5;
   if (d.type === 'koi') return d.y + 0.3;
   if (C.DECOR[d.type].game) return d.y + 1.2;
@@ -355,17 +365,23 @@ function drawPersonAt(p, t){
     if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, hold: o.hold === 'burger' || o.hold === 'pizza' ? o.hold : undefined });
     return A.person(p.x, p.y, { ...o, kid: undefined });
   }
+  // Eating at the food court: on a stool, side on; a kid sits on the stool across.
+  if (p.state === 'court' && p.court){
+    const sp = A4.courtSpots(p.court.d);
+    if (L.kid && p.court.kidSeat !== undefined){ const ks = sp.seats[p.court.kidSeat]; A.person(ks.x, ks.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: ks.flip, mood: 'happy' }); }
+    return A.person(p.x, p.y, { ...o, kid: undefined, sit: true, sitSide: true, flip: sp.seats[p.court.seat].flip });
+  }
   // A grown-up waiting at the play area, watching their kid.
   if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true });
   if (L.kid){
-    if (machine !== 'ride') return A.family(p.x, p.y, o);
+    if (machine !== 'ride' && machine !== 'carousel') return A.family(p.x, p.y, o);
     // On the kiddie ride the grown-up watches. The kid hops up into the rocket's cockpit at the start and back
     // down at the end; in between the ride draws them sitting in it, rocking along.
     const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0;
     A.person(p.x, p.y, { ...o, kid: undefined, back: !(m.rot || 0) ? false : o.back });
     const hop = k < A.RIDE_ON ? k / A.RIDE_ON : k > A.RIDE_OFF ? 1 - (k - A.RIDE_OFF) / (1 - A.RIDE_OFF) : -1;
     if (hop >= 0){
-      const seat = A.rideSeat(m), fx = p.x - 0.38, fy = p.y + 0.12, e = hop * hop * (3 - 2 * hop);
+      const seat = m.type === 'carousel' ? A4.carouselSeat(m) : A.rideSeat(m), fx = p.x - 0.38, fy = p.y + 0.12, e = hop * hop * (3 - 2 * hop);
       const kx = fx + (seat.x - fx) * e, ky = fy + (seat.y - fy) * e - Math.sin(hop * Math.PI) * 0.35;
       A.person(kx, ky, { ...L.kid, t: p.t + 0.3, s: 0.68, walk: hop > 0.05 && hop < 0.95, flip: seat.x < fx, play: hop > 0.3 && hop < 0.8, mood: 'happy', noShadow: hop > 0.1 });
     }
