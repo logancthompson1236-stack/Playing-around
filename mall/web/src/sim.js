@@ -628,9 +628,9 @@ function decide(p){
       sim.stats.wishes[want] = (sim.stats.wishes[want] || 0) + 1;
       p.mood = Math.max(0, p.mood - 0.03);
       emit('greyWish', { store: want });
-      // Sometimes they settle for something else while they're here.
+      // Sometimes they settle for something else while they're here (most do while the mall is small).
       const any = stores(S.save);
-      if (any.length && rand() < 0.5) p.wishes.push(pick(any).store);
+      if (any.length && rand() < (any.length < C.SETTLE[0] ? C.SETTLE[1] : C.SETTLE[2])) p.wishes.push(pick(any).store);
       p.state = 'pause'; p.timer = 1.0; return;
     }
     let best = options[0], bd = Infinity;
