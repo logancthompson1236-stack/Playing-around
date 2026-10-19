@@ -230,6 +230,8 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
     access = face === 'down' ? { x: dx, y: y + h } : { x: dx, y: y - 1 };
   } else if (kind === 'kiosk') access = { x: x + 1, y: y + 1 };
   else if (usable(kind)) access = decorAccess({ type: kind, x, y, rot: face || 0 });
+  // The front has to open onto the mall's own floor: past the outer walls is the sidewalk outside.
+  if (access && (access.y < 0 || access.y >= MAP_H || floorOf(access.x) !== floorOf(x))) return { ok: false, reason: kind === 'unit' ? 'The door can’t open onto the outside wall' : 'Its front can’t face the outside wall' };
   if (access && !isWalkWith(access.x, access.y, occ, x, y, w, h)) return { ok: false, reason: kind === 'unit' ? 'The door needs open walkway in front' : 'Needs open walkway in front' };
   // Everything that needs visiting must still be reachable from the doors. Only what this change would cut off
   // counts: something that was already out of reach (say, from an older layout) never blocks a new placement.
@@ -284,10 +286,41 @@ function nearestSpot(save, kind, x0, y0, w, h, face){
     if (floorOf(x) !== floorOf(x0)) continue;
     const f = kind === 'unit' ? (y + h <= 7 ? 'down' : 'up') : face;
     if (validatePlacement(save, kind, x, y, w, h, f).ok) return { x, y, face: f };
+    const g = f === 'down' ? 'up' : 'down';
+    if (kind === 'unit' && validatePlacement(save, kind, x, y, w, h, g).ok) return { x, y, face: g };
   }
   return null;
 }
 const unitKind = u => u.kiosk ? 'kiosk' : 'unit';
+// Older saves could have a store (or a bench, machine...) whose front opened onto the outside wall, so shoppers
+// walked through the wall. Turn it around if that works where it stands, or else move it to the nearest spot that
+// does. Nothing is removed (a decoration that truly can't fit anywhere is refunded).
+const facesOut = (save, a, x) => a.y < 0 || a.y >= MAP_H || floorOf(a.x) !== floorOf(x);
+export function fixDoors(save){
+  const out = { moved: 0, refund: 0 };
+  rebuildMap(save);
+  for (const u of [...save.units]){
+    if (u.kiosk || (u.state !== 'store' && u.state !== 'vacant' && u.state !== 'restroom') || !facesOut(save, unitAccess(u), u.x)) continue;
+    const flip = u.face === 'down' ? 'up' : 'down';
+    if (validatePlacement(save, 'unit', u.x, u.y, u.w, u.h, flip, u.id).ok){ u.face = flip; out.moved++; rebuildMap(save); continue; }
+    save.units = save.units.filter(v => v !== u); rebuildMap(save);
+    const at = nearestSpot(save, 'unit', u.x, u.y, u.w, u.h, u.face);
+    if (at){ u.x = at.x; u.y = at.y; u.face = at.face; out.moved++; }
+    else u.face = flip;                       // nowhere better: at least the door faces in
+    save.units.push(u); rebuildMap(save);
+  }
+  for (const d of [...save.decor]){
+    if (!usable(d.type) || !facesOut(save, decorAccess(d), d.x)) continue;
+    save.decor = save.decor.filter(v => v !== d); rebuildMap(save);
+    const z = decorSize(d);
+    const turned = DECOR[d.type].rot && [0, 1, 2, 3].map(r => ({ r, z: decorSize({ type: d.type, rot: r }) })).find(o => !facesOut(save, decorAccess({ ...d, rot: o.r }), d.x) && validatePlacement(save, d.type, d.x, d.y, o.z.w, o.z.h, o.r).ok);
+    if (turned){ d.rot = turned.r; save.decor.push(d); out.moved++; }
+    else { const at = nearestSpot(save, d.type, d.x, d.y, z.w, z.h, d.rot || 0); if (at){ d.x = at.x; d.y = at.y; save.decor.push(d); out.moved++; } else out.refund += DECOR[d.type].cost; }
+    rebuildMap(save);
+  }
+  save.money += out.refund;
+  return out;
+}
 
 // Opening the second floor puts an escalator at the east end of the concourse. Anything the player had put where it
 // (or its landing) goes moves to the nearest spot that works on the same floor; only what truly can't fit is refunded.

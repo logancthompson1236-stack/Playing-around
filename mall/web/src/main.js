@@ -1,7 +1,7 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
 import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks } from './state.js';
-import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, floorOf, hasUpstairs, topFloor } from './map.js';
+import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
 import { initInput } from './input.js';
@@ -145,7 +145,7 @@ function retireStockers(s){
 function continueGame(){
   retireStockers(S.save);
   rebuildMap(S.save); placeLeftovers(S.save);
-  const fixed = clearEscalators(S.save); if (fixed.moved || fixed.refund) writeSave();
+  const fixed = clearEscalators(S.save), doors = fixDoors(S.save); if (fixed.moved || fixed.refund || doors.moved || doors.refund) writeSave();
   invalidate(); UI.resetMoneyDisplay();
   remodelNote(S.save); upstairsNote(S.save, fixed);
   if (S.save.phase === 'night') enterNight(null); else beginDay();
@@ -299,7 +299,6 @@ function pauseMenu(){
     UI.h('p', { style: 'margin:0 0 4px;font:600 15px var(--display)' }, `${s.player.mall} · Day ${s.day} · Level ${s.level}`),
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
     UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap' },
-      UI.h('button', { class: 'btn', onclick: () => { close(); UI.showHelp(pauseMenu); } }, 'How to play'),
       UI.h('button', { class: 'btn', onclick: () => { close(); settings(true, pauseMenu); } }, 'Settings'),
       UI.h('button', { class: 'btn primary', onclick: () => { close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { close(); sim.paused = false; } });
   const close = () => { m.close(); pauseOpen = false; };

@@ -514,22 +514,6 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
       h('span', { class: 'muted' }, `Mall Revival v${C.VERSION}`),
       h('button', { class: 'btn primary small', onclick: close }, 'Done'))), { onBackdrop: close });
 }
-// A quick refresher, from the pause menu.
-export function showHelp(onClose){
-  const tip = (title, text) => h('div', { class: 'row', style: 'display:block' }, h('b', {}, title), h('small', { style: 'font-size:13px' }, text));
-  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'How to play'),
-    h('div', { class: 'set-cols' },
-      h('section', {},
-        tip('Daytime', 'Tap a shopper’s bubble or a store to rush to that register. Tap trash to sweep it. You can queue up to 3 jobs.'),
-        tip('Lines', 'Shoppers who wait too long leave frustrated. Hire clerks to keep registers staffed.'),
-        tip('Floors', 'Tap the arrows on the left to switch floors. A red dot means something up or down there needs you.')),
-      h('section', {},
-        tip('Night', 'Build opens the Mall Market: stores, stands, decor, fix-ups and styles. Tap anything in the mall to move, close or sell it.'),
-        tip('Staff', 'Hire janitors, clerks and more under Staff. Stores with a Help Wanted sign need a clerk.'),
-        tip('Camera', 'Drag to look around, pinch or scroll to zoom.'))),
-    h('div', { style: 'display:flex;justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn primary small', onclick: () => { m.close(); onClose && onClose(); } }, 'Got it'))),
-    { onBackdrop: () => { m.close(); onClose && onClose(); } });
-}
 // The backup code, ready to copy.
 function backupBox(){
   const code = exportSave(); if (!code) return;
