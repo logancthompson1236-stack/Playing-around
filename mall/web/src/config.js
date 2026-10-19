@@ -5,6 +5,7 @@ export const DAY_SECONDS = 150;        // real seconds for 9:00–21:00 at 1x sp
 export const VISITOR_SCALE = 0.756;    // 0.72 kept shoppers per minute like the old 4-minute days; v0.10 adds 5%
 export const VISITOR_TAPER = [4, 12, 0.2];   // from level 4 to 12, crowds grow 20% slower than the mall does
 export const WINDOW_SHOP = [8, 18, 0.25];    // from level 8 to 18, shoppers grow up to 25% pickier about buying
+export const SETTLE = [6, 0.8, 0.5];        // v0.17.6: chance a shopper whose store isn't built settles for another (below 6 stores, then after)
 export const LATE_CROWD = [12, 18, 0.15];    // v0.12: from level 12 to 18, 15% fewer shoppers (and it stays that way)
 export const LITTER_SCALE = 0.25;      // overall litter rate (each store and shopper type has its own weight)
 export const BIN_USE = 0.9;            // chance a shopper near a trash can uses it instead of the floor
