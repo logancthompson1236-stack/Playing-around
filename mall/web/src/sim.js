@@ -449,7 +449,7 @@ function updateCustomer(p, dt){
     case 'toMachine': {
       dropLitter(p, def);
       const a = p.machineAt;
-      if (walkTo(p, a.x, a.y, dt)){ p.state = 'useMachine'; p.timer = C.DECOR[p.machine.type].coin.secs * (0.8 + rand() * 0.4); p.flip = p.machine.x + 0.5 < p.x; p.machineWin = rand() < 0.25; }
+      if (walkTo(p, a.x, a.y, dt)){ p.state = 'useMachine'; p.machineT = p.timer = C.DECOR[p.machine.type].coin.secs * (0.8 + rand() * 0.4); p.flip = p.machine.x + 0.5 < p.x; p.machineWin = rand() < 0.25; }
       break;
     }
     case 'toTable': {
@@ -773,7 +773,7 @@ function useMachine(p){
   const price = Math.round(lerp(c.price[0], c.price[1], rand()));
   if (C.DECOR[d.type].casino) casinoTake(price, d.type); else { S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price; }
   p.mood = Math.min(1, p.mood + (d.type === 'ride' ? 0.12 : 0.05));
-  if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; }
+  if (d.type === 'vending'){ p.trashKinds = ['can']; p.boughtFood = true; p.holding = 'can'; p.holdT = 0; p.boughtCan = true; }
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
