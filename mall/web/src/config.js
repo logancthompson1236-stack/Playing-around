@@ -232,7 +232,10 @@ export const STYLE_XP = 30;
 // Tap one to shoo them out, or hire a security guard. Count per day ramps from min to max over these levels.
 // The most the casino can end up losing in a day before the house stops paying out (big winners happen, within reason).
 export const CASINO_MAX_LOSS = 2500;
-export const TROUBLE = { level: 10, perDay: [1, 4], ramp: [10, 18], radius: 3.2, moodHit: 0.18, scareChance: 0.2, stay: [25, 45], guardRadius: [0, 4, 5, 6] };
+// Unchecked, a troublemaker gets louder: over `escalate` seconds of acting up the noise carries 60% further and the
+// chance a shopper nearby gives up (rolled every few seconds) climbs by scareGrow. Guards notice anyone acting up
+// within guardRadius at once, and hear about it from anywhere on their floor after guardHear seconds.
+export const TROUBLE = { level: 10, perDay: [1, 4], ramp: [10, 18], radius: 3.2, moodHit: 0.18, scareChance: 0.12, scareGrow: 0.3, escalate: 30, stay: [25, 45], guardRadius: [0, 4, 5, 6], guardHear: [0, 9, 6, 3] };
 
 // rot: can be turned to face four ways. seat: shoppers sit on it. coin: a coin-op machine shoppers pay to use.
 export const DECOR = {

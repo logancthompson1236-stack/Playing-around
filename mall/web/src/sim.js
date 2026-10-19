@@ -207,6 +207,7 @@ function moveDirect(p, gx, gy, dt, speedMul = 1){
   p.walking = d > 0.02;
   if (Math.abs(dx) > 0.02) p.flip = dx < 0;
   if (d <= step){ p.x = gx; p.y = gy; return true; }
+  p.dirX = dx / d; p.dirY = dy / d;
   p.x += dx / d * step; p.y += dy / d * step;
   if (p.kind === 'customer') p.litterAcc = (p.litterAcc || 0) + step;
   return false;
@@ -225,8 +226,19 @@ function walkTo(p, gx, gy, dt, speedMul = 1){
     moveDirect(p, es[0].land.x + 0.5, es[0].land.y + 0.5, dt, speedMul); return false;
   }
   if (isRide(cx, n.x)){ startRide(p, escalatorAt(cx, cy), escalatorAt(n.x, n.y)); return false; }
-  const last = n.x === tx && n.y === ty, ln = p.lane || [0, 0];
-  moveDirect(p, last ? gx : n.x + 0.5 + ln[0], last ? gy : n.y + 0.5 + ln[1], dt, speedMul);
+  const last = n.x === tx && n.y === ty;
+  if (last){ moveDirect(p, gx, gy, dt, speedMul); return false; }
+  // Where in the hallway they walk drifts slowly, so nobody follows a ruled line from tile to tile.
+  const ln = p.lane || [0, 0], w = p.t * 0.21 + p.id * 1.7;
+  const lx = clamp(ln[0] + Math.sin(w) * 0.14, -0.36, 0.36), ly = clamp(ln[1] + Math.sin(w * 1.3 + 2) * 0.12, -0.32, 0.32);
+  // Look one step further: lean toward where the path goes next, so a turn becomes a curve and not a right angle.
+  // The aim stays inside the next tile, and that tile shares an edge with this one, so the line can't clip a wall.
+  let ox = lx, oy = ly;
+  if (n.x === cx || n.y === cy){
+    const n2 = nextStep(n.x, n.y, tx, ty);
+    if (n2 && !isRide(n.x, n2.x)){ if (n2.x !== n.x) ox = 0.4 * Math.sign(n2.x - n.x); if (n2.y !== n.y) oy = 0.4 * Math.sign(n2.y - n.y); }
+  }
+  moveDirect(p, n.x + 0.5 + ox, n.y + 0.5 + oy, dt, speedMul);
   return false;
 }
 // The escalator: step on, ride up (or down) and out of sight, then come in on the other floor's belt and step off.
@@ -281,7 +293,7 @@ function spawnCustomer(forceType, forceWish){
     type = entries.find(e => (r -= e[1]) <= 0)[0];
   }
   const def = C.CUSTOMERS[type];
-  const p = makePerson('customer', lookFor(type), C.ENTRANCE.x + 0.5 + rand(), C.MAP_H + 1.7);
+  const p = makePerson('customer', lookFor(type), C.ENTRANCE.x + 0.2 + rand() * (C.ENTRANCE.w - 0.4), C.MAP_H + 1.7 + rand() * 0.6);
   p.type = type; p.speed = def.speed * (0.9 + rand() * 0.2); p.mood = 0.6; p.state = 'arrive';
   p.litterAcc = 0; p.boughtFood = false; p.moodT = 0;
   p.wishes = forceWish ? [forceWish] : chooseWishes(type);
@@ -304,6 +316,34 @@ function chooseWishes(type){
   return out;
 }
 function setBubble(p, icon, kind, secs){ p.bubble = { icon, kind, until: sim.t + secs, real: secs }; }
+// Window shopping on the way: walking past a storefront, now and then someone slows to a stop and looks in for a
+// moment, and once in a while something in the window catches their eye and they go in after all.
+const STROLLING = new Set(['toStore', 'exit', 'toMachine', 'toSeat', 'toPlay', 'toRestroom', 'toCourt']);
+function storefronts(){
+  if (sim.frontsT > sim.t - 3 && sim.fronts) return sim.fronts;
+  sim.frontsT = sim.t;
+  return sim.fronts = stores(S.save).filter(u => !u.kiosk && !isAttraction(u)).map(u => ({ u, ...spotsFor(u).front }));
+}
+function glance(p, dt){
+  if (p.glanceT > 0){
+    p.glanceT -= dt; p.walking = false;
+    if (p.glanceT <= 0){ p.faceBack = false; if (p.impulse){ p.wishes.unshift(p.impulse); p.impulse = null; p.state = 'decide'; } }
+    return true;
+  }
+  if (sim.phase !== 'day' || !p.walking || p.spooked || !STROLLING.has(p.state) || (p.glanceCheck = (p.glanceCheck || 0) - dt) > 0) return false;
+  p.glanceCheck = 0.8 + rand() * 0.6;
+  if ((p.glances || 0) >= (p.type === 'browser' ? 4 : 2)) return false;
+  let best = null, bd = 1.7;
+  for (const f of storefronts()){ if (f.u.id === p.storeId) continue; const d = Math.hypot(f.x - p.x, f.y - p.y); if (d < bd){ bd = d; best = f; } }
+  if (!best || rand() > (p.type === 'browser' ? 0.3 : 0.12)) return false;
+  p.glances = (p.glances || 0) + 1;
+  p.glanceT = 0.9 + rand() * 1.6; p.walking = false;
+  p.flip = best.x < p.x; p.faceBack = best.u.face === 'down';
+  // Drawn in: what they'd wished for comes first, but this is next.
+  const def = C.CUSTOMERS[p.type], want = def.wants[best.u.store] || 0.3;
+  if (p.state !== 'toStore' && !p.wishes.includes(best.u.store) && rand() < 0.1 + want * 0.04) p.impulse = best.u.store;
+  return true;
+}
 
 function updateCustomer(p, dt){
   const def = C.CUSTOMERS[p.type];
@@ -319,9 +359,15 @@ function updateCustomer(p, dt){
   // Snacks and drinks get finished after a while (the wrapper is what ends up on the floor).
   // (Not while carrying it over to a table to sit down and eat.)
   if (p.holding && SNACKS.has(p.holding) && p.state !== 'toCourt' && p.state !== 'courtIn' && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
+  if (glance(p, dt)) return;
   switch (p.state){
     case 'arrive':
-      if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)){ greet(p); p.state = 'decide'; }
+      if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)){
+        // A boombox has been blaring a while: some hear it from the door and turn right back around.
+        const loud = sim.people.find(q => q.kind === 'trouble' && q.state === 'act' && (q.rowdy || 0) > 12 && floorOf(q.x) === 0);
+        if (loud && rand() < 0.35 * clamp(((loud.rowdy || 0) - 12) / 25, 0, 1)){ spook(p); p.state = 'out'; sim.stats.scared++; break; }
+        greet(p); p.state = 'decide';
+      }
       break;
     case 'decide': decide(p); break;
     case 'pause':
@@ -333,7 +379,8 @@ function updateCustomer(p, dt){
       if (!u || u.state !== 'store'){ p.state = 'decide'; break; }
       const f = spotsFor(u).front;
       dropLitter(p, def);
-      if (walkTo(p, f.x, f.y, dt)){
+      // Everyone heads for the same doorway, but each to their own bit of it.
+      if (walkTo(p, f.x + (p.lane ? p.lane[0] * 0.6 : 0), f.y, dt)){
         if (isAttraction(u)){ const st = storeInfo(u); st.queue.push(p.id); p.state = 'line'; p.patienceMax = p.patience = C.BASE_PATIENCE * def.patience * 1.4 * (p.patienceMul || 1); break; }
         if (u.kiosk){ p.state = 'browse'; p.timer = 0.8 + rand() * 0.8; }
         else { const sp = spotsFor(u); const b = u.store === 'arcade' ? arcadeSpot(u) : pick(sp.browse); p.exit = [sp.door, { x: b.x + (rand() - 0.5) * 0.2, y: b.y + (rand() - 0.5) * 0.2 }]; p.state = 'enter'; }
@@ -616,7 +663,7 @@ function updateCustomer(p, dt){
       // Spread out a little across the doorway rather than leaving in two neat columns.
       if (p.exitX === undefined) p.exitX = C.ENTRANCE.x + 0.22 + rand() * (C.ENTRANCE.w - 0.44);
       const ex = p.exitX, ey = C.MAP_H - 0.5;
-      if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 1.4 : 1)){ p.state = 'out'; }
+      if (walkTo(p, ex, ey, dt, sim.phase === 'closing' ? 1.4 : p.spooked ? 1.3 : 1)){ p.state = 'out'; }
       break;
     }
     case 'out':
@@ -627,7 +674,7 @@ function updateCustomer(p, dt){
   }
 }
 function decide(p){
-  if (sim.phase === 'closing'){ p.state = 'exit'; return; }
+  if (sim.phase === 'closing' || p.spooked){ p.state = 'exit'; return; }
   // Carrying something to eat and there's a food court: most sit down to eat it there.
   if (p.holding && SNACKS.has(p.holding) && p.holding !== 'gum' && !p.ateAtCourt && rand() < 0.8){
     p.ateAtCourt = true;
@@ -1131,9 +1178,14 @@ function updateStaff(p, dt){
     const cols = [];
     for (const f of [0, 1, 2]){ const r = floorRange(f); for (let x = r.x0; x < r.x1; x++) cols.push(x); }
     const c0 = Math.floor(cols.length * i / n), c1 = Math.max(c0 + 1, Math.floor(cols.length * (i + 1) / n));
-    for (let k = 0; k < 40; k++){
+    // Of a few spots in their slice, they drift toward the busiest: that's where the next mess will be.
+    let bn = -1;
+    for (let k = 0, ok = 0; k < 40 && ok < 4; k++){
       const x = cols[c0 + Math.floor(rand() * (c1 - c0))], y = Math.floor(rand() * C.MAP_H);
-      if (canReach(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
+      if (!canReach(x, y)) continue;
+      ok++;
+      const n = shoppersNear(x, y, 3) + rand() * 3;
+      if (n > bn){ bn = n; p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; }
     }
   }
   if (p.wander && walkTo(p, p.wander.x, p.wander.y, dt, 0.6)){ p.walking = false; p.wander.wait -= dt; }
@@ -1212,15 +1264,25 @@ function updateHost(p, dt){
 
 // The supervisor walks from storefront to storefront. Anyone on their phone nearby gets walked over to and
 // sent back to work; staff within range (clerks included) work faster and break less.
+// Supervisors make the rounds. Anyone on their phone close by gets sent back to work at once; past that, a supervisor
+// notices phones across the floor after a while (sooner the better they are). Between catches they head where
+// they're most use: storefronts with the most staff within their reach (who all work faster while they're there),
+// long lines, shaky one-star clerks, and anyone who's about due for a break.
 function updateSupervisor(p, dt){
-  const R = C.SUPERVISOR_RADIUS[p.skill];
+  const R = C.SUPERVISOR_RADIUS[p.skill], notice = [0, 9, 6, 3][p.skill];
   if ((p.scanT = (p.scanT || 0) - dt) <= 0){
     p.scanT = 0.5;
     for (const q of sim.people) if (q.kind === 'staff' && q.role !== 'supervisor'){
       q.boost = 0;
       for (const v of sim.people) if (v.role === 'supervisor' && Math.hypot(v.x - q.x, v.y - q.y) < C.SUPERVISOR_RADIUS[v.skill]) q.boost = Math.max(q.boost, C.SUPERVISOR_BOOST[v.skill]);
     }
-    if (!p.catching){ const lazy = sim.people.find(q => q.slacking && Math.hypot(q.x - p.x, q.y - p.y) < R); if (lazy) p.catching = lazy.id; }
+    if (!p.catching){
+      const f = beatFloor(p), taken = new Set(sim.people.filter(v => v !== p && v.role === 'supervisor').map(v => v.catching));
+      const lazy = sim.people.filter(q => q.slacking && !taken.has(q.id) && (Math.hypot(q.x - p.x, q.y - p.y) < R
+        || (floorOf(q.x) === (f ?? floorOf(p.x)) && q.breakMax - q.breakT > notice)))
+        .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+      if (lazy){ p.catching = lazy.id; p.round = null; }
+    }
   }
   if (p.catching){
     const q = personById(p.catching);
@@ -1228,13 +1290,20 @@ function updateSupervisor(p, dt){
     let goal = { x: q.x, y: q.y + 0.3 };
     const u = q.role === 'clerk' && S.save.units.find(v => v.id === q.storeId);
     if (u){ const a = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); goal = { x: a.x + 0.5, y: a.y + 0.5 }; }
-    if (walkTo(p, goal.x, goal.y, dt) || Math.hypot(p.x - goal.x, p.y - goal.y) < 0.8){ backToWork(q, true); p.catching = null; }
+    if (walkTo(p, goal.x, goal.y, dt, 1.25) || Math.hypot(p.x - goal.x, p.y - goal.y) < 0.8){ backToWork(q, true); p.catching = null; }
     return;
   }
-  if (!p.round || (p.round.wait -= dt) < -3){
-    const fronts = onBeat(p, S.save.units.filter(u => u.state === 'store' || u.state === 'restroom'));
-    const u = fronts.length ? pick(fronts) : null;
-    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
+  if (!p.round || p.round.wait < -p.round.stay){
+    p.round = nextRound(p, S.save.units.filter(u => u.state === 'store' || u.state === 'restroom'), (u, f) => {
+      let sc = 0;
+      for (const q of sim.people) if (q.kind === 'staff' && q.role !== 'supervisor' && Math.hypot(q.x - f.x, q.y - f.y) < R){
+        sc += 0.5 + (3 - q.skill) * 0.25;
+        if (q.workT < 15) sc += 0.6;
+      }
+      const st = u.state === 'store' && sim.storeState.get(u.id);
+      if (st && st.queue) sc += Math.min(1.5, st.queue.length * 0.3);
+      return sc;
+    });
   }
   if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
 }
@@ -1255,43 +1324,81 @@ function spawnTrouble(){
   const p = makePerson('trouble', look, C.ENTRANCE.x + 0.5 + rand(), C.MAP_H + 1.5);
   p.speed = 1.5; p.state = 'enter'; p.holding = 'boombox';
   p.stay = C.TROUBLE.stay[0] + rand() * (C.TROUBLE.stay[1] - C.TROUBLE.stay[0]);
-  p.scared = new Set();
+  p.scared = new Map();
   sim.people.push(p); sim.stats.troubles++;
   if (!S.save.flags.sawTrouble){ S.save.flags.sawTrouble = true; emit('firstTrouble'); }
 }
-function troubleSpot(){
-  for (let k = 0; k < 40; k++){
-    const x = Math.floor(rand() * map.w), y = C.CONCOURSE.y + Math.floor(rand() * C.CONCOURSE.h);
-    if (canReach(x, y)) return { x: x + 0.5, y: y + 0.5 };
+// They go where the crowd is: of a handful of spots on the concourse, the one with the most shoppers around it.
+function troubleSpot(p){
+  let best = null, bn = -1;
+  const f = p ? floorOf(p.x) : 0, r = floorRange(f);
+  for (let k = 0, tries = 0; k < 6 && tries < 60; tries++){
+    const x = r.x0 + Math.floor(rand() * (r.x1 - r.x0)), y = Math.floor(rand() * C.MAP_H);
+    if (!isWalk(x, y) || !canReach(x, y)) continue;
+    k++;
+    let n = rand() * 2;
+    for (const q of sim.people) if (q.kind === 'customer' && Math.abs(q.x - x) < 3.5 && Math.abs(q.y - y) < 3.5) n++;
+    if (n > bn){ bn = n; best = { x: x + 0.5, y: y + 0.5 }; }
   }
-  return { x: C.ENTRANCE.x + 1, y: C.MAP_H - 2 };
+  return best || { x: C.ENTRANCE.x + 1, y: C.MAP_H - 2 };
 }
 const troubleActive = p => p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act');
 function updateTrouble(p, dt){
   p.t += dt;
   if (p.state === 'flee'){ if (walkTo(p, C.ENTRANCE.x + 1, C.MAP_H - 0.5, dt, p.shooed ? 1.8 : 1)) p.state = 'gone'; return; }
   if (p.state === 'gone'){ if (moveDirect(p, p.x, C.MAP_H + 1.8, dt, 1.8)) p.gone = true; return; }
-  if (p.state === 'enter'){ if (moveDirect(p, p.x, C.MAP_H - 0.6, dt)){ p.state = 'roam'; p.goal = troubleSpot(); } return; }
+  if (p.state === 'enter'){ if (moveDirect(p, p.x, C.MAP_H - 0.6, dt)){ p.state = 'roam'; p.goal = troubleSpot(p); } return; }
   if (sim.phase !== 'day' || (p.stay -= dt) <= 0){ p.state = 'flee'; return; }
   if (p.state === 'roam'){
     if (walkTo(p, p.goal.x, p.goal.y, dt)){ p.state = 'act'; p.timer = 6 + rand() * 5; p.act = rand() < 0.35 && kickBin(p) ? 'kick' : 'music'; }
     return;
   }
-  // Acting up: the boombox blares, and shoppers close by get upset (some leave in a huff).
+  // Acting up: the boombox blares, and shoppers close by get upset. The longer nobody stops them, the louder it
+  // gets: the noise carries further, more people give up and head home, and lines nearby start to thin out.
   p.walking = false; sim.stats.troubleT += dt;
+  p.rowdy = (p.rowdy || 0) + dt;
   if ((p.noteT = (p.noteT || 0) - dt) <= 0){
     p.noteT = 0.5;
-    if (p.act === 'music') sim.fx.push({ kind: 'coin', x: p.x + (rand() - 0.5) * 0.6, y: p.y - 1.4, t: 0, life: 1.0, text: '♪' });
-    const T = C.TROUBLE;
-    for (const q of sim.people) if (q.kind === 'customer' && Math.hypot(q.x - p.x, q.y - p.y) < T.radius){
-      q.mood = Math.max(0, q.mood - T.moodHit * 0.25);
-      if (!p.scared.has(q.id) && ['decide', 'pause', 'toStore', 'arrive', 'toMachine', 'toSeat'].includes(q.state)){
-        p.scared.add(q.id);
-        if (rand() < T.scareChance){ q.state = 'exit'; q.bubble = null; sim.stats.scared++; sim.fx.push({ kind: 'storm', x: q.x, y: q.y - 1.5, t: 0, life: 1.6 }); }
-      }
+    const T = C.TROUBLE, heat = clamp(p.rowdy / T.escalate, 0, 1), R = T.radius * (1 + 0.6 * heat);
+    if (p.act === 'music') sim.fx.push({ kind: 'coin', x: p.x + (rand() - 0.5) * 0.6, y: p.y - 1.4, t: 0, life: 1.0, text: heat > 0.6 ? '♫♪' : '♪' });
+    for (const q of sim.people){
+      if (q.kind !== 'customer' || q.spooked || q.hidden || floorOf(q.x) !== floorOf(p.x)) continue;
+      const d = Math.hypot(q.x - p.x, q.y - p.y);
+      if (d > R) continue;
+      q.mood = Math.max(0, q.mood - T.moodHit * 0.25 * (1 - d / R * 0.5));
+      if (q.state === 'queue' || q.state === 'line') q.patience -= 0.5 * heat;      // waiting in this racket wears thin
+      // Everyone nearby gets a chance to give up every few seconds, more as it drags on.
+      const last = p.scared.get(q.id);
+      if (last !== undefined && sim.t - last < 4) continue;
+      p.scared.set(q.id, sim.t);
+      if (rand() < (T.scareChance + T.scareGrow * heat) * (d < R * 0.5 ? 1 : 0.6) && scareOff(q)) sim.stats.scared++;
     }
   }
-  if ((p.timer -= dt) <= 0){ p.state = 'roam'; p.goal = troubleSpot(); }
+  if ((p.timer -= dt) <= 0){ p.state = 'roam'; p.goal = troubleSpot(p); }
+}
+// Fed up: they drop what they're doing (leaving a line or a store, or getting up from a seat) and head for the doors,
+// a little faster than usual. Kids already playing, people at a table or in the restroom finish up first.
+function scareOff(q){
+  const u = q.storeId && S.save.units.find(v => v.id === q.storeId);
+  switch (q.state){
+    case 'arrive': case 'decide': case 'pause': case 'toStore': case 'toMachine': case 'toSeat': case 'toCourt': case 'toPlay': case 'toRestroom':
+      q.state = 'exit'; break;
+    case 'browse': if (!u) return false; leaveStore(q, u); break;
+    case 'queue': { if (!u) return false; const st = storeInfo(u), i = st.queue.indexOf(q.id); if (i >= 0) st.queue.splice(i, 1); q.served = false; leaveStore(q, u); break; }
+    case 'line': { if (!u) return false; const st = storeInfo(u), i = st.queue.indexOf(q.id); if (i >= 0) st.queue.splice(i, 1); q.state = 'exit'; break; }
+    case 'sit': q.faceBack = false; q.state = 'exit'; break;
+    case 'court': q.exit = courtOut(q); q.state = 'courtOut'; break;
+    default: return false;
+  }
+  spook(q);
+  return true;
+}
+function spook(q){
+  q.spooked = true; q.wishes = []; q.bubble = null; q.glanceT = 0; q.impulse = null; q.faceBack = false;
+  q.mood = Math.max(0, q.mood - 0.2);
+  sim.fx.push({ kind: 'storm', x: q.x, y: q.y - 1.5, t: 0, life: 1.6 });
+  // Word gets around: the nearest guard on this floor hears about it.
+  sim.alert = { x: q.x, y: q.y, f: floorOf(q.x), t: sim.t };
 }
 // Kick over the nearest trash can: its trash goes everywhere.
 function kickBin(p){
@@ -1319,26 +1426,61 @@ function onBeat(p, units){
   const f = beatFloor(p), mine = f === null ? units : units.filter(u => floorOf(u.x) === f);
   return mine.length ? mine : units;
 }
-// Security guards walk the storefronts; anyone acting up within range gets walked out.
+// Patrols for guards and supervisors: rather than a random storefront each time, they weigh up where to go next.
+// A spot scores for what it needs (score(u)), for how long it's been since anyone on this beat checked it, and a
+// little at random; the last few they visited are skipped. They stay a while where it's busy.
+function nextRound(p, units, score){
+  const seen = p.seen || (p.seen = new Map()), recent = p.recent || (p.recent = []);
+  let best = null, bs = -Infinity;
+  for (const u of onBeat(p, units)){
+    if (recent.includes(u.id) && units.length > recent.length + 1) continue;
+    const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u);
+    if (!canReach(f.x, f.y) || floorOf(f.x) !== floorOf(p.x) && beatFloor(p) === null && rand() < 0.7) continue;
+    const stale = Math.min(1, (sim.t - (seen.get(u.id) ?? -60)) / 60);
+    const sc = score(u, f) + stale * 2 - Math.hypot(f.x - p.x, f.y - p.y) * 0.04 + rand() * 0.8;
+    if (sc > bs){ bs = sc; best = { u, f, sc }; }
+  }
+  if (!best) return null;
+  seen.set(best.u.id, sim.t); recent.push(best.u.id); if (recent.length > 3) recent.shift();
+  return { x: best.f.x + 0.5 + (rand() - 0.5) * 0.6, y: best.f.y + 0.5 + (rand() - 0.5) * 0.3, wait: 0, stay: 2 + Math.min(4, best.sc) };
+}
+const shoppersNear = (x, y, r) => { let n = 0; for (const q of sim.people) if (q.kind === 'customer' && Math.abs(q.x - x) < r && Math.abs(q.y - y) < r) n++; return n; };
+// Security guards walk the storefronts, favoring busy ones and the entrance while there's trouble still to come.
+// Anyone acting up within sight gets walked out. They also hear about trouble anywhere on their floor (a shopper
+// storming off, or a boombox going a while), sooner the better they are, and hurry over.
 function updateGuard(p, dt){
-  const R = C.TROUBLE.guardRadius[p.skill];
+  const T = C.TROUBLE, R = T.guardRadius[p.skill];
   if ((p.scanT = (p.scanT || 0) - dt) <= 0){
     p.scanT = 0.4;
-    if (!p.catching){ const q = sim.people.find(q => troubleActive(q) && Math.hypot(q.x - p.x, q.y - p.y) < R); if (q) p.catching = q.id; }
+    if (!p.catching){
+      const f = beatFloor(p), mine = q => f === null || floorOf(q.x) === f;
+      let q = sim.people.filter(q => troubleActive(q) && Math.hypot(q.x - p.x, q.y - p.y) < R).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+      if (!q) q = sim.people.find(q => troubleActive(q) && q.state === 'act' && mine(q) && (q.rowdy || 0) > T.guardHear[p.skill] && !takenBy(q, p));
+      if (!q && sim.alert && sim.t - sim.alert.t < 6 && (f === null || sim.alert.f === f)){
+        // A shopper ran off: go look where it happened, and whoever's acting up near there is caught.
+        q = sim.people.find(q => troubleActive(q) && Math.hypot(q.x - sim.alert.x, q.y - sim.alert.y) < T.radius * 2 && !takenBy(q, p));
+      }
+      if (q){ p.catching = q.id; p.round = null; sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.5, t: 0, life: 0.9, text: '!' }); }
+    }
   }
   if (p.catching){
     const q = personById(p.catching);
     if (!q || !troubleActive(q)){ p.catching = null; return; }
-    if (walkTo(p, q.x, q.y + 0.3, dt, 1.2) || Math.hypot(p.x - q.x, p.y - q.y) < 0.9){ shoo(q, 'guard'); p.catching = null; }
+    if (walkTo(p, q.x, q.y + 0.3, dt, 1.45) || Math.hypot(p.x - q.x, p.y - q.y) < 0.9){ shoo(q, 'guard'); p.catching = null; }
     return;
   }
-  if (!p.round || (p.round.wait -= dt) < -3){
-    const fronts = onBeat(p, S.save.units.filter(u => u.state === 'store'));
-    const u = fronts.length ? pick(fronts) : null;
-    if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
+  if (!p.round || p.round.wait < -p.round.stay){
+    const comingIn = sim.troubleTimes.length > 0 || sim.people.some(q => q.kind === 'trouble' && (q.state === 'enter' || q.state === 'roam'));
+    p.round = nextRound(p, S.save.units.filter(u => u.state === 'store'), (u, f) => {
+      let sc = shoppersNear(f.x, f.y, 3) * 0.15;
+      if (comingIn && floorOf(f.x) === 0) sc += Math.max(0, 1.5 - Math.hypot(f.x - C.ENTRANCE.x, f.y - C.MAP_H) * 0.12);
+      return sc;
+    });
   }
   if (p.round && walkTo(p, p.round.x, p.round.y, dt)){ p.walking = false; p.round.wait -= dt; }
 }
+// Another guard already on their way to this one.
+const takenBy = (q, p) => sim.people.some(g => g !== p && g.role === 'guard' && g.catching === q.id);
 // Sunny wanders the concourse, waving. Anyone close by perks up (once per visit).
 function updateMascot(p, dt){
   if (!p.wander || (p.wander.wait -= dt) < -4){
@@ -1427,28 +1569,55 @@ export function step(realDt){
     else if (p.kind === 'trouble') updateTrouble(p, dt);
   }
   if (sim.phase === 'day') updateStores(dt);
-  else spreadCrowd(dt);
+  giveWay(dt);
   sim.people = sim.people.filter(p => !p.gone);
   for (const tr of sim.trash) tr.t += dt;
   for (const f of sim.fx) f.t += dt;
   sim.fx = sim.fx.filter(f => f.t < f.life);
   if (sim.gus && sim.gus.gone) sim.gus = null;
 }
-// At closing everyone heads the same way: nudge walkers apart so they flow out as a crowd, not one squashed file.
-function spreadCrowd(dt){
-  const walkers = sim.people.filter(p => p.kind === 'customer' && p.walking && !p.ride && (p.state === 'exit' || p.state === 'out'));
-  for (let i = 0; i < walkers.length; i++){
-    const a = walkers[i]; let px = 0, py = 0;
-    for (let j = 0; j < walkers.length; j++){
-      if (i === j) continue;
-      const b = walkers[j], dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
-      if (d > 0.001 && d < 0.42){ px += dx / d * (0.42 - d); py += dy / d * (0.42 - d) * 0.5; }
+// Personal space. Anyone walking the concourse keeps a little room from everyone near them, and when someone's coming
+// straight at them they both drift to their own right and pass, instead of walking through each other.
+const OUT_OF_WAY = new Set(['enter', 'leave', 'toDine', 'courtIn', 'courtOut', 'seatIn', 'toStall', 'toSink', 'toShow', 'queue', 'line', 'enterRestroom']);
+const steerable = p => p.walking && !p.ride && !p.hidden && p.kind !== 'gus' && !(p.exit && p.exit.length) && !OUT_OF_WAY.has(p.state) && (p.y >= C.MAP_H - 0.6 || isWalk(Math.floor(p.x), Math.floor(p.y)));
+function giveWay(dt){
+  const grid = new Map(), key = (x, y) => Math.floor(x) * 4096 + Math.floor(y);
+  for (const p of sim.people){
+    if (p.ride || p.hidden) continue;
+    const k = key(p.x, p.y); let c = grid.get(k); if (!c) grid.set(k, c = []); c.push(p);
+  }
+  for (const a of sim.people){
+    if (!steerable(a)) continue;
+    const hx = a.dirX || 0, hy = a.dirY || 0, fx = Math.floor(a.x), fy = Math.floor(a.y);
+    let px = 0, py = 0;
+    for (let gx = fx - 1; gx <= fx + 1; gx++) for (let gy = fy - 1; gy <= fy + 1; gy++){
+      const c = grid.get(gx * 4096 + gy); if (!c) continue;
+      for (const b of c){
+        if (b === a) continue;
+        const dx = b.x - a.x, dy = (b.y - a.y) * 1.4, d = Math.hypot(dx, dy);
+        if (d < 0.001 || d > 1.3) continue;
+        // Too close: step apart (more from people standing still, who won't move for you).
+        if (d < 0.5){ const k = (0.5 - d) / 0.5 * (b.walking ? 1 : 1.6); px -= dx / d * k; py -= dy / d * k * 0.7; }
+        // Someone in the way ahead: drift to the side to go around (oncoming walkers both keep right).
+        const ahead = dx * hx + dy * hy, side = dx * -hy + dy * hx;
+        if (ahead > 0.05 && Math.abs(side) < 0.5){
+          const oncoming = b.walking && (b.dirX || 0) * hx + (b.dirY || 0) * hy < -0.3;
+          const dir = oncoming ? 1 : side > 0.04 ? -1 : side < -0.04 ? 1 : (a.id & 1 ? 1 : -1);
+          const k = (1.3 - d) / 1.3 * (1 - Math.abs(side) / 0.5) * 0.9;
+          px += -hy * dir * k; py += hx * dir * k;
+        }
+      }
     }
     if (!px && !py) continue;
-    const nx = a.x + px * dt * 3, ny = a.y + py * dt * 3;
-    // Never into a wall, a store or (going out the front) off the doorway.
-    const outside = a.y >= C.MAP_H - 0.6;
-    if (outside ? nx > C.ENTRANCE.x + 0.15 && nx < C.ENTRANCE.x + C.ENTRANCE.w - 0.15 : isWalk(Math.floor(nx), Math.floor(ny)) && floorOf(nx) === floorOf(a.x)){ a.x = nx; if (!outside) a.y = ny; }
+    const m = Math.hypot(px, py), lim = 1.1;
+    if (m > lim){ px *= lim / m; py *= lim / m; }
+    const nx = a.x + px * dt * a.speed * 0.9, ny = a.y + py * dt * a.speed * 0.9;
+    // Never into a wall or a store, onto the other floor, or (going out the front) off the doorway.
+    if (a.y >= C.MAP_H - 0.6){ if (nx > C.ENTRANCE.x + 0.15 && nx < C.ENTRANCE.x + C.ENTRANCE.w - 0.15) a.x = nx; continue; }
+    if (floorOf(nx) !== floorOf(a.x)) continue;
+    if (isWalk(Math.floor(nx), Math.floor(ny))){ a.x = nx; a.y = ny; }
+    else if (isWalk(Math.floor(nx), Math.floor(a.y))) a.x = nx;
+    else if (isWalk(Math.floor(a.x), Math.floor(ny))) a.y = ny;
   }
 }
 function beginClosing(){
