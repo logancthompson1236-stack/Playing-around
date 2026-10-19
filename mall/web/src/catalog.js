@@ -12,6 +12,10 @@ export const SHELVES = [
 export const shelfColor = id => (SHELVES.find(s => s.id === id) || {}).color || '#3fb8af';
 
 export const STORE_INFO = {
+  lemonade: ['food', 'Fresh-squeezed and ice cold, with a lemon slice on top. Tastes like summer.'],
+  tacos:    ['food', 'Sizzling tortillas, fresh salsa and a little fiesta in every bite.'],
+  sports:   ['retail', 'Balls, bikes and jerseys. Game day starts here, and there’s a hoop to shoot at.'],
+  beauty:   ['retail', 'A wall of lipsticks, a light-up mirror and a chair for makeovers. Everyone leaves glowing.'],
   pretzel:  ['food', 'Warm, twisty and salted just right. The smell alone pulls shoppers off the escalator.'],
   scoops:   ['food', 'Thirty-one flavors, one tiny cart. Brain freeze sold separately.'],
   hotdog:   ['food', 'Snap, sizzle, mustard. A classic mall lunch that fits in one hand.'],

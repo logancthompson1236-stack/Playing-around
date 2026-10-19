@@ -4,6 +4,7 @@ export const OUT = '#3d2b35';
 const GOLDEN = '#f2c14e';
 import * as A2 from './art2.js';
 import * as A3 from './art3.js';
+import * as A4 from './art4.js';
 // Older WebViews and Safari before 16 lack roundRect.
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
@@ -240,6 +241,12 @@ export function floor(kind, x, y, w, h, seed){
   else if (kind === 'bounce'){ checker(1, '#e9f3ff', '#d9e8fb'); grid(1, 'rgba(90,141,238,.2)', 0.03); }
   else if (kind === 'mint'){ checker(1, '#e3f6ea', '#c9ecd8'); grid(1, 'rgba(60,140,100,.2)', 0.025); }
   else if (kind === 'wood'){ planks('#ead2ac', '#e2c69b', 'rgba(120,80,40,.2)'); }
+  else if (kind === 'court'){
+    // Gym floor: honey planks with painted court lines.
+    planks('#e9c28a', '#e0b67a', 'rgba(120,80,40,.18)');
+    g.strokeStyle = 'rgba(29,111,184,.55)'; g.lineWidth = 0.05; g.beginPath(); g.arc(x + w / 2, y + h, Math.min(w, h * 2) * 0.32, Math.PI, 0); g.stroke();
+    g.strokeStyle = 'rgba(255,159,28,.6)'; g.lineWidth = 0.035; g.strokeRect(x + 0.12, y + 0.12, w - 0.24, h - 0.24);
+  }
   else if (kind === 'wood2'){ planks('#c49a6c', '#b98d5f', 'rgba(70,40,20,.25)'); }
   else if (kind === 'grass'){ checker(0.5, '#d5f0d0', '#c2e8bb'); grid(0.5, 'rgba(40,120,60,.12)', 0.02); }
   else if (kind === 'cafe'){ checker(0.5, '#f2e3cf', '#c99f7a'); grid(0.5, 'rgba(80,50,30,.15)', 0.02); }
@@ -365,6 +372,7 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'vr': A2.vrIcon(c); break;
     case 'cupcake': A2.cupcakeIcon(c); break;
     case 'comic': A2.comicIcon(c); break;
+    case 'lemon': case 'ball': case 'lipstick': case 'taco': A4.icon(icon, c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -695,7 +703,7 @@ function raisedArm(o, ax, hx, hy){
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
 function heldItem(kind, hx, hy, color, prize){
-  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy)) return;
+  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy)) return;
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -1182,8 +1190,8 @@ function derelictJunk(u){
   const [px, py] = local(u, 0.4, u.h - 0.6); deadPlant(px, py + 0.2);
 }
 
-const JAR = ['#ff6b8b', '#ffd23f', '#5cc8bf', '#9b7bff', '#ff9f43', '#7bd389', '#5a8dee'];
-function goods(x, y, w, rows, seed, cols = JAR){
+export const JAR = ['#ff6b8b', '#ffd23f', '#5cc8bf', '#9b7bff', '#ff9f43', '#7bd389', '#5a8dee'];
+export function goods(x, y, w, rows, seed, cols = JAR){
   const R = mulberry(seed);
   for (let r = 0; r < rows; r++){
     let px = x + 0.06;
@@ -1194,7 +1202,7 @@ function goods(x, y, w, rows, seed, cols = JAR){
     }
   }
 }
-function shelf(x, y, w, d, h, items, seed){
+export function shelf(x, y, w, d, h, items, seed){
   box(x, y, w, d, h, '#f2e6c8', '#d9c59a');
   const top = y + d - h, rows = Math.max(1, Math.floor((h - 0.1) / 0.26));
   if (items === 'jars'){
@@ -1283,6 +1291,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
       g.fillStyle = '#fbe9dc'; g.fillRect(x0, y0, w, H); g.fillStyle = '#f4d5bf'; for (let r = 0; r * 0.2 < H; r += 2) g.fillRect(x0, y0 + r * 0.2, w, 0.2); break;
     case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
+    case 'ball': case 'lipstick': case 'taco': A4.wallpaper(ic, x0, y0, w, H); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
@@ -1346,6 +1355,7 @@ function wallPieceArt(ic, wx, wy, t){
       break;
     case 'pizza': A2.pizzaMenu(wx, wy); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
+    case 'ball': case 'lipstick': case 'taco': A4.wallPiece(ic, wx, wy, t); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
@@ -1450,6 +1460,9 @@ function counter(u, def){
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
     A2.newCounter(ic, cx, top);
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (A4.ICONS.includes(ic)){
+    A4.counter(ic, cx, top);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (ic === 'pizza'){
     A2.pizzaCounter(cx, top);
@@ -1592,6 +1605,8 @@ export function storeFurniture(u, def, t, layer){
       A3.casinoBack(ic, x, y, sw, t);
     } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
       A2.newBack(ic, x, y, sw, t, u.id);
+    } else if (A4.ICONS.includes(ic)){
+      A4.back(ic, x, y, sw, t, u.id);
     } else if (ic === 'pizza'){
       A2.pizzaOven(x, y, sw, t);
     } else if (ic === 'burger'){
@@ -1615,6 +1630,7 @@ export function storeFurniture(u, def, t, layer){
     if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
       return;
   }
+  if (A4.mid(ic, u, W, H, t)) return;
   if (ic === 'vr'){
     // Glowing play pads where folks try the headsets.
     for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
@@ -1939,6 +1955,7 @@ export function kiosk(k, def, t){
   storeIcon(def.icon, x + 0.7, y - 0.16, 0.28);
   for (const wx of [x + 0.22, x + 1.18]){ circ(wx, y + 0.45, 0.09); fs('#5a4a5a', 0.04); circ(wx, y + 0.45, 0.03); fs('#ccc', 0); }
   if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
+  else if (def.icon === 'lemon') A4.lemonCounter(x, y, t);
   else if (def.icon === 'boba') A2.bobaCounter(x, y, t);
   else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.

@@ -86,8 +86,9 @@ const HOLD_FROM = {
   toys: 'toy', perfume: ['bag', '#c77dff'], gaming: 'game', shoes: 'shoebox', burger: 'burger', hotdog: 'hotdog', pizza: 'pizza',
   plants: 'plant', jewelry: ['bag', '#1d3557'], boba: 'boba', vr: ['bag', '#240046'], bakery: 'cupcake', comics: 'comic',
   chips: 'chips', lounge: 'cocktail', giftshop: ['bag', '#f2c14e'],
+  lemonade: 'lemonade', sports: 'ball', beauty: ['bag', '#ff5d8f'], tacos: 'taco',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -859,6 +860,7 @@ const TRASH_FROM = {
   hotdog: ['wrapper', 'cup'], pizza: ['paper', 'cup'],
   plants: ['paper'], jewelry: ['paper'], boba: ['cup'], vr: ['paper', 'can'], bakery: ['wrapper', 'paper'], comics: ['paper', 'bag'],
   chips: ['paper'], lounge: ['cup'], giftshop: ['paper', 'bag'],
+  lemonade: ['cup'], sports: ['paper', 'bag'], beauty: ['paper'], tacos: ['wrapper', 'paper'],
 };
 
 /* ---------- Owner and jobs ---------- */

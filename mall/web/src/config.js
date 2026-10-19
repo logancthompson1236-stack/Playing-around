@@ -159,6 +159,11 @@ export const STORES = {
   // v0.15: casino stores. casino: only on the casino floor.
   chips:    { name: 'Chip Cage',        w: 2, h: 2, cat: 'Casino',  level: 30, cost: 4000, price: [40, 110], stock: 80, icon: 'chip',    litter: 0.02, color: '#1b4332', trim: '#f2c14e', floor: 'royal', casino: true },
   lounge:   { name: 'Neon Lounge',      w: 3, h: 3, cat: 'Casino',  level: 39, cost: 12000, price: [24, 44], stock: 80, icon: 'cocktail', litter: 0.2, color: '#3c096c', trim: '#ff4fa0', floor: 'neon', dine: true, casino: true },
+  // v0.17.2: four more through the early levels, to keep up with the clerks.
+  lemonade: { name: 'Lemon Drop',     w: 2, h: 1, kiosk: true, cat: 'Food', level: 4,  cost: 400,  price: [9, 14],  stock: 60, icon: 'lemon',    litter: 0.28, color: '#ffd23f', trim: '#2ec4b6' },
+  sports:   { name: 'Game Day',       w: 3, h: 3, cat: 'Sports',  level: 12, cost: 2300, price: [38, 80], stock: 40, icon: 'ball',     litter: 0.05, color: '#1d6fb8', trim: '#ff9f1c', floor: 'court' },
+  beauty:   { name: 'Glow Up',        w: 2, h: 3, cat: 'Fashion', level: 17, cost: 3300, price: [44, 92], stock: 35, icon: 'lipstick', litter: 0.03, color: '#ff5d8f', trim: '#ffe5ec', floor: 'blush' },
+  tacos:    { name: 'Taco Loco',      w: 2, h: 2, cat: 'Food',    level: 19, cost: 3000, price: [14, 23], stock: 70, icon: 'taco',     litter: 0.3,  color: '#e76f51', trim: '#2ec4b6', floor: 'terracotta' },
   giftshop: { name: 'Lucky Charms',     w: 2, h: 3, cat: 'Casino',  level: 46, cost: 14000, price: [36, 80], stock: 50, icon: 'clover',  litter: 0.04, color: '#2d6a4f', trim: '#f2c14e', floor: 'royal', casino: true },
 };
 // Prices went up 5% in v0.10 (the ranges above are the old ones).
@@ -253,13 +258,13 @@ export const BIN_RADIUS = 4;
 
 // Who shops here. `wants` weights which stores they wish for; hours are when they mostly show up.
 export const CUSTOMERS = {
-  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2, plants: 3, bakery: 3, jewelry: 1 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
-  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4, boba: 5, vr: 5, comics: 4 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
-  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
-  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
-  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
+  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2, plants: 3, bakery: 3, jewelry: 1, lemonade: 2, sports: 1, tacos: 2 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
+  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4, boba: 5, vr: 5, comics: 4, lemonade: 2, sports: 3, beauty: 2, tacos: 4 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
+  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1, lemonade: 4, sports: 3, tacos: 3 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
+  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2, beauty: 5, lemonade: 1, tacos: 1 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
+  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1, lemonade: 1, sports: 1, beauty: 1, tacos: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
   // Only once the casino is open (see spawnCustomer).
-  highroller: { label: 'High roller', wants: { chips: 6, lounge: 4, giftshop: 3, jewelry: 3, perfume: 1, boutique: 1, pizza: 1 }, buy: 0.85, spend: 1.6, patience: 1.0, litter: 0.04, speed: 1.3, hours: [14, 21], weight: 0, casino: 0.7 },
+  highroller: { label: 'High roller', wants: { chips: 6, lounge: 4, giftshop: 3, jewelry: 3, perfume: 1, beauty: 1, boutique: 1, pizza: 1 }, buy: 0.85, spend: 1.6, patience: 1.0, litter: 0.04, speed: 1.3, hours: [14, 21], weight: 0, casino: 0.7 },
 };
 
 // Relative arrivals per hour, 9:00 through 20:00.
@@ -312,7 +317,7 @@ export const RESTOCK_AT = 0.25;                      // a clerk tops up their st
 export const LEVEL_UNLOCKS = {
   2: [{ store: 'coffee' }, { zone: 'nw' }],
   3: [{ store: 'arcade' }, { hire: 'janitor' }, { zone: 'ne' }],
-  4: [{ store: 'boutique' }, { zone: 'sw' }, { staffSlots: true }],
+  4: [{ store: 'boutique' }, { store: 'lemonade' }, { zone: 'sw' }, { staffSlots: true }],
   5: [{ store: 'pets' }, { hire: 'supervisor' }, { zone: 'se' }, { staffSlots: true }],
   6: [{ store: 'books' }, { store: 'toys' }, { decor: 'claw' }, { staffSlots: true }],
   7: [{ store: 'perfume' }, { staffSlots: true }],
@@ -320,14 +325,14 @@ export const LEVEL_UNLOCKS = {
   9: [{ store: 'scoops' }, { store: 'shoes' }, { decor: 'planter' }, { decor: 'lamp' }, { staffSlots: true }],
   10: [{ store: 'burger' }, { hire: 'guard' }, { decor: 'vending' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
   11: [{ store: 'music' }, { decor: 'sofa' }, { style: 'wall:sunset' }, { staffSlots: true }],
-  12: [{ hire: 'greeter' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
+  12: [{ hire: 'greeter' }, { store: 'sports' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
   13: [{ store: 'plants' }, { decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
   14: [{ store: 'gadgets' }, { style: 'floor:flagstone' }, { staffSlots: true }],
   15: [{ hire: 'mascot' }, { store: 'jumppark' }, { decor: 'playarea' }, { style: 'wall:deco' }, { staffSlots: true }],
   16: [{ store: 'jewelry' }, { style: 'floor:herring' }, { staffSlots: true }],
-  17: [{ style: 'wall:luxe' }, { staffSlots: true }],
+  17: [{ store: 'beauty' }, { style: 'wall:luxe' }, { staffSlots: true }],
   18: [{ store: 'hotdog' }, { style: 'floor:marble' }, { staffSlots: true }],
-  19: [{ decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
+  19: [{ store: 'tacos' }, { decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
   20: [{ store: 'boba' }, { decor: 'photobooth' }, { style: 'floor:mosaic' }, { staffSlots: true }],
   21: [{ decor: 'aquarium' }, { style: 'wall:starry' }, { staffSlots: true }],
   22: [{ store: 'pizza' }, { staffSlots: true }],
