@@ -9,7 +9,7 @@ A cozy 2D mall sim for Android and iPhone. You inherit your grandma's dead mall 
 
 Both are built automatically by `.github/workflows/mall-build.yml` on every push that changes `mall/`.
 
-## How to play (v0.16)
+## How to play (v0.18)
 
 - **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch: switch between Stores & Stands and Decor, and pick a category (Food, Retail, Fun, Scenery, Casino). Things you don't own yet come first; a New tag marks anything just unlocked; **Fix up** has whatever storage, fountain work and expansions are still to do; **Style** has wallpaper and floors. Swipe the cards sideways.
 
@@ -17,7 +17,9 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
 - **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
-- **Decor** unlocks as you level (a claw machine, planters, lamps, sofas, soda and gumball machines, a kiddie ride, a mall directory, shade trees, a kids play area at 15, and from level 19 a topiary bunny, a photo booth, an aquarium, a massage chair, a grand piano, a flower arch, a balloon cart, a wishing fountain, an arcade cabinet, a bubble machine and a koi pond). Tap **Rotate** while placing, or tap a placed piece, to turn it. Machines earn a little from shoppers.
+- **Decor** unlocks as you level (a claw machine, planters, lamps, sofas, soda and gumball machines, a kiddie ride, a mall directory, shade trees, a kids play area at 15, and from level 19 a topiary bunny, a photo booth, an aquarium, a massage chair, a grand piano, a flower arch, a balloon cart, a wishing fountain, an arcade cabinet, a bubble machine and a koi pond; from level 36 a popcorn cart, a hot air balloon, an ice swan and a penny press). Tap **Rotate** while placing, or tap a placed piece, to turn it. Machines earn a little from shoppers.
+- **Later stores (v0.18):** Hat Trick (21, shoppers try hats on), Wick & Wax candles (33), Bear Hugs Workshop (35, kids stuff a bear and carry it out), Board Room skate shop (39), Spec-tacular glasses (41, shoppers try frames on) and the Blend Bar smoothie stand (44).
+- **Strike Zone and Putt Paradise** (levels 29 and 37): 5×4 attractions. Bowlers step up, bowl and watch the pins fly; golfers line up a putt on four themed holes (windmill, bridge, pond, lighthouse) and walk up to pick the ball out of the cup.
 - **Staff on their phones:** tap the phone bubble over a slacking employee to go get them back to work. One-star hires do it most.
 - **Troublemakers** (level 10): tap a rowdy kid with a boombox to shoo them out, or hire a security guard under Staff.
 - **Restrooms:** when one gets grubby (flies, then a bubble), tap it to mop it out, or let janitors handle it.
@@ -51,6 +53,7 @@ web/src/
   map.js       tile grid, flow-field pathfinding, placement rules
   render.js    camera, cached floor layer, depth-sorted drawing, lighting, overlays
   art.js       all vector art (stores, characters, props, icons)
+  art5.js      v0.18 art: the later stores, bowling and mini golf, new decor and styles
   night.js     night tools: tap cards, Build, Staff, placement, notebook
   guide.js     Day 1 walkthrough, notebook tips, Gus's memories
   ui.js        HUD, dialogs, panels, report card, intro, character creation

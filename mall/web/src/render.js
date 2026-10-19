@@ -2,6 +2,7 @@
 import * as A from './art.js';
 import * as A2 from './art2.js';
 import * as A4 from './art4.js';
+import * as A5 from './art5.js';
 import * as C from './config.js';
 import { S } from './state.js';
 import { sim, spotsFor, storeInfo, clockHour, roomInfo, tableDealer } from './sim.js';
@@ -164,6 +165,9 @@ export function render(t){
   const tablePlates = (key, i) => { const pl = plates.get(key); return pl ? [pl[i * 2], pl[i * 2 + 1]] : null; };
   const addDine = u => A.dineSpots(u).tables.forEach((tb, i) => { add(tb.y + 0.0, () => A.dineTable(u, i, 'stools')); add(tb.y + 0.12, () => A.dineTable(u, i, 'table', tablePlates(u.id, i))); });
   const manned = view.mode === 'night' ? new Set(s.staff.map(m => m.storeId).filter(Boolean)) : null;
+  // Bowlers and golfers: how far into their visit each one is, so the lanes and greens can show their ball.
+  A5.live.clear();
+  for (const p of sim.people) if (p.state === 'show' && p.showKind){ let a = A5.live.get(p.storeId); if (!a) A5.live.set(p.storeId, a = []); a[p.seat] = { k: p.showT || 0, seed: p.id, ball: p.ballColor }; }
   for (const u of s.units){
     if (u.id === view.hideId || !seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) continue;
     const def = unitDef(u);
@@ -172,8 +176,10 @@ export function render(t){
     if (u.state === 'restroom') A.roomState.set(u, roomInfo(u));
     if (def && def.attraction){
       // Attractions: no counter. Cinema seat rows are sorted one by one so people sit in them, not on top.
-      add(u.face === 'down' ? u.y + 0.48 : u.y + u.h, () => A.unitBack(u, def, t));
-      if (def.attraction === 'jump' && u.face !== 'down') add(u.y, () => A.trampolines(u, def));
+      // Bowling lanes and golf greens lie on the floor, so with doors facing up they go under the players too.
+      if (u.face !== 'down' && def.attraction === 'golf') A5.HOLES.forEach((h, i) => add(A5.holeY(u, i), () => A5.backLayer(u, def, t, A5.live.get(u.id), i)));
+      else add(u.face === 'down' ? u.y + 0.48 : A5.ATTR.includes(def.attraction) ? u.y + 0.1 : u.y + u.h, () => A.unitBack(u, def, t));
+      if (u.face !== 'down') add(u.y, () => A.attractionFloor(u, def));
       if (def.attraction === 'theater') for (const row of [0, 1]){
         const s0 = A.attractionSpots(u, def).seats.find(q => q.row === row);
         add(u.face === 'down' ? s0.at.y + 0.2 : s0.at.y - 0.3, () => A.theaterRow(u, def, row));
@@ -327,6 +333,19 @@ export function drawPersonAt(p, t){
   if (p.kind === 'gus') o.mood = 'happy';
   if (p.kind === 'trouble') o.mood = 'mad';
   if (L.costume) return A.mascot(p.x, p.y, o);
+  // Bowling a frame or putting a hole: they step up, swing, watch, and walk back, all from their spot.
+  if (p.state === 'show' && p.showKind){
+    const k = p.showT || 0, q = A5.playerPose(p.showKind, k, { seed: p.id, hole: p.seat }, { face: p.showFace });
+    Object.assign(o, { walk: q.walk, stride: k * 1.2, side: p.showKind === 'golf' ? 1 : 0, back: !!q.back, crouch: q.crouch || 0, cheer: q.cheer, flip: !!q.flip, swing: q.swing });
+    if (q.cheer) o.mood = 'happy';
+    if (q.putter){ o.putter = true; o.walkProp = q.walk || q.crouch > 0.05; }
+    if (q.holdBall) o.bowlBall = p.ballColor;
+    o.hold = undefined;
+    const x = p.x + (q.dx || 0), y = p.y + (q.dy || 0);
+    return L.kid ? A.family(x, y, o) : A.person(x, y, o);
+  }
+  if (p.tryHat) o.tryHat = p.tryHat;
+  if (p.trySpecs) o.specs = p.trySpecs;
   // Bouncing on a trampoline: up and down, arms out.
   if (p.bouncing){
     const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true;
@@ -346,6 +365,7 @@ export function drawPersonAt(p, t){
   if (p.slacking) o.phone = true;
   if (p.mopT > 0) o.mop = p.t * 6;
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
+  if (p.tryTeddy) o.hold = 'teddy';
   // Sat at a table with their food: eating it, a bite at a time.
   if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).

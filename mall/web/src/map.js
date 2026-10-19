@@ -81,7 +81,7 @@ function markHidden(save){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
     else row(u.x, u.w, u.y - 1);
   }
-  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles', 'slots', 'goldslots', 'neon', 'jackpot', 'wheel', 'dicestatue', 'champagne'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
+  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles', 'slots', 'goldslots', 'neon', 'jackpot', 'wheel', 'dicestatue', 'champagne', 'popcorn', 'iceswan', 'penny', 'hotair'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
   for (const f of [0, 1, 2]) row(FLOOR_X[f], map.fw[f], MAP_H - 1);
   for (const e of map.esc) row(e.x, e.w, e.y - 1);

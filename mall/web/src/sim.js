@@ -3,6 +3,7 @@ import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
 import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
+import { CYCLE, ballColor, randomHat, randomSpecs } from './art5.js';
 import { playLength } from './play.js';
 import { courtSpots } from './art4.js';
 
@@ -89,8 +90,9 @@ const HOLD_FROM = {
   chips: 'chips', lounge: 'cocktail', giftshop: ['bag', '#f2c14e'],
   lemonade: 'lemonade', sports: 'ball', beauty: ['bag', '#ff5d8f'], tacos: 'taco',
   noodle: 'noodles', cotton: 'cotton', crafty: ['bag', '#9b5de5'], sushi: 'sushi',
+  hats: 'hatbox', candles: 'candle', bears: 'teddy', skate: 'skateboard', specs: ['bag', '#00798c'], smoothie: 'smoothie',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco', 'noodles', 'cotton', 'sushi']);
+const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco', 'noodles', 'cotton', 'sushi', 'smoothie', 'popcornbox']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -288,7 +290,9 @@ function spawnCustomer(forceType, forceWish){
 }
 function chooseWishes(type){
   const def = C.CUSTOMERS[type], openTypes = new Set(stores(S.save).map(u => u.store));
-  const pool = Object.entries(def.wants).map(([k, w]) => [k, w * (openTypes.has(k) ? 2.5 : 1)]);
+  // Stores still far off in the unlock list don't come up yet: a wish nobody can grant for 20 levels is just noise.
+  const lvl = S.save.level || 1;
+  const pool = Object.entries(def.wants).filter(([k]) => openTypes.has(k) || !C.STORES[k] || (C.STORES[k].level || 1) <= lvl + 6).map(([k, w]) => [k, w * (openTypes.has(k) ? 2.5 : 1)]);
   const extra = S.save.decor.some(d => d.type === 'directory') && rand() < 0.3 ? 1 : 0;
   const n = (type === 'browser' ? 2 + (rand() < 0.5 ? 1 : 0) : 1 + (rand() < 0.6 ? 1 : 0) + (rand() < 0.15 ? 1 : 0)) + extra;
   const out = [];
@@ -344,12 +348,19 @@ function updateCustomer(p, dt){
         if (u && u.store === 'arcade'){ p.playing = true; p.faceBack = u.face === 'down'; p.timer = 3 + rand() * 2.5; }
         // At the VR place they try a headset on first, waving at things only they can see.
         else if (u && C.STORES[u.store].play){ p.playing = true; p.vr = true; p.timer = 3.5 + rand() * 2.5; }
+        // Hats, glasses and teddies get tried on (or hugged) first.
+        else if (u && C.STORES[u.store].tryOn){
+          const kind = C.STORES[u.store].tryOn; p.timer = 3 + rand() * 2;
+          if (kind === 'hat') p.tryHat = p.triedHat = randomHat(rand);
+          else if (kind === 'specs') p.trySpecs = p.triedSpecs = randomSpecs(rand);
+          else p.tryTeddy = true;
+        }
       }
       break;
     case 'browse': {
       p.walking = false;
       if ((p.timer -= dt) > 0) break;
-      p.playing = false; p.faceBack = false; p.vr = false;
+      p.playing = false; p.faceBack = false; p.vr = false; p.tryHat = p.trySpecs = null; p.tryTeddy = false;
       const u = S.save.units.find(v => v.id === p.storeId);
       if (!u || u.state !== 'store'){ leaveStore(p, u); break; }
       if (u.stock <= 0){
@@ -516,10 +527,13 @@ function updateCustomer(p, dt){
         if (!def){ p.state = 'decide'; break; }
         p.state = 'show'; p.timer = lerp(def.show[0], def.show[1], rand());
         p.faceBack = def.attraction === 'theater' && u.face === 'down'; p.bouncing = def.attraction === 'jump';
+        // Bowlers and golfers play whole frames and holes, so their visit lasts a round number of them.
+        p.showT = 0; p.showKind = CYCLE[def.attraction] ? def.attraction : null; p.showFace = u.face;
+        if (p.showKind){ const cy = CYCLE[p.showKind]; p.timer = Math.max(1, Math.round(p.timer / cy)) * cy; p.ballColor = ballColor(p.id); }
       }
       break;
     case 'show': {
-      p.walking = false;
+      p.walking = false; p.showT = (p.showT || 0) + dt;
       if ((p.timer -= dt) > 0) break;
       const u = S.save.units.find(v => v.id === p.storeId);
       leaveShow(p, u);
@@ -752,7 +766,7 @@ function buyTicket(u, p){
   emit('sale', { amount: price, store: u.store });
 }
 function leaveShow(p, u){
-  p.faceBack = false; p.bouncing = false;
+  p.faceBack = false; p.bouncing = false; p.showKind = null;
   const st = u && storeInfo(u);
   if (st && st.seats) st.seats = st.seats.map(id => id === p.id ? null : id);
   if (!u){ p.state = 'decide'; return; }
@@ -777,6 +791,8 @@ function useMachine(p){
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
+  if (d.type === 'popcorn'){ p.holding = 'popcornbox'; p.holdT = 0; p.boughtFood = true; p.trashKinds = ['popcorn']; }
+  if (d.type === 'penny'){ p.holding = 'penny'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.4, t: 0, life: 1.3, text: 'Souvenir!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if ((d.type === 'slots' || d.type === 'goldslots') && p.machineWin) p.machinePaid = -casinoTake(-price * 3, d.type);
   if ((d.type === 'slots' || d.type === 'goldslots') && p.machineWin){ p.mood = Math.min(1, p.mood + 0.12); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.6, t: 0, life: 1.4, text: '7 7 7!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.9, t: 0, life: 0.9 }); }
   if (d.type === 'wheel'){ p.mood = Math.min(1, p.mood + 0.08); sim.fx.push({ kind: 'coin', x: d.x + 1, y: d.y - 1.5, t: 0, life: 1.3, text: pick(['Prize!', 'Spin again!', 'Winner!']) }); }
@@ -881,6 +897,9 @@ function completeSale(u, st, p){
   p.trashKinds = TRASH_FROM[u.store] || p.trashKinds;
   const hold = HOLD_FROM[u.store];
   if (hold){ p.holding = Array.isArray(hold) ? 'bag' : hold; if (Array.isArray(hold)) p.bagColor = hold[1]; p.holdT = 0; }
+  // Some folks wear their new hat out of the store; new glasses always go straight on.
+  if (u.store === 'hats' && rand() < 0.5){ p.look = { ...p.look, hat: p.triedHat || randomHat(rand) }; p.holding = null; }
+  if (u.store === 'specs') p.look = { ...p.look, specs: p.triedSpecs || randomSpecs(rand) };
   st.queue.shift();
   p.bubble = null; p.served = false;
   sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.3, t: 0, life: 1.1, text: `+$${price}` });
@@ -918,6 +937,7 @@ const TRASH_FROM = {
   chips: ['paper'], lounge: ['cup'], giftshop: ['paper', 'bag'],
   lemonade: ['cup'], sports: ['paper', 'bag'], beauty: ['paper'], tacos: ['wrapper', 'paper'],
   noodle: ['cup', 'paper'], cotton: ['paper'], crafty: ['paper', 'bag'], sushi: ['paper', 'cup'],
+  hats: ['paper'], candles: ['paper'], bears: ['paper', 'bag'], skate: ['paper', 'can'], specs: ['paper'], smoothie: ['cup'], bowling: ['cup', 'popcorn'], minigolf: ['cup', 'paper'],
 };
 
 /* ---------- Owner and jobs ---------- */

@@ -5,6 +5,7 @@ const GOLDEN = '#f2c14e';
 import * as A2 from './art2.js';
 import * as A3 from './art3.js';
 import * as A4 from './art4.js';
+import * as A5 from './art5.js';
 // Older WebViews and Safari before 16 lack roundRect.
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
@@ -277,6 +278,7 @@ export function floor(kind, x, y, w, h, seed){
       g.fillStyle = kind === 'dark' ? 'rgba(160,150,140,.5)' : 'rgba(240,235,220,.8)'; g.fillRect(-0.07, -0.05, 0.14, 0.1); g.restore();
     }
   }
+  else A5.floor(kind, x, y, w, h);
   g.restore();
 }
 
@@ -373,6 +375,7 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'cupcake': A2.cupcakeIcon(c); break;
     case 'comic': A2.comicIcon(c); break;
     case 'lemon': case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'cotton': case 'brush': case 'sushi': A4.icon(icon, c); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': case 'smoothie': case 'bowling': case 'golf': A5.icon(icon, c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -665,7 +668,7 @@ export function person(x, y, o){
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
   const hand = [0.235, -0.31];   // the right hand, where a held item goes
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail') && !o.back && !walking && sipK(t) > 0;
+  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie') && !o.back && !walking && sipK(t) > 0;
   const sipU = sipping ? sipK(t) : 0;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
@@ -678,6 +681,9 @@ export function person(x, y, o){
   }
   else for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
     // Climbing a ladder, hand over hand; arms up for the ride down a slide; flailing in the ball pit; a wave.
+    // Both hands on a putter's grip; the bowling arm follows the ball through its swing.
+    if (o.putter && !o.walkProp && !o.cheer){ raisedArm(o, ax, ax * 0.12, -0.36); continue; }
+    if (ax > 0 && o.bowlBall && !o.cheer){ const bh = A5.bowlHand(o); if (bh){ raisedArm(o, ax, bh[0], bh[1], 0.5); continue; } }
     if (o.climb){ const up = Math.sin(ph + (ax > 0 ? Math.PI : 0)); raisedArm(o, ax, ax * 0.75, -0.84 - Math.max(0, up) * 0.12); continue; }
     if (o.cheer){ raisedArm(o, ax, ax * 1.7, -0.96); continue; }
     if (o.splash){ raisedArm(o, ax, ax * 1.6 + Math.sin(t * 7 + ax * 9) * 0.06, -0.74 + Math.sin(t * 9 + ax * 12) * 0.12); continue; }
@@ -709,6 +715,7 @@ export function person(x, y, o){
     g.restore();
     if (ax > 0){ hand[0] = ax - Math.sin(a) * L + 0.02; hand[1] = -0.58 + dip + Math.cos(a) * L; }
   }
+  if ((o.putter || o.bowlBall) && !o.cheer) A5.prop(o);
   if (o.hold && !o.back && !sipping) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : hand[0], profile ? -0.35 : sit ? -0.33 : hand[1], o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
@@ -725,10 +732,12 @@ export function person(x, y, o){
     circ(0, -0.89, 0.28); fs(o.hood ? shade(o.shirt, -0.15) : o.hair);
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
     if (o.vr){ rr(-0.28, -0.95, 0.56, 0.07, 0.03); fs('#2b2d42', 0.03); }
+    A5.headwear(o, true, false);
   } else {
     // Eating: chew after each bite (and look pleased about it).
     if (o.eat && profile){ const c = eatCycle(t, o.seed); if (c > 0.66 || c < 0.3) o = { ...o, chew: Math.sin(t * 16) > 0, mood: c > 0.84 && c < 0.97 ? 'happy' : o.mood }; }
     if (profile) profileHead(o); else { hairFront(o); face(o); }
+    A5.headwear(o, false, profile);
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
     if (o.eat && profile) eatArm(o, t);
@@ -794,7 +803,7 @@ function raisedArm(o, ax, hx, hy, reach = 0.26){
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
 function heldItem(kind, hx, hy, color, prize){
-  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy)) return;
+  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy) || A5.held(kind, hx, hy)) return;
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -866,8 +875,9 @@ export const WALLPAPER = {
   crystal: { face: '#eee8fb', dark: '#cfc3ee', cap: '#ffffff', base: '#9b8ad0' },
   casino:  { face: '#7a1734', dark: '#4f0e22', cap: '#f2c14e', base: '#1b1440' },
   neonights: { face: '#2a1650', dark: '#1b0e38', cap: '#ff6fb5', base: '#4cc9f0' },
+  ...A5.WALLPAPER,
 };
-const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
+const FLOOR_KIND = { ...A5.FLOOR_KIND, classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
 let style = { wall: 'classic', floor: 'classic' };
 export function setStyle(st){ if (st) style = st; }
 export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
@@ -1050,7 +1060,7 @@ function wallPattern(id, P, w, top){
     for (let x = 0.15; x < w; x += 0.3){ circ(x, top + 0.12, 0.06); g.fillStyle = Math.floor(x / 0.3) % 2 ? '#fff3b0' : '#ffd23f'; g.fill(); }
     const suits = ['♠', '♥', '♦', '♣'];
     for (let i = 0; i < w; i += 1.5){ const k = Math.floor(i / 1.5) % 4; text(suits[k], i + 0.75, -0.55, 0.3, k === 1 || k === 2 ? '#ff4f6d' : '#f2c14e', 700); }
-  } else {
+  } else if (!A5.wallPattern(id, P, w, top)){
     g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
   }
 }
@@ -1254,6 +1264,10 @@ export function storeSpots(u){
   for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45){
     // Not standing in the middle of Threads' tee table or on the mannequin.
     if (u.store === 'boutique' && H >= 3 && ((lx > 0.75 && lx < 1.75 && ly > 1.1 && ly < 1.75) || (lx < 0.7 && ly > 1.7))) continue;
+    // Clear of the stuffing machine, the quarter pipe and the eye chart.
+    if (u.store === 'bears' && H >= 3 && lx < 1.2 && ly > 1.6 && ly < 2.4) continue;
+    if (u.store === 'skate' && H >= 3 && ly > 2.1) continue;
+    if (u.store === 'specs' && H >= 3 && ly > 1.8 && ly < 2.2) continue;
     browse.push(at(lx, ly));
   }
   if (u.store === 'noodle') browse.splice(0, browse.length, at(1.12, 1.88));
@@ -1385,6 +1399,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
     case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallpaper(ic, x0, y0, w, H); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallpaper(ic, x0, y0, w, H); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
@@ -1449,6 +1464,7 @@ function wallPieceArt(ic, wx, wy, t){
     case 'pizza': A2.pizzaMenu(wx, wy); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallPiece(ic, wx, wy, t); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallPiece(ic, wx, wy, t); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
@@ -1553,6 +1569,9 @@ function counter(u, def){
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
     A2.newCounter(ic, cx, top);
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (A5.ICONS.includes(ic)){
+    A5.counter(ic, cx, top, performance.now() / 1000);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (A4.ICONS.includes(ic)){
     A4.counter(ic, cx, top, performance.now() / 1000);
@@ -1698,6 +1717,8 @@ export function storeFurniture(u, def, t, layer){
       A3.casinoBack(ic, x, y, sw, t);
     } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
       A2.newBack(ic, x, y, sw, t, u.id);
+    } else if (A5.ICONS.includes(ic)){
+      A5.back(ic, x, y, sw, t, u.id);
     } else if (A4.ICONS.includes(ic)){
       A4.back(ic, x, y, sw, t, u.id);
     } else if (ic === 'pizza'){
@@ -1723,7 +1744,7 @@ export function storeFurniture(u, def, t, layer){
     if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
       return;
   }
-  if (A4.mid(ic, u, W, H, t)) return;
+  if (A4.mid(ic, u, W, H, t) || A5.mid(ic, u, W, H, t)) return;
   if (ic === 'vr'){
     // Glowing play pads where folks try the headsets.
     for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
@@ -1970,12 +1991,19 @@ export function attractionSpots(u, def){
   if (def.attraction === 'theater'){
     // Two rows of four, split by a center aisle, all facing the screen on the back wall.
     [1.55, 2.45].forEach((ly, row) => { for (const lx of [0.75, 1.55, W - 1.55, W - 0.75]) seats.push({ row, ly, lx, at: at(lx, ly), path: [at(dl, ly + 0.5), at(lx, ly + 0.5), at(lx, ly)] }); });
-  } else {
+  } else if (A5.ATTR.includes(def.attraction)) seats.push(...A5.seats(def, W, H, at, dl, u));
+  else {
     for (const ly of [1.2, 2.45]) for (const lx of [0.95, W / 2, W - 0.95]) seats.push({ ly, lx, at: at(lx, ly), path: [at(dl, H - 0.7), at(lx, H - 0.7), at(lx, ly)] });
   }
   return { door, front, seats, queue: [], staff: front, staffPath: [], browse: [], counter: [u.x, u.y, 0, 0] };
 }
 function attractionBack(u, def, t){
+  if (A5.ATTR.includes(def.attraction)){
+    // Lanes or greens lie flat on the floor; with doors facing up the renderer draws them early (see render.js).
+    if (u.face === 'down') A5.floorLayer(u, def);
+    A5.backLayer(u, def, t, A5.live.get(u.id));
+    return;
+  }
   if (def.attraction === 'theater'){
     // The big screen, playing a cartoon: rolling hills, a bouncing ball and a sun that won't stop grinning.
     const [x, y] = local(u, 0.35, 0.3, u.w - 0.7, 0.18), sw = u.w - 0.7, top = y - 0.72, sh = 0.62;
@@ -1995,6 +2023,12 @@ function attractionBack(u, def, t){
     const [mx, my] = local(u, 0.08, 0.08, u.w - 0.16, 0.3); box(mx, my, u.w - 0.16, 0.3, 0.35, '#ffd23f', '#f4b942');
     if (u.face === 'down') trampolines(u, def);
   }
+}
+// What lies flat on an attraction's floor (trampolines, lanes, greens). With doors facing up the renderer draws
+// this early, so the people on it aren't hidden underneath.
+export function attractionFloor(u, def){
+  if (def.attraction === 'jump') trampolines(u, def);
+  else if (A5.ATTR.includes(def.attraction)) A5.floorLayer(u, def);
 }
 // Trampolines: a padded frame with a stretchy blue bed.
 export function trampolines(u, def){
@@ -2103,6 +2137,7 @@ export function kiosk(k, def, t){
   if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
   else if (def.icon === 'lemon') A4.lemonCounter(x, y, t);
   else if (def.icon === 'cotton') A4.cottonCounter(x, y, t);
+  else if (def.icon === 'smoothie') A5.smoothieCounter(x, y, t);
   else if (def.icon === 'boba') A2.bobaCounter(x, y, t);
   else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.
@@ -2170,7 +2205,7 @@ const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
 // A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
-const THUMB = { slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35] };
+const THUMB = { popcorn: [2.3, 0.35], hotair: [3.4, 1.2], iceswan: [2.2, 0.3], penny: [2.2, 0.3], slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35] };
 export function decorThumb(type, w){
   const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
   g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
@@ -2218,6 +2253,10 @@ export function decor(d, t = 0){
     case 'jackpot': A3.jackpotBoard(x, y, t); break;
     case 'dicestatue': A3.diceStatue(x + 0.5, y + 0.82); break;
     case 'champagne': A3.champagneTower(x + 0.5, y + 0.82, t); break;
+    case 'popcorn': A5.popcornCart(x + 0.5, y + 0.82, t, live); break;
+    case 'hotair': A5.hotAirBalloon(x, y, t); break;
+    case 'iceswan': A5.iceSwan(x + 0.5, y + 0.82, t); break;
+    case 'penny': A5.pennyPress(x, y, r, t, live); break;
   }
 }
 function seatPiece(x, y, r, st){

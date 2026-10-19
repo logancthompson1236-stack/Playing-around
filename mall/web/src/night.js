@@ -76,7 +76,7 @@ function unitCard(u){
   const refund = Math.round(def.cost * 0.5);
   showCard({
     title: def.name,
-    text: def.attraction ? `Attraction · ${def.seats} ${def.attraction === 'theater' ? 'seats' : 'trampolines'} · tickets $${def.price[0]}–${def.price[1]} from the machine at the door · upkeep ${money(def.upkeep)}/day`
+    text: def.attraction ? `Attraction · ${def.seats} ${def.seatWord || (def.attraction === 'theater' ? 'seats' : 'trampolines')} · tickets $${def.price[0]}–${def.price[1]} from the machine at the door · upkeep ${money(def.upkeep)}/day`
       : `${def.cat} · Stock ${u.stock}/${def.stock}${clerk ? ` · ${clerk.name} runs the register` : ' · You run the register'}`,
     actions: [
       { label: 'Move', onClick: () => startPlacement({ kind: u.kiosk ? 'kiosk' : 'unit', store: u.store, w: u.w, h: u.h, face: u.face, cost: 0, moveId: u.id, x: u.x, y: u.y }) },
@@ -523,7 +523,7 @@ function refreshGhost(){
       const def = place.restroom ? C.RESTROOM : C.STORES[place.store];
       // The whole store comes along when it's moved: its floor, furniture and all.
       if (place.moveId){ A.floor(def.floor || 'plain', temp.x, temp.y, temp.w, temp.h, place.moveId * 17); temp.id = place.moveId; }
-      A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def);
+      A.unitBack(temp, def, t); if (def.attraction && temp.face !== 'down') A.attractionFloor(temp, def);
       if (!place.restroom && !def.attraction) A.storeFurniture(temp, def, t, 'counter');
       if (place.moveId && !def.attraction){ A.storeFurniture(temp, def, t, 'mid'); if (def.icon === 'shirt') A.storeFurniture(temp, def, t, 'teeTable'); }
       if (place.moveId && def.dine) A.dineSpots(temp).tables.forEach((tb, i) => { A.dineTable(temp, i, 'stools'); A.dineTable(temp, i, 'table'); });
