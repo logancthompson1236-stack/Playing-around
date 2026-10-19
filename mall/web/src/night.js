@@ -9,6 +9,7 @@ import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portra
 import { sfx } from './audio.js';
 import { tip, addMemory, seenTips } from './guide.js';
 import { TIPS, MEMORIES } from './story.js';
+import { SHELVES, shelfColor, STORE_INFO, DECOR_INFO } from './catalog.js';
 
 const money = n => `$${Math.round(n).toLocaleString()}`;
 // Fixing up a boarded-up storefront is folded into the price of opening a store in it.
@@ -140,7 +141,7 @@ function decorCard(d){
   if (def.rot) actions.push({ label: 'Rotate', onClick: () => rotateInPlace(d) });
   actions.push({ label: `Sell · +${money(def.cost / 2)}`, onClick: () => { S.save.decor = S.save.decor.filter(v => v !== d); S.save.money += Math.round(def.cost / 2); hideCard(); view.selected = null; sfx('coin'); changed(); } });
   const dealer = def.game && S.save.staff.filter(m => m.role === 'dealer').length > S.save.decor.filter(v => C.DECOR[v.type].game && v.id < d.id).length;
-  const txt = def.game ? `Up to three players a round, and the house takes the bets ($${def.game.price[0]}–${def.game.price[1]} a hand). ${dealer ? 'A dealer runs it each day.' : 'Needs a dealer: hire one under Staff, or the table stays closed.'}` : DECOR_TEXT[d.type] || 'Makes the place feel nicer.';
+  const txt = def.game ? `Up to three players a round, and the house takes the bets ($${def.game.price[0]}–${def.game.price[1]} a hand). ${dealer ? 'A dealer runs it each day.' : 'Needs a dealer: hire one under Staff, or the table stays closed.'}` : DECOR_TEXT[d.type] || (DECOR_INFO[d.type] || [])[1] || 'Makes the place feel nicer.';
   showCard({ title: def.name, text: txt, actions });
 }
 // Turn a piece a quarter turn where it stands, skipping facings that don't fit.
@@ -178,69 +179,119 @@ function zoneCard(z){
 }
 
 /* ---------- Build panel ---------- */
-export function openBuild(startTab = 0){
+/* ---------- The Mall Market (Build menu) ---------- */
+// A full-screen shop: Shop (stores, stands, decor), Fix up (storage, the fountain, expansions) and Style.
+// Shop items sit on shelves (Food, Shops, Fun, Decor, Casino), with All and New (unlocked, not owned yet) up front.
+let shelf = 'all';
+export function openBuild(startTab = 0, startShelf = null){
   endPick(); endPlacement(); endStyle(); hideCard(); view.selected = null;
-  openPanel({ title: 'Build', tabs: ['Stores', 'Decor', 'Fix up', 'Style'], tab: startTab, render: (body, tab) => {
-    const s = S.save;
-    if (tab === 0){
-      body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, 'Pick a store, then tap a glowing storefront to open it there.'));
-      for (const [key, def] of Object.entries(C.STORES)){
-        const room = roomFor(key);
-        const cost = room.length ? room[0].cost : newCost(key);
-        body.append(storeItem(key, def, cost, () => { closePanel(); startPick(key); }));
-      }
-    } else if (tab === 1){
-      for (const [key, def] of Object.entries(C.DECOR)){
-        const noCasino = def.casino && !s.expansions.casino, locked = s.level < def.level || noCasino, have = s.decor.filter(d => d.type === key).length;
-        const b = h('button', { class: `item ${locked ? 'locked' : s.money >= def.cost ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } },
-          decorIcon(key),
-          h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.sub + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : ''))),
-          h('span', { class: 'price' }, s.level < def.level ? `Level ${def.level}` : noCasino ? 'Casino' : money(def.cost)));
-        body.append(b);
-      }
-    } else if (tab === 3){
-      styleTab(body);
-    } else {
-      body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, 'Storage clears out by itself when you build a store in it. You can also clear it here.'));
-      const f = C.FOUNTAIN;
-      body.append(fixItem('The old fountain', s.fountain ? 'Running again' : 'Folks will stop to sit a while', s.fountain ? 'Done' : money(f.cost), s.fountain, () => { closePanel(); panTo(f.x + 1, f.y + 1); fountainCard(); }));
-      for (const z of C.ZONES){
-        const done = !!s.zones[z.id], locked = s.level < z.level;
-        body.append(fixItem(z.name, done ? 'Cleared' : `${z.w}×${z.h} of storage`, done ? 'Done' : locked ? `Level ${z.level}` : money(z.cost), done || locked, () => { closePanel(); panTo(z.x + z.w / 2, z.y + z.h / 2); zoneCard(z); }));
-      }
-      body.append(h('div', { class: 'section-label' }, 'Expansions'));
-      C.EXPANSIONS.forEach(e => {
-        const done = !!s.expansions[e.id], prev = e.requires && C.EXPANSIONS.find(q => q.id === e.requires), blocked = prev && !s.expansions[prev.id], locked = s.level < e.level;
-        const price = done ? 'Open' : locked ? `Level ${e.level}` : blocked ? `After ${prev.name}` : money(e.cost);
-        body.append(fixItem(e.name, e.sub, price, done || locked || blocked, () => { if (!done && !locked && !blocked) buyExpansion(e); }, 'expand'));
-      });
-    }
-  } });
+  if (startShelf) shelf = startShelf;
+  openPanel({ title: 'Build', heading: 'Mall Market', full: true, tabs: ['Shop', 'Fix up', 'Style'], tab: startTab,
+    headerExtra: h('span', { class: 'chip mk-money' }, money(S.save.money)),
+    render: (body, tab, redraw) => {
+      if (tab === 0) shopTab(body, redraw);
+      else if (tab === 1) fixTab(body);
+      else styleTab(body);
+    } });
 }
-function fixItem(name, sub, price, dim, onClick, icon = 'broom'){
-  return h('button', { class: `item ${dim ? 'locked' : 'can'}`, onclick: () => { sfx('tap'); onClick(); } },
-    iconCanvas(() => { if (icon === 'expand') A.storeIcon('sun', 0.5, 0.5, 0.62); else A.storeIcon('broom', 0.5, 0.5, 0.65); }),
-    h('span', { class: 'info' }, h('span', { class: 'name' }, name), h('span', { class: 'sub' }, sub)),
-    h('span', { class: 'price' }, price));
+function shopItems(){
+  const s = S.save, out = [];
+  for (const [key, def] of Object.entries(C.STORES)){
+    const [sh, blurb] = STORE_INFO[key] || ['shops', ''];
+    const room = roomFor(key), cost = room.length ? room[0].cost : newCost(key);
+    const noCasino = def.casino && !s.expansions.casino;
+    out.push({ shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false,
+      icon: () => A.storeIcon(def.icon, 0.5, 0.5, 0.62),
+      kind: def.kiosk ? 'Stand' : def.attraction ? `Attraction ${def.w}×${def.h}` : `Store ${def.w}×${def.h}`,
+      stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}`,
+      locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
+      have: stores(s).filter(u => u.store === key).length,
+      pick: () => { closePanel(); startPick(key); } });
+  }
+  for (const [key, def] of Object.entries(C.DECOR)){
+    const [sh, blurb] = DECOR_INFO[key] || ['decor', ''];
+    const noCasino = def.casino && !s.expansions.casino;
+    out.push({ shelf: sh, name: def.name, blurb, level: def.level, cost: def.cost, decor: true,
+      icon: () => A.decorThumb(key, def.w),
+      kind: `${def.game ? 'Game table' : def.coin ? 'Machine' : def.play ? 'Play area' : 'Decor'} ${def.w}×${def.h}`,
+      stats: def.sub.replace(/^\+ambience$/, 'Makes the mall nicer (+ambience)') + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : ''),
+      locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
+      have: s.decor.filter(d => d.type === key).length,
+      pick: () => { closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } });
+  }
+  // What you can buy now first (stores, then decor, cheapest first), then what's coming, in level order.
+  return out.sort((a, b) => (a.locked - b.locked) || (a.locked ? a.level - b.level : (a.decor - b.decor) || a.cost - b.cost));
 }
+function shopTab(body, redraw){
+  const items = shopItems(), fresh = items.filter(it => !it.locked && !it.have);
+  const shown = items.filter(it => shelf === 'all' || (shelf === 'new' ? !it.locked && !it.have : it.shelf === shelf));
+  body.append(h('div', { class: 'mk-shelves', role: 'tablist', 'aria-label': 'Shelves' },
+    SHELVES.map(sv => h('button', { class: 'mk-shelf', role: 'tab', 'aria-selected': shelf === sv.id ? 'true' : 'false', style: sv.color ? `--c:${sv.color}` : '',
+      onclick: () => { sfx('tap'); shelf = sv.id; redraw(); } }, sv.name, sv.id === 'new' && fresh.length ? h('span', { class: 'mk-count' }, fresh.length) : null)),
+    h('span', { class: 'mk-hint' }, 'Stores open in a glowing storefront · decor goes anywhere')));
+  body.append(shown.length ? cardRow(shown) : h('div', { class: 'mk-empty' }, shelf === 'new' ? 'You own one of everything you’ve unlocked. Level up for more!' : 'Nothing here yet.'));
+}
+function fixTab(body){
+  const s = S.save, f = C.FOUNTAIN, items = [];
+  items.push({ shelf: 'fix', color: '#5bb5e8', name: 'The old fountain', kind: 'Fix up', icon: () => A.storeIcon('broom', 0.5, 0.5, 0.65), cost: f.cost,
+    blurb: s.fountain ? 'Running again, and folks stop to sit a while.' : 'Dusty and dry. Get the water going and it’s the heart of the mall again.',
+    done: s.fountain, doneText: 'Running', openDone: true, pick: () => { closePanel(); panTo(f.x + 1, f.y + 1); fountainCard(); } });
+  for (const z of C.ZONES){
+    const done = !!s.zones[z.id];
+    items.push({ shelf: 'fix', color: '#c9a227', name: z.name, kind: `Storage ${z.w}×${z.h}`, icon: () => A.storeIcon('broom', 0.5, 0.5, 0.65), cost: z.cost,
+      blurb: done ? 'Swept out and ready for shops.' : 'Old boxes and dust. It clears itself when you build a store here, or clear it now.',
+      done, doneText: 'Cleared', locked: s.level < z.level, lockText: `Level ${z.level}`, pick: () => { closePanel(); panTo(z.x + z.w / 2, z.y + z.h / 2); zoneCard(z); } });
+  }
+  for (const e of C.EXPANSIONS){
+    const done = !!s.expansions[e.id], prev = e.requires && C.EXPANSIONS.find(q => q.id === e.requires), blocked = prev && !s.expansions[prev.id];
+    items.push({ shelf: e.id === 'casino' || e.id === 'vip' ? 'casino' : 'fun', name: e.name, kind: 'Expansion', icon: () => A.storeIcon('sun', 0.5, 0.5, 0.62), cost: e.cost,
+      blurb: e.sub + '.', done, doneText: 'Open', locked: s.level < e.level || blocked, lockText: s.level < e.level ? `Level ${e.level}` : prev ? `After ${prev.name}` : "",
+      pick: () => buyExpansion(e) });
+  }
+  // Still to do first, finished last.
+  body.append(cardRow(items.sort((a, b) => (!!a.done - !!b.done) || (!!a.locked - !!b.locked))));
+}
+// The cards scroll sideways (or in two rows on a tall screen); a mouse wheel scrolls them too.
+function cardRow(items){
+  const row = h('div', { class: 'mk-row' }, items.map(mkCard));
+  row.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ row.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  return row;
+}
+function mkCard(it){
+  const afford = S.save.money >= it.cost, isNew = !it.locked && !it.done && it.have === 0;
+  const state = it.locked ? 'locked' : it.done ? 'owned' : it.priceText ? 'can' : afford ? 'can' : 'short';
+  const price = it.locked ? it.lockText : it.done ? it.doneText : it.priceText || money(it.cost);
+  return h('button', { class: `mk-card ${state}`, disabled: it.locked || (it.done && !it.openDone), style: `--c:${it.color || shelfColor(it.shelf)}`,
+    onclick: () => { sfx('tap'); it.pick(); } },
+    h('span', { class: 'mk-art' }, iconCanvas(it.icon, 78),
+      h('span', { class: 'mk-kind' }, it.kind),
+      isNew ? h('span', { class: 'mk-new' }, 'New') : it.have > 0 ? h('span', { class: 'mk-have' }, `Own ${it.have}`) : null),
+    h('span', { class: 'mk-text' },
+      h('span', { class: 'mk-name' }, it.name),
+      h('span', { class: 'mk-blurb' }, it.blurb),
+      it.stats ? h('span', { class: 'mk-stats' }, it.stats) : null),
+    h('span', { class: 'mk-buy' }, it.locked ? h('span', { class: 'mk-lock', html: LOCK }) : null, price));
+}
+const LOCK = '<svg viewBox="0 0 12 14" width="11" height="13"><path d="M3 6V4a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="1" y="6" width="10" height="7.5" rx="1.6" fill="currentColor"/></svg>';
 
 /* ---------- Mall styles: tap one to see it on the mall, then keep it or go back ---------- */
 const STYLE_SLOTS = { wall: { table: C.WALLPAPERS, label: 'Wallpaper', noun: 'wallpaper' }, floor: { table: C.FLOORS, label: 'Flooring', noun: 'floor' } };
 const ownsStyle = (slot, id) => S.save.style[slot + 's'].includes(id);
 function styleTab(body){
   const s = S.save, locked = s.level < C.STYLE_LEVEL;
-  body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, locked ? `Unlocks at level ${C.STYLE_LEVEL}: new wallpaper and flooring for the whole mall.` : 'Tap a style to see it on your mall. Ones you own are free to switch back to.'));
+  body.append(h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-hint', style: 'display:block' }, locked ? `Unlocks at level ${C.STYLE_LEVEL}: new wallpaper and flooring for the whole mall.` : 'Tap a style to try it on your mall. Ones you own are free to switch back to.')));
+  const items = [];
   for (const [slot, { table, label }] of Object.entries(STYLE_SLOTS)){
-    body.append(h('div', { class: 'section-label' }, label));
     for (const [id, d] of Object.entries(table)){
       // Each style unlocks at its own level milestone.
-      const have = ownsStyle(slot, id), inUse = s.style[slot] === id, needs = d.level || 0, locked = s.level < needs;
-      body.append(h('button', { class: `item ${locked && !have ? 'locked' : !inUse && (have || s.money >= d.cost) ? 'can' : ''}`, disabled: locked && !have, onclick: () => { sfx('tap'); closePanel(); startStyle(slot, id); } },
-        iconCanvas(() => styleSwatch(slot, id)),
-        h('span', { class: 'info' }, h('span', { class: 'name' }, d.name), h('span', { class: 'sub' }, d.sub + (d.ambience ? ' · +ambience' : ''))),
-        h('span', { class: 'price' }, inUse ? 'In use' : have ? 'Owned' : locked ? `Level ${needs}` : money(d.cost))));
+      const have = ownsStyle(slot, id), inUse = s.style[slot] === id, needs = d.level || 0;
+      items.push({ shelf: 'style', color: slot === 'wall' ? '#3fb8af' : '#c9a227', name: d.name, kind: label, blurb: d.sub + (d.ambience ? ' · +ambience' : ''), cost: d.cost,
+        icon: () => styleSwatch(slot, id), locked: s.level < needs && !have, lockText: `Level ${needs}`,
+        done: inUse, doneText: 'In use', openDone: true, priceText: !inUse && have ? 'Owned' : null, have: have ? -1 : 0,
+        pick: () => { closePanel(); startStyle(slot, id); } });
     }
   }
+  body.append(cardRow(items));
 }
 // A little square of wall over floor (wallpaper), or just floor.
 export function styleSwatch(slot, id){
@@ -263,7 +314,7 @@ function showStyleBar(){
   const have = ownsStyle(slot, id), short = !have && s.money < d.cost;
   view.stylePreview = { ...s.style, [slot]: id };
   const bar = showPlacementBar({ label: `${d.name} ${noun}`, confirmLabel: s.style[slot] === id ? 'Keep' : have ? 'Use it' : `Buy · ${money(d.cost)}`,
-    onCancel: () => { endStyle(); openBuild(3); }, onConfirm: confirmStyle,
+    onCancel: () => { endStyle(); openBuild(2); }, onConfirm: confirmStyle,
     extra: { label: 'Next ›', onClick: () => {
       const ids = Object.keys(table).filter(k => s.level >= (table[k].level || 0) || ownsStyle(slot, k));
       styling.id = ids[(ids.indexOf(styling.id) + 1) % ids.length]; showStyleBar();
@@ -606,7 +657,7 @@ export function nightTips(report){
   if (s.level >= 3){ tip('staff'); if (!s.flags.tips.staff) setToolDot('staff', true); }
   if (s.day >= 2) tip('clerks');
   if (!s.fountain && s.level >= 2 && s.money >= C.FOUNTAIN.cost) tip('fountain', () => { panTo(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1); view.highlight = { x: C.FOUNTAIN.x, y: C.FOUNTAIN.y, w: 2, h: 2 }; setTimeout(() => { view.highlight = null; }, 4000); });
-  if (report && s.day >= 2 && !s.decor.some(d => d.type === 'bin')) tip('litter', () => openBuild(1));
-  if (s.level >= C.STYLE_LEVEL) tip('style', () => openBuild(3));
+  if (report && s.day >= 2 && !s.decor.some(d => d.type === 'bin')) tip('litter', () => openBuild(0, 'decor'));
+  if (s.level >= C.STYLE_LEVEL) tip('style', () => openBuild(2));
 }
 export function closeNightUi(){ hideCard(); closePanel(); endPick(); endPlacement(); endStyle(); view.selected = null; }

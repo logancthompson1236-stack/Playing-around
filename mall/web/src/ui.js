@@ -205,15 +205,16 @@ export function hideTipFor(on){ if (tipEl) tipEl.style.display = on ? 'none' : '
 
 /* ---------- Side panel ---------- */
 let panelEl = null;
-export function openPanel({ title, tabs = null, tab = 0, render, onClose }){
+export function openPanel({ title, heading, full = false, headerExtra = null, tabs = null, tab = 0, render, onClose }){
   closePanel();
-  const body = h('div', { class: 'body' });
+  const body = h('div', { class: full ? 'body mk-body' : 'body' });
   let current = tab;
   const tabBar = tabs ? h('div', { class: 'tabs', role: 'tablist' }, tabs.map((t, i) => h('button', { role: 'tab', 'aria-selected': i === current ? 'true' : 'false', onclick: () => { current = i; [...tabBar.children].forEach((b, j) => b.setAttribute('aria-selected', j === i)); draw(); } }, t))) : null;
   const draw = () => { body.replaceChildren(); render(body, current, draw); };
-  panelEl = h('div', { class: 'panel', role: 'dialog', 'aria-label': title },
-    h('header', {}, h('h2', {}, title), h('button', { class: 'x', 'aria-label': 'Close', onclick: () => { sfx('tap'); closePanel(); onClose && onClose(); } }, '✕')),
-    tabBar, body);
+  panelEl = h('div', { class: full ? 'panel market' : 'panel', role: 'dialog', 'aria-label': title },
+    // The full-screen market keeps its tabs up in the header row, leaving more room for the cards.
+    h('header', {}, h('h2', {}, heading || title), full ? tabBar : null, headerExtra, h('button', { class: 'x', 'aria-label': 'Close', onclick: () => { sfx('tap'); closePanel(); onClose && onClose(); } }, '✕')),
+    full ? null : tabBar, body);
   panelEl.addEventListener('pointerdown', e => e.stopPropagation());
   root.append(panelEl); draw();
   return { redraw: draw };

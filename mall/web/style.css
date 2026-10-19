@@ -213,3 +213,44 @@ input[type=text]{font:600 15px var(--body);color:var(--ink);background:#fff;bord
 .ios-tip p{grid-column:1;margin:0;font-size:12.5px;line-height:1.3}
 .ios-tip .btn{grid-column:2;grid-row:1 / span 2}
 tr.neg td:last-child{color:var(--red)}
+
+/* ---------- Mall Market (the Build menu): a full-screen shop with big cards ---------- */
+.panel.market{z-index:8;left:calc(8px + var(--sl));width:auto;border-width:3px;border-radius:22px;
+  background:radial-gradient(circle at 20% 0%,#fff 0,transparent 40%),repeating-linear-gradient(45deg,#fff5e4 0 14px,#fdf0da 14px 28px)}
+.panel.market header{padding:10px 14px 6px;gap:10px}
+.panel.market header h2{flex:none;font-size:22px;letter-spacing:.01em;margin-right:6px}
+.panel.market header .tabs{flex:1;padding:0;justify-content:flex-start}
+.panel.market header .x{width:36px;height:36px}
+.mk-money{font:700 15px var(--display);background:#fff;border:2px solid var(--ink);border-radius:999px;padding:3px 12px}
+.panel.market .tabs{gap:6px}
+.panel.market .tabs button{flex:0 0 auto;padding:5px 16px;font-size:14px}
+.panel .body.mk-body{overflow:hidden;padding:0 0 10px;gap:6px}
+.mk-shelves{display:flex;align-items:center;gap:6px;padding:0 14px;overflow-x:auto;scrollbar-width:none;flex:none;touch-action:pan-x}
+.mk-shelves::-webkit-scrollbar{display:none}
+.mk-shelf{--c:var(--ink);flex:none;font:600 13px var(--display);border:2px solid var(--c);color:var(--ink);background:#fff;border-radius:10px;padding:3px 12px;display:flex;align-items:center;gap:5px}
+.mk-shelf[aria-selected="true"]{background:var(--c);color:#fff;border-color:var(--ink);box-shadow:0 2px 0 var(--ink)}
+.mk-count{background:var(--red);color:#fff;border-radius:999px;font-size:11px;min-width:18px;padding:0 5px;line-height:17px;text-align:center}
+.mk-hint{margin-left:auto;font-size:12px;color:var(--ink2);white-space:nowrap;padding-left:8px}
+.mk-row{flex:1;min-height:0;display:grid;grid-auto-flow:column;grid-auto-columns:176px;grid-template-rows:minmax(0,1fr);gap:12px;overflow-x:auto;overflow-y:hidden;padding:4px 14px 6px;touch-action:pan-x;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:thin}
+@media (min-height:600px){.mk-row{grid-template-rows:repeat(2,minmax(0,1fr))}}
+.mk-empty{flex:1;display:flex;align-items:center;justify-content:center;font:600 15px var(--display);color:var(--ink2);padding:20px;text-align:center}
+.mk-card{--c:#3fb8af;scroll-snap-align:start;display:flex;flex-direction:column;min-height:0;padding:0;text-align:left;background:#fff;border:2.5px solid var(--ink);border-radius:18px;overflow:hidden;box-shadow:0 4px 0 rgba(61,43,53,.35);font:inherit;color:inherit;transition:transform .08s}
+.mk-card:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 rgba(61,43,53,.35)}
+.mk-art{position:relative;flex:none;height:clamp(76px,27vh,132px);display:flex;align-items:center;justify-content:center;border-bottom:2px solid var(--ink);background:var(--c);
+  background:radial-gradient(circle,rgba(255,255,255,.75) 0 30%,transparent 62%),repeating-conic-gradient(from 0deg,var(--c) 0 12deg,color-mix(in srgb,var(--c) 78%,#fff) 12deg 24deg)}
+.mk-art canvas{width:78px;height:78px;filter:drop-shadow(0 3px 0 rgba(61,43,53,.25))}
+.mk-kind{position:absolute;left:7px;top:7px;font:600 10.5px var(--display);text-transform:uppercase;letter-spacing:.05em;background:rgba(255,255,255,.92);border:1.5px solid var(--ink);border-radius:999px;padding:1px 7px}
+.mk-new,.mk-have{position:absolute;right:7px;top:7px;font:700 11px var(--display);border:1.5px solid var(--ink);border-radius:999px;padding:1px 8px}
+.mk-new{background:var(--red);color:#fff;text-transform:uppercase;transform:rotate(4deg)}
+.mk-have{background:#ffe8a3}
+.mk-text{flex:1;min-height:0;display:flex;flex-direction:column;gap:2px;padding:6px 9px 4px}
+.mk-name{font:700 15px var(--display);line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-blurb{font-size:12px;line-height:1.3;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.mk-stats{font-size:10.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-buy{flex:none;margin:4px 8px 8px;border:2px solid var(--ink);border-radius:12px;padding:5px 6px;text-align:center;font:700 15px var(--display);background:var(--green);color:#fff;box-shadow:0 3px 0 var(--ink)}
+.mk-card.short .mk-buy{background:#fff;color:var(--red)}
+.mk-card.owned .mk-buy{background:var(--paper);color:var(--ink2);box-shadow:none}
+.mk-card.locked{filter:saturate(.25);opacity:.75}
+.mk-card.locked .mk-buy{background:var(--ink);color:var(--cream);font-size:13px;box-shadow:none}
+.mk-lock{display:inline-block;margin-right:6px;vertical-align:-1px}
+@media (max-height:440px){.mk-art canvas{width:66px;height:66px}.panel.market header{padding:8px 12px 4px}.panel.market header h2{font-size:19px}.mk-buy{padding:4px 6px;font-size:14px}}

@@ -11,6 +11,8 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 
 ## How to play (v0.16)
 
+- **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch, sorted onto shelves (All, **New** = unlocked but not owned yet, Food, Shops, Fun, Decor, Casino); **Fix up** has storage, the fountain and expansions; **Style** has wallpaper and floors. Swipe the cards sideways.
+
 - **iPhone:** open the GitHub Pages link in Safari, tap Share, then Add to Home Screen. It runs full screen and opens offline after the first visit (the home-screen app keeps its own save).
 
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
