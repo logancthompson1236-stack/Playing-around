@@ -11,7 +11,7 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 
 ## How to play (v0.16)
 
-- **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch: switch between All, Stores & Stands and Decor, and pick a category (Food, Retail, Fun, Scenery, Casino). Things you don't own yet come first; a New tag marks anything just unlocked; **Fix up** has storage, the fountain and expansions; **Style** has wallpaper and floors. Swipe the cards sideways.
+- **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch: switch between Stores & Stands and Decor, and pick a category (Food, Retail, Fun, Scenery, Casino). Things you don't own yet come first; a New tag marks anything just unlocked; **Fix up** has whatever storage, fountain work and expansions are still to do; **Style** has wallpaper and floors. Swipe the cards sideways.
 
 - **iPhone:** open the GitHub Pages link in Safari, tap Share, then Add to Home Screen. It runs full screen and opens offline after the first visit (the home-screen app keeps its own save).
 

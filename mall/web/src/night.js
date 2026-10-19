@@ -176,11 +176,11 @@ function zoneCard(z){
 /* ---------- The Mall Market (Build menu) ---------- */
 // A full-screen shop: Shop (stores, stands, decor), Fix up (storage, the fountain, expansions) and Style.
 // Shop items sit on shelves (Food, Shops, Fun, Decor, Casino), with All and New (unlocked, not owned yet) up front.
-// The Shop tab filters by type (all, stores and stands, decor) and by category. Its cards are grouped: things
+// The Shop tab filters by type (stores and stands, or decor) and by category. Its cards are grouped: things
 // you can buy and don't own yet first, then each category in turn (what you own, then what's still locked).
 // A New tag shows on something the first time the market opens after it unlocks.
-let kind = 'all', shelf = 'all', fresh = new Set();
-const KINDS = [['all', 'All'], ['stores', 'Stores & Stands'], ['decor', 'Decor']];
+let kind = 'stores', shelf = 'all', fresh = new Set();
+const KINDS = [['stores', 'Stores & Stands'], ['decor', 'Decor']];
 function seenSet(){
   const s = S.save;
   if (!s.flags.shopSeen){
@@ -239,12 +239,12 @@ function shopItems(){
 const rank = it => it.locked ? 2 : it.have ? 1 : 0;
 const byRank = (a, b) => (rank(a) - rank(b)) || (rank(a) === 2 ? a.level - b.level : a.cost - b.cost);
 function shopTab(body, redraw){
-  const ofKind = shopItems().filter(it => kind === 'all' || (kind === 'decor') === it.decor);
+  const ofKind = shopItems().filter(it => (kind === 'decor') === it.decor);
   const cats = SHELVES.filter(sv => ofKind.some(it => it.shelf === sv.id));
   if (shelf !== 'all' && !cats.some(c => c.id === shelf)) shelf = 'all';
   const chip = (id, name, color, sel, onclick, cls) => h('button', { class: cls, role: 'tab', 'aria-selected': sel ? 'true' : 'false', style: color ? `--c:${color}` : '', onclick: () => { sfx('tap'); onclick(); redraw(); } }, name);
   body.append(h('div', { class: 'mk-shelves' },
-    h('span', { class: 'mk-seg', role: 'tablist', 'aria-label': 'Type' }, KINDS.map(([id, name]) => chip(id, name, null, kind === id, () => { kind = id; }, 'mk-segbtn'))),
+    h('span', { class: 'mk-seg', role: 'tablist', 'aria-label': 'Type' }, KINDS.map(([id, name]) => chip(id, name, null, kind === id, () => { if (kind !== id){ kind = id; shelf = 'all'; } }, 'mk-segbtn'))),
     h('span', { class: 'mk-div' }),
     h('span', { class: 'mk-cats', role: 'tablist', 'aria-label': 'Category' },
       chip('all', 'All', null, shelf === 'all', () => { shelf = 'all'; }, 'mk-shelf'),
@@ -253,14 +253,14 @@ function shopTab(body, redraw){
   if (shelf === 'all'){
     // Everything: what you could add next up front, then category by category.
     const next = ofKind.filter(it => rank(it) === 0).sort((a, b) => SHELVES.findIndex(c => c.id === a.shelf) - SHELVES.findIndex(c => c.id === b.shelf) || a.cost - b.cost);
-    if (next.length) out.push({ sep: 'Not owned yet', color: '#3fb8af' }, ...next);
+    if (next.length) out.push({ sep: 'New to you', color: '#3fb8af' }, ...next);
     for (const c of cats){
       const rest = ofKind.filter(it => it.shelf === c.id && rank(it) > 0).sort(byRank);
       if (rest.length) out.push({ sep: c.name, color: c.color }, ...rest);
     }
   } else {
     const list = ofKind.filter(it => it.shelf === shelf).sort(byRank);
-    ['Not owned yet', 'Owned', 'Coming soon'].forEach((name, r) => { const g = list.filter(it => rank(it) === r); if (g.length) out.push({ sep: name, color: shelfColor(shelf) }, ...g); });
+    ['New to you', 'Owned', 'Coming soon'].forEach((name, r) => { const g = list.filter(it => rank(it) === r); if (g.length) out.push({ sep: name, color: shelfColor(shelf) }, ...g); });
   }
   body.append(out.length ? cardRow(out) : h('div', { class: 'mk-empty' }, 'Nothing here yet.'));
 }
@@ -281,8 +281,9 @@ function fixTab(body){
       blurb: e.sub + '.', done, doneText: 'Open', locked: s.level < e.level || blocked, lockText: s.level < e.level ? `Level ${e.level}` : prev ? `After ${prev.name}` : '',
       pick: () => buyExpansion(e) });
   }
-  // Still to do first, finished last.
-  body.append(cardRow(items.sort((a, b) => (!!a.done - !!b.done) || (!!a.locked - !!b.locked))));
+  // Only what's still to do: finished fix-ups and open expansions drop off the list.
+  const todo = items.filter(it => !it.done).sort((a, b) => !!a.locked - !!b.locked);
+  body.append(todo.length ? cardRow(todo) : h('div', { class: 'mk-empty' }, 'Everything’s fixed up and built. Nice work!'));
 }
 // The cards scroll sideways (or in two rows on a tall screen); a mouse wheel scrolls them too.
 // A { sep } entry is a slim label between groups.
