@@ -276,3 +276,50 @@ tr.neg td:last-child{color:var(--red)}
 .mk-sep span{writing-mode:vertical-rl;transform:rotate(180deg);font:700 13px var(--display);color:var(--ink);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
 .mk-row{grid-auto-columns:auto}
 .mk-card{width:176px}
+
+/* ---------- Staff Room (full-screen, like the Mall Market) ---------- */
+.sr-scroll{flex:1;min-height:0;overflow-y:auto;padding:2px 14px 10px;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.sr-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;margin-bottom:8px}
+.sr-tile{background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:6px 10px;box-shadow:0 3px 0 rgba(61,43,53,.3);display:flex;flex-direction:column;line-height:1.15}
+.sr-tile b{font:700 22px var(--display)}
+.sr-tile span{font:600 12px var(--display);color:var(--ink2)}
+.sr-tile small{font-size:11px;color:var(--ink2)}
+.sr-tile.bad{background:#ffe3e8;border-color:var(--red)}
+.sr-tile.bad b{color:#c2183f}
+.sr-cols{display:grid;grid-template-columns:1fr;gap:4px 16px}
+@media (min-width:700px){.sr-cols{grid-template-columns:1.1fr 1fr}}
+.sr-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sr-alert{display:flex;align-items:center;gap:10px;justify-content:space-between;background:#fff;border:2px solid var(--line);border-left:7px solid var(--teal);border-radius:12px;padding:7px 10px;font-size:13px;line-height:1.35}
+.sr-alert.bad{border-left-color:var(--red);background:#fff4f6}
+.sr-alert.warn{border-left-color:#ff9f43;background:#fff8ec}
+.sr-alert.good{border-left-color:var(--green);background:#effaf3;font:600 13.5px var(--display)}
+.sr-alert .btn{flex:none;white-space:nowrap}
+.sr-roles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+.sr-role{display:flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:5px 8px}
+.sr-role canvas{width:34px;height:34px;flex:none;border-radius:8px;background:var(--paper)}
+.sr-role .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sr-role b{font:600 14px var(--display)}
+.sr-role small{font-size:11px;color:var(--ink2)}
+.sr-role .bar{height:6px;border-radius:4px;background:#efe4d2;overflow:hidden}
+.sr-role .bar i{display:block;height:100%;background:var(--green)}
+.sr-role.locked{opacity:.6}
+.sr-regs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
+.sr-reg{display:flex;align-items:center;gap:8px;background:#fff;border:2px solid var(--line);border-radius:12px;padding:5px 8px}
+.sr-reg.bad{border-color:var(--red);background:#fff4f6}
+.sr-reg canvas{width:30px;height:30px;flex:none;border-radius:8px;background:var(--paper)}
+.sr-reg .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sr-reg b{font:600 13px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-reg b small{color:var(--ink2);font-size:11px}
+.sr-reg select,.sr-card select{font:600 12px var(--body);border:2px solid var(--ink);border-radius:8px;padding:2px 4px;background:#fff;max-width:100%;color:var(--ink)}
+.sr-reg.bad select{border-color:var(--red);color:#c2183f}
+.sr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.sr-card{display:flex;align-items:center;gap:10px;background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:7px 10px;box-shadow:0 3px 0 rgba(61,43,53,.3)}
+.sr-card.warn{border-color:#ff9f43}
+.sr-card canvas{width:52px;height:52px;flex:none;border-radius:12px;background:var(--paper)}
+.sr-card .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.sr-card b{font:700 15px var(--display)}
+.sr-card small{font-size:12px;color:var(--ink2)}
+.sr-card .dream{color:#c2185b;font-weight:700;font-size:12px}
+.sr-card select{width:100%}
+.sr-card .open-now{display:inline-block;margin-left:4px;background:var(--red);color:#fff;border-radius:999px;padding:0 6px;font:700 10.5px var(--display)}
+.sr-foot{flex:none;margin:0;padding:0 14px;font-size:11.5px;color:var(--ink2)}

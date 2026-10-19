@@ -5,7 +5,7 @@ import { S, writeSave, addXp, stores, staffSkill, wageOf, stars, assignClerks } 
 import { map, rebuildMap, validatePlacement, zoneAt, occAt, FOUNTAIN_ID, ESCALATOR_ID, unitAccess, decorSize, decorAccess, floorRange, floorOf, clearEscalators } from './map.js';
 import { sim, staffLook } from './sim.js';
 import { view, invalidate, poof, worldToScreen, setFloor } from './render.js';
-import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portrait, showPlacementBar, hidePlacementBar, confirmBox, setToolDot } from './ui.js';
+import { h, openPanel, closePanel, showCard, hideCard, toast, iconCanvas, portrait, showPlacementBar, hidePlacementBar, confirmBox, setToolDot, ROLE_ICON } from './ui.js';
 import { sfx } from './audio.js';
 import { tip, addMemory, seenTips } from './guide.js';
 import { TIPS, MEMORIES } from './story.js';
@@ -25,6 +25,7 @@ function changed(xp = 0){
   const moved = assignClerks(S.save);
   if (moved.length === 1) toast(`${moved[0].name} will run ${moved[0].store}`);
   else if (moved.length) toast(`${moved.length} clerks took the open registers`);
+  refreshStaffDot();
   if (xp){ const gained = addXp(xp); if (gained.length) onLevelUp(gained); }
   writeSave();
 }
@@ -610,51 +611,140 @@ function applicants(){
   if (s.level >= 3 && !f.hiredDee) out.unshift({ seed: 2004, role: 'janitor', name: 'Dee', dee: true, skill: 3 });
   return out;
 }
-// Staff is long by the late game: tabs pick a role (or All), and the team is grouped by role either way.
+/* ---------- The Staff Room (Staff button at night) ---------- */
+// A full-screen page with three tabs. Overview: the numbers at a glance, what needs attention (each with a fix),
+// every role's slots, and every register with who runs it. Team: everyone you employ. Hire: today's applicants.
 const ROLE_ORDER = ['clerk', 'janitor', 'supervisor', 'guard', 'greeter', 'mascot', 'dealer', 'host'];
-export function openStaff(){
+const ROLE_WHY = { janitor: 'trash piles up and ratings slip', supervisor: 'staff slack off on their phones', guard: 'troublemakers scare shoppers off', greeter: 'shoppers are less patient', mascot: 'the crowd is smaller', host: 'gamblers are a little less happy' };
+let teamRole = 'all', hireRole = 'all';
+const registers = s => stores(s).filter(u => !C.STORES[u.store].attraction);
+const floorTag = u => ['', '2F', '3F'][floorOf(u.x)] || '';
+export function staffNeeds(s = S.save){
+  const regs = registers(s), clerkAt = new Map(s.staff.filter(m => m.role === 'clerk' && m.storeId).map(m => [m.storeId, m]));
+  const unstaffed = regs.filter(u => !clerkAt.has(u.id)), idle = s.staff.filter(m => m.role === 'clerk' && (!m.storeId || !regs.some(u => u.id === m.storeId)));
+  const tables = s.decor.filter(d => C.DECOR[d.type].game).length, dealers = s.staff.filter(m => m.role === 'dealer').length;
+  const count = role => s.staff.filter(m => m.role === role).length, limit = role => C.STAFF_LIMITS[role][s.level] || 0;
+  return { regs, clerkAt, unstaffed, idle, tables, dealers, count, limit, wages: s.staff.reduce((a, m) => a + wageOf(m), 0) };
+}
+// A red dot on the Staff button while a register has nobody (and you could do something about it) or a table has no dealer.
+export function refreshStaffDot(){
+  const s = S.save; if (!s || s.level < 1) return;
+  const n = staffNeeds(s);
+  setToolDot('staff', (n.unstaffed.length > 0 && (n.idle.length > 0 || n.count('clerk') < n.limit('clerk'))) || (n.tables > n.dealers && n.count('dealer') < n.limit('dealer')));
+}
+export function openStaff(startTab = null){
   endPick(); endPlacement(); hideCard(); view.selected = null; setToolDot('staff', false);
-  const s0 = S.save, roles = ROLE_ORDER.filter(r => s0.level >= C.ROLES[r].level || s0.staff.some(m => m.role === r));
-  const tabs = roles.length > 1 ? ['All', ...roles.map(r => C.ROLES[r].plural)] : null;
-  openPanel({ title: 'Staff', tabs, render: (body, tab, redraw) => {
-    const s = S.save, L = C.STAFF_LIMITS, count = role => s.staff.filter(m => m.role === role).length;
-    const only = tabs && tab > 0 ? roles[tab - 1] : null, shows = role => !only || role === only;
-    const open = Object.entries(C.ROLES).filter(([, r]) => s.level >= r.level), next = Object.values(C.ROLES).find(r => s.level < r.level);
-    const limits = only ? `${C.ROLES[only].plural} ${count(only)}/${L[only][s.level]} · ${C.ROLES[only].desc}`
-      : open.map(([role, r]) => `${r.plural} ${count(role)}/${L[role][s.level]}`).join(' · ') + (next ? ` · ${next.plural} at level ${next.level}` : '');
-    body.append(h('p', { class: 'muted', style: 'margin:0;font-size:12px' }, `${limits}. Wages come out each night.`));
-    const team = s.staff.filter(m => shows(m.role)).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || staffSkill(b) - staffSkill(a) || a.name.localeCompare(b.name));
-    let lastRole = null;
-    if (team.length && only) body.append(h('div', { class: 'section-label' }, `Working for you (${team.length})`));
-    for (const m of team){
-      if (!only && m.role !== lastRole){ lastRole = m.role; body.append(h('div', { class: 'section-label' }, `${C.ROLES[m.role].plural} (${count(m.role)})`)); }
-      const ownStores = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o !== m && o.storeId === u.id));
-      const sel = m.role === 'clerk' ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); redraw(); } },
-        h('option', { value: '' }, 'No register'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name + (m.dream === u.store ? ' ♥' : '')))) : null;
-      body.append(h('div', { class: 'staff-row' }, portrait(m.look, 44),
-        h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { class: 'name', style: 'font:600 15px var(--display);display:block' }, m.name), h('span', { class: 'sub muted', style: 'font-size:12px;display:block' }, staffLine(m)), dreamLine(m, s.units.find(u => u.id === m.storeId)), sel),
-        h('button', { class: 'btn small', onclick: async () => { if (await confirmBox(`Let ${m.name} go?`, 'Let go')){ s.staff = s.staff.filter(o => o !== m); if (m.dee) s.flags.hiredDee = false; writeSave(); redraw(); } } }, 'Let go')));
-    }
-    if (!team.length && only) body.append(h('p', { class: 'muted', style: 'margin:6px 0 0;font-size:12.5px' }, `No ${C.ROLES[only].plural.toLowerCase()} yet.`));
-    const apps = open.length ? applicants().filter(a => shows(a.role)) : [];
-    if (apps.length){
-      body.append(h('div', { class: 'section-label' }, 'Looking for work'));
-      for (const a of apps){
-        const look = staffLook(a.role, a.seed);
-        const full = count(a.role) >= L[a.role][s.level];
-        body.append(h('div', { class: 'staff-row' }, portrait(look, 44),
-          h('span', { class: 'info', style: 'flex:1;min-width:0' }, h('span', { style: 'font:600 15px var(--display);display:block' }, a.name), h('span', { class: 'muted', style: 'font-size:12px;display:block' }, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')), dreamLine(a), a.role === 'clerk' || a.role === 'janitor' || only ? null : h('span', { class: 'muted', style: 'font-size:11.5px;display:block' }, C.ROLES[a.role].desc)),
-          h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
-            const open = stores(s).filter(u => !C.STORES[u.store].attraction && !s.staff.some(o => o.storeId === u.id));
-            const free = open.find(u => u.store === a.dream) || open.find(u => !u.kiosk) || open[0];
-            s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, skill: a.skill || 2, dream: a.dream || null, dee: !!a.dee });
-            if (a.dee) s.flags.hiredDee = true; else s.flags.applicants = s.flags.applicants.filter(x => x !== a);
-            sfx('build'); writeSave(); redraw(); tip('speed');
-            toast(`${a.name} starts tomorrow`);
-          } }, full ? 'Team full' : 'Hire')));
-      }
-    }
-  } });
+  // The tutorials send you straight to the applicants.
+  const tab = startTab !== null ? startTab : view.staffTab === 'hire' ? 2 : 0; view.staffTab = null;
+  const wageChip = h('span', { class: 'chip mk-money', style: 'margin-left:0' }), moneyChip = h('span', { class: 'chip mk-money' });
+  const panel = openPanel({ title: 'Staff', heading: 'Staff Room', full: true, tabs: ['Overview', 'Team', 'Hire'], tab,
+    headerExtra: h('span', { style: 'display:flex;gap:6px;margin-left:auto' }, wageChip, moneyChip),
+    onClose: refreshStaffDot,
+    render: (body, t, redraw) => {
+      const n = staffNeeds();
+      wageChip.textContent = `Wages ${money(n.wages)}/day`; moneyChip.textContent = money(S.save.money);
+      const go = (i, role) => { if (role){ if (i === 1) teamRole = role; else hireRole = role; } panel.setTab(i); };
+      if (t === 0) staffOverview(body, n, redraw, go); else if (t === 1) staffTeam(body, redraw); else staffHire(body, redraw);
+    } });
+}
+function staffOverview(body, n, redraw, go){
+  const s = S.save, wrap = h('div', { class: 'sr-scroll' });
+  const casino = s.expansions.casino || n.tables > 0;
+  const open = ROLE_ORDER.filter(r => s.level >= C.ROLES[r].level), slots = open.reduce((a, r) => a + Math.max(0, n.limit(r) - n.count(r)), 0);
+  const tile = (label, value, sub, bad) => h('div', { class: `sr-tile${bad ? ' bad' : ''}` }, h('b', {}, value), h('span', {}, label), sub ? h('small', {}, sub) : null);
+  wrap.append(h('div', { class: 'sr-tiles' },
+    tile('registers staffed', `${n.regs.length - n.unstaffed.length}/${n.regs.length}`, n.unstaffed.length ? `${n.unstaffed.length} need a clerk` : 'all covered', n.unstaffed.length > 0),
+    tile('clerks without a register', n.idle.length, n.idle.length ? 'ready to place' : 'everyone’s placed', n.idle.length > 0 && n.unstaffed.length > 0),
+    tile('on the team', s.staff.length, `${money(n.wages)} a day in wages`),
+    tile('open spots to hire', slots, open.length ? 'more come with levels' : ''),
+    casino ? tile('tables with a dealer', `${Math.min(n.tables, n.dealers)}/${n.tables}`, n.tables > n.dealers ? `${n.tables - n.dealers} closed` : 'all open', n.tables > n.dealers) : null));
+  // What needs attention, each with the fix.
+  const alerts = [];
+  const alert = (kind, text, btn, onClick) => alerts.push(h('div', { class: `sr-alert ${kind}` }, h('span', {}, text), btn ? h('button', { class: `btn small ${kind === 'bad' ? 'primary' : ''}`, onclick: () => { sfx('tap'); onClick(); } }, btn) : null));
+  const fillable = Math.min(n.idle.length, n.unstaffed.length);
+  if (fillable) alert('bad', `${n.idle.length} clerk${n.idle.length > 1 ? 's are' : ' is'} free and ${n.unstaffed.length} register${n.unstaffed.length > 1 ? 's need' : ' needs'} one.`, 'Fill registers', () => { const moved = assignClerks(s); writeSave(); toast(moved.length === 1 ? `${moved[0].name} will run ${moved[0].store}` : `${moved.length} clerks placed`); redraw(); });
+  const still = n.unstaffed.length - fillable, clerkRoom = n.limit('clerk') - n.count('clerk');
+  if (still > 0) alert('bad', clerkRoom > 0 ? `${still} register${still > 1 ? 's have' : ' has'} no clerk, so you'd run ${still > 1 ? 'them' : 'it'} yourself. You can hire ${Math.min(clerkRoom, still)} more.` : `${still} register${still > 1 ? 's have' : ' has'} no clerk and your clerk team is full (${n.count('clerk')}/${n.limit('clerk')}). Leveling up adds clerk spots.`, clerkRoom > 0 ? 'Hire clerks' : null, () => go(2, 'clerk'));
+  if (n.idle.length && !n.unstaffed.length) alert('warn', `${n.idle.length} clerk${n.idle.length > 1 ? 's have' : ' has'} no register. Open another store or stand, or let ${n.idle.length > 1 ? 'one' : 'them'} go to save on wages.`, 'See clerks', () => go(1, 'clerk'));
+  if (n.tables > n.dealers){ const room = n.limit('dealer') - n.count('dealer'); alert('bad', `${n.tables - n.dealers} casino table${n.tables - n.dealers > 1 ? 's have' : ' has'} no dealer and stay${n.tables - n.dealers > 1 ? '' : 's'} closed.${room > 0 ? '' : ' Your dealer team is full.'}`, room > 0 ? 'Hire dealers' : null, () => go(2, 'dealer')); }
+  const missing = open.filter(r => r !== 'clerk' && r !== 'dealer' && n.count(r) === 0 && n.limit(r) > 0);
+  for (const r of missing.slice(0, 3)) alert('idea', `No ${C.ROLES[r].name.toLowerCase()} yet. Without one, ${ROLE_WHY[r] || 'you miss out'}.`, `Hire a ${C.ROLES[r].name.toLowerCase()}`, () => go(2, r));
+  if (s.staff.some(m => staffSkill(m) === 1)) { const k = s.staff.filter(m => staffSkill(m) === 1).length; alert('idea', `${k} of your staff ${k > 1 ? 'are' : 'is'} one-star: slower, and more often on ${k > 1 ? 'their phones' : 'the phone'}. Better applicants show up every day.`, null); }
+  const left = h('div', { class: 'sr-col' }, h('div', { class: 'section-label' }, 'Needs attention'),
+    alerts.length ? alerts : h('div', { class: 'sr-alert good' }, h('span', {}, 'All covered! Every register has a clerk and every role you need is filled.')));
+  // Roles: how full each team is, and the next one coming.
+  const next = ROLE_ORDER.find(r => s.level < C.ROLES[r].level);
+  left.append(h('div', { class: 'section-label' }, 'Your team'), h('div', { class: 'sr-roles' },
+    [...open, ...(next ? [next] : [])].map(r => {
+      const role = C.ROLES[r], locked = s.level < role.level, c = n.count(r), L = n.limit(r);
+      return h('div', { class: `sr-role${locked ? ' locked' : ''}` }, iconCanvas(ROLE_ICON[r], 34),
+        h('span', { class: 'info' }, h('b', {}, role.plural), h('span', { class: 'bar' }, h('i', { style: `width:${L ? Math.min(100, c / L * 100) : 0}%` })),
+          h('small', {}, locked ? `Unlocks at level ${role.level}` : `${c} of ${L} · ${money(role.wage[1])}–${money(role.wage[3])}/day`)),
+        locked ? null : h('button', { class: 'btn small', disabled: c >= L, onclick: () => { sfx('tap'); go(2, r); } }, c >= L ? 'Full' : 'Hire'));
+    })));
+  // Every register and who runs it; pick a clerk right here.
+  const clerks = s.staff.filter(m => m.role === 'clerk');
+  const regs = [...n.regs].sort((a, b) => (n.clerkAt.has(a.id) - n.clerkAt.has(b.id)) || floorOf(a.x) - floorOf(b.x) || C.STORES[a.store].name.localeCompare(C.STORES[b.store].name));
+  const right = h('div', { class: 'sr-col' }, h('div', { class: 'section-label' }, `Registers (${n.regs.length})`), h('div', { class: 'sr-regs' },
+    regs.length ? regs.map(u => {
+      const def = C.STORES[u.store], m = n.clerkAt.get(u.id);
+      const sel = h('select', { 'aria-label': `Clerk for ${def.name}`, onchange: e => {
+        const pick = clerks.find(c => c.id === +e.target.value);
+        if (m) m.storeId = null;
+        if (pick) pick.storeId = u.id;
+        writeSave(); redraw();
+      } }, h('option', { value: '' }, m ? 'Nobody (you run it)' : 'Help wanted'),
+        clerks.map(c => { const at = c.storeId && s.units.find(v => v.id === c.storeId && v.state === 'store'); return h('option', { value: c.id, selected: m === c }, `${c.name} ${stars(staffSkill(c))}${c.dream === u.store ? ' ♥' : ''}${c === m ? '' : at ? ` (from ${C.STORES[at.store].name})` : ' (free)'}`); }));
+      return h('div', { class: `sr-reg${m ? '' : ' bad'}` }, iconCanvas(() => A.storeIcon(def.icon, 0.5, 0.5, 0.62), 30),
+        h('span', { class: 'info' }, h('b', {}, def.name, floorTag(u) ? h('small', {}, ` ${floorTag(u)}`) : null), sel));
+    }) : h('div', { class: 'mk-empty' }, 'No stores open yet.')));
+  wrap.append(h('div', { class: 'sr-cols' }, left, right));
+  body.append(wrap);
+}
+function roleChips(roles, current, set, redraw, label){
+  return h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-cats', role: 'tablist' },
+    [['all', 'All'], ...roles.map(r => [r, label(r)])].map(([id, name]) => h('button', { class: 'mk-shelf', role: 'tab', 'aria-selected': current === id ? 'true' : 'false', onclick: () => { sfx('tap'); set(id); redraw(); } }, name))));
+}
+function staffTeam(body, redraw){
+  const s = S.save, n = staffNeeds(s), roles = ROLE_ORDER.filter(r => n.count(r) > 0);
+  if (teamRole !== 'all' && !roles.includes(teamRole)) teamRole = 'all';
+  body.append(roleChips(roles, teamRole, r => { teamRole = r; }, redraw, r => `${C.ROLES[r].plural} ${n.count(r)}`));
+  const team = s.staff.filter(m => teamRole === 'all' || m.role === teamRole).sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) || staffSkill(b) - staffSkill(a) || a.name.localeCompare(b.name));
+  const grid = h('div', { class: 'sr-scroll' }, h('div', { class: 'sr-grid' }, team.map(m => {
+    const at = m.storeId && s.units.find(u => u.id === m.storeId && u.state === 'store');
+    const ownStores = n.regs.filter(u => !n.clerkAt.has(u.id) || n.clerkAt.get(u.id) === m);
+    const job = m.role === 'clerk'
+      ? h('select', { 'aria-label': `${m.name}'s register`, onchange: e => { m.storeId = +e.target.value || null; writeSave(); redraw(); } },
+          h('option', { value: '' }, 'No register (free)'), ownStores.map(u => h('option', { value: u.id, selected: m.storeId === u.id }, C.STORES[u.store].name + (floorTag(u) ? ` ${floorTag(u)}` : '') + (m.dream === u.store ? ' ♥' : ''))))
+      : h('small', { class: 'muted' }, C.ROLES[m.role].desc);
+    return h('div', { class: `sr-card${m.role === 'clerk' && !at ? ' warn' : ''}` }, portrait(m.look, 52),
+      h('span', { class: 'info' }, h('b', {}, m.name), h('small', {}, staffLine(m)), dreamLine(m, at), job),
+      h('button', { class: 'btn small', onclick: async () => { if (await confirmBox(`Let ${m.name} go?`, 'Let go')){ s.staff = s.staff.filter(o => o !== m); if (m.dee) s.flags.hiredDee = false; writeSave(); redraw(); } } }, 'Let go'));
+  })));
+  body.append(team.length ? grid : h('div', { class: 'mk-empty' }, 'Nobody works here yet. Hire someone under Hire.'));
+}
+function staffHire(body, redraw){
+  const s = S.save, n = staffNeeds(s), open = ROLE_ORDER.filter(r => s.level >= C.ROLES[r].level);
+  if (hireRole !== 'all' && !open.includes(hireRole)) hireRole = 'all';
+  body.append(roleChips(open, hireRole, r => { hireRole = r; }, redraw, r => `${C.ROLES[r].plural} ${n.count(r)}/${n.limit(r)}`));
+  const apps = open.length ? applicants().filter(a => hireRole === 'all' || a.role === hireRole) : [];
+  const grid = h('div', { class: 'sr-scroll' }, h('div', { class: 'sr-grid' }, apps.map(a => {
+    const look = staffLook(a.role, a.seed), full = n.count(a.role) >= n.limit(a.role);
+    return h('div', { class: 'sr-card' }, portrait(look, 52),
+      h('span', { class: 'info' }, h('b', {}, a.name), h('small', {}, staffLine(a) + (a.dee ? ' · Gus recommends her' : '')),
+        a.dream ? h('span', { class: 'dream' }, `Dream job: ${C.STORES[a.dream].name}`, n.unstaffed.some(u => u.store === a.dream) ? h('span', { class: 'open-now' }, 'needs a clerk!') : null) : null,
+        a.role === 'clerk' ? null : h('small', { class: 'muted' }, C.ROLES[a.role].desc)),
+      h('button', { class: 'btn small primary', disabled: full, 'data-dee': a.dee ? '1' : null, onclick: () => {
+        const openRegs = n.regs.filter(u => !s.staff.some(o => o.storeId === u.id));
+        const free = openRegs.find(u => u.store === a.dream) || openRegs.find(u => !u.kiosk) || openRegs[0];
+        s.staff.push({ id: s.nextId++, role: a.role, name: a.name, look, storeId: a.role === 'clerk' && free ? free.id : null, skill: a.skill || 2, dream: a.dream || null, dee: !!a.dee });
+        if (a.dee) s.flags.hiredDee = true; else s.flags.applicants = s.flags.applicants.filter(x => x !== a);
+        sfx('build'); writeSave(); redraw(); tip('speed');
+        toast(a.role === 'clerk' && free ? `${a.name} starts tomorrow at ${C.STORES[free.store].name}` : `${a.name} starts tomorrow`);
+      } }, full ? 'Team full' : 'Hire'));
+  })));
+  body.append(apps.length ? grid : h('div', { class: 'mk-empty' }, open.length ? 'No one else is looking for that job today. New applicants come every morning.' : 'Hiring opens soon.'));
+  body.append(h('p', { class: 'sr-foot' }, 'New applicants every morning. More stars: faster, more reliable, and a higher wage. Clerks sell more at their dream store (♥).'));
 }
 
 // "Clerk · ★★☆ · $46/day", then their dream job on a line of its own (with a heart when they're working it).
@@ -687,6 +777,7 @@ export function openNotebook(){
 /* ---------- Night tips ---------- */
 export function nightTips(report){
   const s = S.save;
+  refreshStaffDot();
   tip('night');
   const open = Object.entries(C.STORES).filter(([, d]) => !d.kiosk && d.level <= s.level).flatMap(([k]) => roomFor(k).map(r => r.cost));
   // Opening a second store is a Day 2 thing; night 1 is for hiring clerks.

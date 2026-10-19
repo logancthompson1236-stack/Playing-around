@@ -113,7 +113,7 @@ export async function runDeeScene(){
   await say(MEMORIES.dee.lines);
   f.memories.dee = true; f.tips.staff = true; writeSave();
   const staffBtn = document.querySelector('.night-bar .tool:nth-child(2)');
-  hint(DEE_SCENE.staff, true);
+  hint(DEE_SCENE.staff, true); view.staffTab = 'hire';
   staffBtn && staffBtn.classList.add('pulse');
   await until(() => staffPanel());
   staffBtn && staffBtn.classList.remove('pulse');
@@ -153,7 +153,7 @@ export async function runClerkScene(){
   f.memories.clerks = true; f.tips.clerks = true; writeSave();
   await gusScene(CLERK_SCENE.lines, async () => {
     const staffBtn = document.querySelector('.night-bar .tool:nth-child(2)');
-    hint(CLERK_SCENE.staff, true); staffBtn && staffBtn.classList.add('pulse');
+    hint(CLERK_SCENE.staff, true); view.staffTab = 'hire'; staffBtn && staffBtn.classList.add('pulse');
     await until(() => staffPanel());
     staffBtn && staffBtn.classList.remove('pulse');
     hint(CLERK_SCENE.hire, true);

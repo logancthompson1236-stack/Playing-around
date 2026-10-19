@@ -217,7 +217,8 @@ export function openPanel({ title, heading, full = false, headerExtra = null, ta
     full ? null : tabBar, body);
   panelEl.addEventListener('pointerdown', e => e.stopPropagation());
   root.append(panelEl); draw();
-  return { redraw: draw };
+  const setTab = i => { current = i; if (tabBar) [...tabBar.children].forEach((b, j) => b.setAttribute('aria-selected', j === i)); draw(); };
+  return { redraw: draw, setTab };
 }
 export function closePanel(){ if (panelEl){ panelEl.remove(); panelEl = null; } }
 export const panelOpen = () => !!panelEl;
@@ -560,6 +561,8 @@ function restoreBox(){
 }
 
 /* ---------- Level ups ---------- */
+// A little picture for each staff role (unlock list, Staff Room).
+export const ROLE_ICON = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), dealer: () => A.storeIcon('chip', 0.5, 0.5, 0.6), host: () => A.storeIcon('cocktail', 0.5, 0.5, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) };
 // One row per unlock, with an icon and where to find it.
 export function unlockList(levels){
   const rows = [];
@@ -571,7 +574,7 @@ export function unlockList(levels){
     else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => A.decorThumb(u.decor, d.w); title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){
       const r = C.ROLES[u.hire], n = C.STAFF_LIMITS[u.hire][lv];
-      paint = { janitor: () => A.trashCan(0.5, 0.85), clerk: () => A.storeIcon('dollar', 0.5, 0.5, 0.6), dealer: () => A.storeIcon('chip', 0.5, 0.5, 0.6), host: () => A.storeIcon('cocktail', 0.5, 0.5, 0.6), greeter: () => A.storeIcon('heart', 0.5, 0.5, 0.6), mascot: () => A.storeIcon('sun', 0.5, 0.5, 0.62), supervisor: () => A.storeIcon('phone', 0.5, 0.5, 0.6), guard: () => A.storeIcon('shield', 0.5, 0.5, 0.62) }[u.hire];
+      paint = ROLE_ICON[u.hire];
       title = n > 1 ? `Hire up to ${n} ${r.plural.toLowerCase()}` : `Hire a ${r.name.toLowerCase()}`; where = `${r.desc} Tap Staff at night.`;
     }
     else if (u.staffSlots){
