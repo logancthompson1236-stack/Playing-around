@@ -31,12 +31,17 @@ export function startTitleScene(parent, { mall } = {}){
     const widths = [...SIGN].map(ch => ctx.measureText(ch).width / 100); ctx.restore();
     const total = widths.reduce((a, b) => a + b, 0) + 0.06 * (SIGN.length - 1);
     const font = Math.min(1.2, (cw - 1.0) / total);
-    const lots = [], nLamps = Math.max(2, Math.round(W / 6));
-    // Parked cars in the two rows of stalls (leaving some gaps), facing the mall in the top row.
-    for (let x = 0.15; x < W - 1; x += 1.05){ if (R() < 0.5) lots.push({ x, y: 6.95, dir: 'up', c: pick(CARS, R) }); if (R() < 0.4) lots.push({ x, y: 8.95, dir: 'down', c: pick(CARS, R) }); }
+    const lots = [];
+    // Parked cars in the two rows of stalls (leaving some gaps): nose to the mall in the top row, facing us below.
+    for (let x = 0.15; x < W - 1; x += 1.05){
+      if (R() < 0.5) lots.push({ cx: x + 0.525, by: 7.0, dir: 'up', c: pick(CARS, R), door: 0, blink: 0, busy: false });
+      if (R() < 0.4) lots.push({ cx: x + 0.525, by: 8.97, dir: 'down', c: pick(CARS, R), door: 0, blink: 0, busy: false });
+    }
+    // Street lamps along the front of the sidewalk, clear of the entrance and the mall's sign.
+    const signX = Math.max(1.0, cx - bw / 2 + 0.2) + 0.1, lamps = [];
+    for (let x = 1.4; x < W - 0.6; x += 3.1){ if (Math.abs(x - cx) < 3.5 || (x > signX - 0.4 && x < signX + 1.4)) continue; lamps.push(x); }
     L = { cx, bw, x0: cx - bw / 2, x1: cx + bw / 2, cw, c0: cx - cw / 2, c1: cx + cw / 2, cTop: 0.62, wingTop: 2.6, base: 5.35,
-      signY: 0.86, signH: 1.5, font, widths, total, door: { x0: cx - 0.95, x1: cx + 0.95, top: 3.62 }, lots,
-      lamps: Array.from({ length: nLamps }, (_, i) => (i + 0.5) * W / nLamps).map(x => Math.abs(x - cx) < 3.9 ? cx + (x < cx ? -3.9 : 3.9) : x).filter((x, i, a) => a.indexOf(x) === i && x > 0.4 && x < W - 0.4) };
+      signY: 0.86, signH: 1.5, font, widths, total, door: { x0: cx - 0.95, x1: cx + 0.95, top: 3.62 }, lots, lamps, signX };
   }
 
   function resize(){
@@ -130,25 +135,79 @@ export function startTitleScene(parent, { mall } = {}){
     g.setLineDash([0.35, 0.3]); g.strokeStyle = 'rgba(255,214,90,.6)'; g.beginPath(); g.moveTo(0, 7.52); g.lineTo(W, 7.52); g.stroke(); g.setLineDash([]);
     // Palms in planters by the doors, bushes along the curb.
     for (const px of [L.door.x0 - 1.55, L.door.x1 + 1.55]){ A.box(px - 0.32, base + 0.12, 0.64, 0.3, 0.3, '#e09a7a', '#c97b5a'); A.palm(px, base + 0.15); }
-    for (let x = 0.6; x < W; x += 2.6){ if (Math.abs(x - cx) < 3.2) continue; A.ell(x, base + 0.5, 0.42, 0.2); A.fs('#4fa85e', 0.035); A.ell(x - 0.15, base + 0.42, 0.2, 0.12); A.fs('#6cc47a', 0); }
+    for (let x = 2.95; x < W - 0.4; x += 3.1){ if (Math.abs(x - cx) < 3.2) continue; A.ell(x, base + 0.48, 0.42, 0.2); A.fs('#4fa85e', 0.035); A.ell(x - 0.15, base + 0.4, 0.2, 0.12); A.fs('#6cc47a', 0); }
     // The mall's own name on a pylon sign at the edge of the lot.
-    const name = (mall || 'Sunnyside Mall').toUpperCase(), sx = Math.max(1.0, L.x0 + 0.2) + 0.1, sy = base + 0.55;
+    const name = (mall || 'Sunnyside Mall').toUpperCase(), sx = L.signX, sy = base + 0.55;
     A.rr(sx + 0.42, sy - 2.2, 0.16, 2.2, 0.04); A.fs('#4a4f6a', 0.035);
     A.rr(sx, sy - 3.2, 1.0, 1.15, 0.12); A.fs('#3fb8af', 0.05);
     A.rr(sx + 0.08, sy - 3.12, 0.84, 0.99, 0.08); A.fs('#fff6ea', 0.03);
     const words = name.split(' '), mid = Math.ceil(words.length / 2), lines = words.length > 1 ? [words.slice(0, mid).join(' '), words.slice(mid).join(' ')] : [name];
     lines.forEach((ln, i) => A.text(ln, sx + 0.5, sy - 2.62 + (i - (lines.length - 1) / 2) * 0.26, 0.2, '#3a2346', 700, 'Fredoka', 0.76));
-    for (const c of L.lots) if (c.dir === 'up') car(g, c.x + 0.45, c.y, c.c, c.dir);
-    // Lamp posts down the middle of the lot.
-    for (const lx of L.lamps){
-      A.rr(lx - 0.05, 7.52 - 2.7, 0.1, 2.7, 0.03); A.fs('#4a4f6a', 0.03);
-      A.rr(lx - 0.5, 7.52 - 2.78, 1.0, 0.1, 0.04); A.fs('#4a4f6a', 0.03);
-      for (const hx of [lx - 0.45, lx + 0.45]){ A.rr(hx - 0.13, 7.52 - 2.74, 0.26, 0.12, 0.05); A.fs('#fff3b0', 0.03); }
-    }
-    for (const c of L.lots) if (c.dir === 'down') car(g, c.x + 0.45, c.y, c.c, c.dir);
   }
 
   /* ---------- Cars and people ---------- */
+  // A parked car, seen from above and in front like everything else: the roof and hood (or trunk) on top, the near
+  // end (taillights, or headlights and grille) facing us, wheels peeking out at the corners. The driver's door
+  // (on our left when the nose points at the mall, on our right when it points at us) swings open when someone
+  // gets in or out.
+  const CW = 0.64, CL = 0.92, H1 = 0.21, H2 = 0.19;
+  function parkedCar(g, c){
+    const x = c.cx, y = c.by, up = c.dir === 'up', col = c.c, dark = A.shade(col, -0.3), lite = A.shade(col, 0.22);
+    const cab0 = y - CL * 0.72, cab1 = y - CL * 0.3;           // the cabin's far and near ends, on the ground
+    const P = (gx, gy, z) => [gx, gy - z];
+    const quad = (pts, fill, lw = 0.03) => { g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo : g.moveTo).call(g, px, py)); g.closePath(); A.fs(fill, lw); };
+    A.rr(x - CW / 2 - 0.04, y - CL + 0.06, CW + 0.08, CL, 0.16); g.fillStyle = 'rgba(25,15,35,.32)'; g.fill();
+    // Wheels: the near pair under the bumper corners, slivers of the far pair at the sides.
+    for (const s of [-1, 1]){
+      A.rr(x + s * CW / 2 - 0.055, y - 0.27, 0.11, 0.24, 0.045); A.fs('#2b2230', 0.025);
+      A.rr(x + s * CW / 2 - 0.055, y - CL + 0.12, 0.11, 0.22, 0.045); A.fs('#2b2230', 0.025);
+    }
+    // The open door is behind the car when it swings away from us.
+    const side = up ? -1 : 1, a = ease(c.door) * 1.05, dl = cab1 - cab0 - 0.02;
+    const hinge = up ? cab0 + 0.02 : cab1, tip = [x + side * (CW / 2 + Math.sin(a) * dl), hinge + (up ? 1 : -1) * Math.cos(a) * dl];
+    const door = () => {
+      const hx = x + side * CW / 2;
+      quad([P(hx, hinge, 0.06), P(tip[0], tip[1], 0.06), P(tip[0], tip[1], H1), P(hx, hinge, H1)], up ? dark : col);
+      quad([P(hx, hinge, H1), P(tip[0], tip[1], H1), P(tip[0], tip[1], H1 + H2 * 0.8), P(hx, hinge, H1 + H2 * 0.85)], 'rgba(160,200,235,.85)', 0.025);
+    };
+    if (c.door > 0.02 && !up) door();
+    // Body: the near end, then the top.
+    A.rr(x - CW / 2, y - H1 - 0.02, CW, H1 + 0.02, 0.07); A.fs(dark, 0.035);
+    A.rr(x - CW / 2, y - CL - H1, CW, CL, 0.15); A.fs(col, 0.035);
+    g.fillStyle = lite; g.fillRect(x - CW / 2 + 0.08, y - CL - H1 + 0.05, CW - 0.16, 0.035);
+    // Cabin: side glass along the edges, the roof, and the near window sloping toward us.
+    const rw = CW * 0.39, bw = CW * 0.45, zr = H1 + H2;
+    for (const s of [-1, 1]) quad([P(x + s * bw, cab0, H1), P(x + s * rw, cab0 + 0.06, zr), P(x + s * rw, cab1 - 0.08, zr), P(x + s * bw, cab1, H1)], '#6f8fb8', 0.02);
+    quad([P(x - rw, cab1 - 0.08, zr), P(x + rw, cab1 - 0.08, zr), P(x + bw, cab1, H1), P(x - bw, cab1, H1)], up ? '#86a8d0' : '#a9cbee', 0.025);
+    g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); const [g0x, g0y] = P(x - rw * 0.5, cab1 - 0.08, zr), [g1x, g1y] = P(x - bw * 0.15, cab1, H1); g.moveTo(g0x, g0y); g.lineTo(g0x + 0.06, g0y); g.lineTo(g1x + 0.08, g1y); g.lineTo(g1x, g1y); g.fill();
+    A.rr(x - rw, cab0 + 0.06 - zr, rw * 2, cab1 - cab0 - 0.14, 0.06); A.fs(col, 0.03);
+    g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(x - rw + 0.05, cab0 + 0.09 - zr, rw * 2 - 0.1, 0.03);
+    // Mirrors at the front of the cabin.
+    const my = up ? cab0 + 0.04 : cab1 - 0.04;
+    for (const s of [-1, 1]){ A.rr(x + s * (CW / 2 + 0.02) - 0.035, my - H1 - 0.06, 0.07, 0.05, 0.02); A.fs(dark, 0.02); }
+    // The near end: taillights (blinking when locked) or headlights and a grille, a bumper and a plate.
+    const ly = y - H1 + 0.04, on = c.blink > 0 && Math.sin(c.blink * 22) > 0;
+    for (const s of [-1, 1]){
+      A.rr(x + s * (CW / 2 - 0.1) - 0.06, ly, 0.12, 0.06, 0.025); A.fs(up ? (on ? '#ffd23f' : '#ff4d5e') : '#fff3c4', 0.018);
+      if (on){ g.save(); g.globalCompositeOperation = 'lighter'; A.circ(x + s * (CW / 2 - 0.1), ly + 0.03, 0.16); g.fillStyle = 'rgba(255,200,90,.45)'; g.fill(); g.restore(); }
+    }
+    if (!up){ A.rr(x - 0.1, ly + 0.01, 0.2, 0.06, 0.02); A.fs('#3a3346', 0.015); }
+    A.rr(x - CW / 2 + 0.02, y - 0.07, CW - 0.04, 0.05, 0.02); A.fs('#4a4560', 0.02);
+    A.rr(x - 0.07, y - 0.135, 0.14, 0.05, 0.01); A.fs('#fff6ea', 0.012);
+    if (c.door > 0.02 && up) door();
+  }
+  // Where someone stands to get in (beside the driver's door) and where they sit.
+  const doorSpot = c => { const up = c.dir === 'up', side = up ? -1 : 1, mid = c.by - CL * 0.5; return { x: c.cx + side * (CW / 2 + 0.24), y: mid + 0.02, sx: c.cx + side * (CW / 2 - 0.14), side }; };
+  function streetLamp(g, x, y){
+    A.shadow(x, y, 0.22, 0.07);
+    A.box(x - 0.13, y - 0.02, 0.26, 0.14, 0.14, '#5a5f7a', '#4a4f6a');
+    A.rr(x - 0.045, y - 2.2, 0.09, 2.08, 0.03); A.fs('#4a4f6a', 0.03);
+    A.rr(x - 0.08, y - 1.0, 0.16, 0.08, 0.03); A.fs('#5a5f7a', 0.02);
+    // A lantern head with a little cap.
+    A.rr(x - 0.16, y - 2.56, 0.32, 0.36, 0.08); A.fs('#fff3b0', 0.03);
+    g.beginPath(); g.moveTo(x - 0.22, y - 2.54); g.lineTo(x, y - 2.7); g.lineTo(x + 0.22, y - 2.54); g.closePath(); A.fs('#3d405b', 0.03);
+    A.rr(x - 0.19, y - 2.22, 0.38, 0.06, 0.03); A.fs('#3d405b', 0.02);
+  }
   function car(g, x, y, col, dir, t = 0){
     g.save(); g.translate(x, y); g.scale(0.8, 0.8); g.translate(-x, -y);
     paintCar(g, x, y, col, dir, t);
@@ -177,31 +236,65 @@ export function startTitleScene(parent, { mall } = {}){
     A.rr(x + f * 0.55 - 0.05, y - 0.3, 0.1, 0.08, 0.02); A.fs('#fff3b0', 0.015);
     A.rr(x - f * 0.58 - 0.04, y - 0.3, 0.08, 0.08, 0.02); A.fs('#ff5d5d', 0.015);
   }
+  const IN = { open: 0.35, step: 0.5, close: 0.35, blink: 0.8 };
   function spawnPerson(){
     const base = L.base, dc = L.cx, r = Math.random, look = { skin: pick(C.LOOKS.skin), hair: pick(HAIRS), hairStyle: pick(['short', 'long', 'bun']), shirt: pick(SHIRTS), pants: pick(PANTS) };
     if (r() < 0.25) look.kid = { skin: look.skin, hair: look.hair, hairStyle: pick(['bun', 'short']), shirt: pick(['#ffd23f', '#ff8fab', '#7bd389']), pants: pick(['#5a8dee', '#ef476f']), balloon: r() < 0.4 ? pick(['#ef476f', '#5a8dee', '#ffd23f']) : null };
-    const parked = L.lots.filter(c => c.dir === 'up'), from = parked.length ? pick(parked).x + 0.45 : r() * W;
-    const doorX = dc + (r() - 0.5) * 1.2, walkY = base + 0.3 + r() * 0.15;
-    let path;
+    const doorX = dc + (r() - 0.5) * 1.2, walkY = base + 0.3 + r() * 0.15, doorY = base - 0.02;
+    // Only the front row (the back row is half behind the buttons).
+    const free = L.lots.filter(c => !c.busy && c.dir === 'up'), car = free.length ? pick(free) : null;
     const kind = r();
-    if (kind < 0.42) path = [[from, 6.25], [from, walkY], [doorX, walkY], [doorX, base - 0.02]];               // arriving
-    else if (kind < 0.84){ path = [[doorX, base - 0.02], [doorX, walkY], [from, walkY], [from, 6.25]]; look.hold = 'bag'; look.bagColor = pick(['#ff8fab', '#ffd23f', '#5cc8bf', '#5a8dee']); }  // leaving
-    else { const ltr = r() < 0.5; path = [[ltr ? -0.5 : W + 0.5, walkY], [ltr ? W + 0.5 : -0.5, walkY]]; }     // strolling past
-    people.push({ path, i: 0, x: path[0][0], y: path[0][1], look, speed: 0.95 + r() * 0.35, t: r() * 10, door: kind < 0.84, a: 0 });
+    if (car && kind < 0.84){
+      car.busy = true;
+      const d = doorSpot(car);
+      if (kind < 0.42){
+        // Pulling up: the door opens, they climb out, shut it, and walk to the mall.
+        people.push({ mode: 'out', car, d, tt: 0, x: d.sx, y: d.y, look, path: [[d.x, d.y], [d.x, walkY], [doorX, walkY], [doorX, doorY]], i: 0, speed: 0.95 + r() * 0.35, t: r() * 10, door: true, a: 0 });
+      } else {
+        // Heading home with a bag: out the doors, across to the car, in, door shut, lights blink.
+        look.hold = 'bag'; look.bagColor = pick(['#ff8fab', '#ffd23f', '#5cc8bf', '#5a8dee']);
+        people.push({ mode: 'walk', car, d, then: 'in', x: doorX, y: doorY, look, path: [[doorX, doorY], [doorX, walkY], [d.x, walkY], [d.x, d.y]], i: 0, speed: 0.95 + r() * 0.35, t: r() * 10, door: true, a: 0 });
+      }
+      return;
+    }
+    // Strolling past on the sidewalk.
+    const ltr = r() < 0.5, path = [[ltr ? -0.5 : W + 0.5, walkY], [ltr ? W + 0.5 : -0.5, walkY]];
+    people.push({ mode: 'walk', path, i: 0, x: path[0][0], y: path[0][1], look, speed: 0.95 + r() * 0.35, t: r() * 10, door: false, a: 0 });
   }
   function stepPeople(dt){
     const doorY = L.base - 0.02;
     for (const p of people){
       p.t += dt; p.age = (p.age || 0) + dt;
+      if (p.mode === 'in' || p.mode === 'out'){
+        // Getting into (or out of) a car, in steps: door opens, step in (or out), door shuts, (lights blink).
+        const c = p.car, d = p.d, k = (p.tt += dt), o = IN.open, st = o + IN.step, cl = st + IN.close;
+        p.walking = false;
+        c.door = k < o ? k / o : k < st ? 1 : Math.max(0, 1 - (k - st) / IN.close);
+        const m = Math.max(0, Math.min(1, (k - o) / IN.step));
+        if (p.mode === 'in'){
+          p.x = d.x + (d.sx - d.x) * m; p.y = d.y - 0.04 * m; p.a = 1 - ease(m); p.flip = d.side > 0;
+          if (k > cl) c.blink = Math.max(c.blink, 0.0001);
+          if (k > cl + IN.blink){ c.busy = false; p.out = 0; }
+        } else {
+          p.x = d.sx + (d.x - d.sx) * m; p.y = d.y - 0.04 * (1 - m); p.a = ease(m); p.flip = d.side < 0;
+          if (k > st){ p.mode = 'walk'; p.walking = true; }
+          if (k > cl) c.busy = false;
+        }
+        continue;
+      }
+      if (p.car && p.car.door > 0 && p.car.busy && !p.then){ p.car.door = Math.max(0, p.car.door - dt / IN.close); if (p.car.door === 0) p.car.busy = false; }
       if (p.i < p.path.length - 1){
         const [tx, ty] = p.path[p.i + 1], dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy), s = p.speed * dt;
         if (d <= s){ p.x = tx; p.y = ty; p.i++; } else { p.x += dx / d * s; p.y += dy / d * s; if (Math.abs(dx) > 0.01) p.flip = dx < 0; p.back = dy < -0.01 && Math.abs(dx) < 0.01; }
       }
-      // Fading in through the doors (or out of them), and away at the end of the walk.
-      const doorF = Math.max(0, Math.min(1, (p.y - doorY) / 0.3)), done = p.i >= p.path.length - 1;
+      const done = p.i >= p.path.length - 1;
+      if (done && p.then === 'in'){ p.mode = 'in'; p.tt = 0; p.then = null; p.back = false; continue; }
+      // Fading in through the mall's doors (or out of them), and away at the end of a stroll.
+      const doorF = Math.max(0, Math.min(1, (p.y - doorY) / 0.3));
       if (done) p.out = Math.max(0, (p.out === undefined ? 1 : p.out) - dt * 3);
       p.a = Math.min(1, p.age * 2.5) * (p.door ? doorF : 1) * (p.out === undefined ? 1 : p.out);
     }
+    for (const c of L.lots) if (c.blink > 0 && (c.blink += dt) > IN.blink) c.blink = 0;
     for (let k = people.length - 1; k >= 0; k--) if (people[k].out === 0) people.splice(k, 1);
   }
 
@@ -243,11 +336,17 @@ export function startTitleScene(parent, { mall } = {}){
     drawSign(g, t);
     // Light pools under the lamps, and people and cars sorted by how far down they are.
     g.save(); g.globalCompositeOperation = 'lighter';
-    for (const lx of L.lamps){ const gl = g.createRadialGradient(lx, 7.5, 0.1, lx, 7.5, 1.9); gl.addColorStop(0, 'rgba(255,220,140,.32)'); gl.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = gl; A.ell(lx, 7.5, 1.9, 0.9); g.fill(); const hg = g.createRadialGradient(lx, 4.8, 0, lx, 4.8, 0.8); hg.addColorStop(0, 'rgba(255,240,180,.55)'); hg.addColorStop(1, 'rgba(255,240,180,0)'); g.fillStyle = hg; A.circ(lx, 4.8, 0.8); g.fill(); }
+    const ly = L.base + 0.46;
+    for (const lx of L.lamps){ const gl = g.createRadialGradient(lx, ly + 0.2, 0.1, lx, ly + 0.2, 1.7); gl.addColorStop(0, 'rgba(255,220,140,.34)'); gl.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = gl; A.ell(lx, ly + 0.2, 1.7, 0.75); g.fill(); }
     for (const c of cars){ const f = c.dir === 'right' ? 1 : -1, bx = c.x + f * 0.6; const beam = g.createRadialGradient(bx, c.y - 0.2, 0, bx + f * 1.1, c.y - 0.2, 1.4); beam.addColorStop(0, 'rgba(255,240,180,.45)'); beam.addColorStop(1, 'rgba(255,240,180,0)'); g.fillStyle = beam; g.beginPath(); g.moveTo(bx, c.y - 0.3); g.lineTo(bx + f * 2.2, c.y - 0.7); g.lineTo(bx + f * 2.2, c.y + 0.25); g.closePath(); g.fill(); }
     g.restore();
-    const Q = [...people.map(p => [p.y, () => drawPerson(g, p, t)]), ...cars.map(c => [c.y, () => car(g, c.x, c.y, c.c, c.dir, t)])].sort((a, b) => a[0] - b[0]);
+    const Q = [...people.map(p => [p.y, () => drawPerson(g, p, t)]), ...cars.map(c => [c.y, () => car(g, c.x, c.y, c.c, c.dir, t)]),
+      ...L.lots.map(c => [c.by, () => parkedCar(g, c)]), ...L.lamps.map(lx => [ly, () => streetLamp(g, lx, ly)])].sort((a, b) => a[0] - b[0]);
     for (const [, f] of Q) f();
+    // The lamps' lanterns glow over everything.
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for (const lx of L.lamps){ const hy = ly - 2.38, hg = g.createRadialGradient(lx, hy, 0, lx, hy, 0.75); hg.addColorStop(0, 'rgba(255,240,180,.6)'); hg.addColorStop(1, 'rgba(255,240,180,0)'); g.fillStyle = hg; A.circ(lx, hy, 0.75); g.fill(); }
+    g.restore();
     // A soft vignette, and the warm white of the mall's lights as we go in.
     const vg = g.createRadialGradient(W / 2, 4.5, 3, W / 2, 4.5, W * 0.7); vg.addColorStop(0, 'rgba(20,10,30,0)'); vg.addColorStop(1, 'rgba(20,10,30,.45)');
     g.fillStyle = vg; g.fillRect(-W, -9, W * 3, 27);
@@ -257,7 +356,7 @@ export function startTitleScene(parent, { mall } = {}){
   function drawPerson(g, p, t){
     if (p.a <= 0.01) return;
     g.save(); g.globalAlpha = p.a;
-    A.person(p.x, p.y, { ...p.look, t: p.t, walk: true, flip: p.flip, back: p.back, s: 0.68 });
+    A.person(p.x, p.y, { ...p.look, t: p.t, walk: p.mode === 'walk', flip: p.flip, back: p.back, s: 0.68 });
     g.restore();
   }
   function drawDoors(g){
@@ -347,6 +446,8 @@ export function startTitleScene(parent, { mall } = {}){
     g.restore();
   }
 
+  // For playtests: what's going on in the scene.
+  cv.__scene = { people, get lots(){ return L.lots; } };
   resize();
   if (document.fonts && document.fonts.load) document.fonts.load("700 20px Fredoka").then(() => { if (!gone) resize(); }).catch(() => {});
   const onResize = () => resize();
