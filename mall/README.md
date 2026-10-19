@@ -46,6 +46,7 @@ Requires Node 22+, JDK 21 and the Android SDK (platform 36). The version number 
 web/src/
   main.js      game flow: title, intro, day, report, night
   sim.js       day simulation: customers, owner jobs, staff, trash, Gus, ratings, report
+  titlescene.js the title screen: the mall's outside at dusk, the neon sign, walking in through the doors
   play.js      kids play area layout and the kids' slide / ball pit routines (shared by sim and art)
   map.js       tile grid, flow-field pathfinding, placement rules
   render.js    camera, cached floor layer, depth-sorted drawing, lighting, overlays

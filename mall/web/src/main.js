@@ -5,6 +5,7 @@ import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
 import { initInput } from './input.js';
+import { startTitleScene } from './titlescene.js';
 import { unlockAudio, sfx, setMusicMode, applySettings, setBackground } from './audio.js';
 import * as UI from './ui.js';
 import { runDay1, pumpWaiters, tip, updateTips, resetTipBudget, maybeMemory, gusWantsToVisit, runDeeScene, deeSceneRunning, runExpandScene, runClerkScene, runStoreScene, runTroubleScene, setNightIntro } from './guide.js';
@@ -12,7 +13,8 @@ import { nightTap, openBuild, openStaff, openNotebook, placing, grabGhost, dragG
 import { MEET_GUS, MEMORIES } from './story.js';
 
 const canvas = document.getElementById('world');
-let phase = 'title';           // title | intro | day | report | night
+let phase = 'title';
+let titleScene = null;           // title | intro | day | report | night
 let gusToday = false;
 
 loadSettings();
@@ -65,7 +67,11 @@ function boot(){
   view.mode = 'night'; phase = 'title';
   view.cam.x = 13; view.cam.y = 8; view.cam.s = view.minS * 1.15; clampCam();
   UI.setHudMode('none');
-  UI.showTitle({ hasSave: !!saved, onContinue: continueGame, onNew: newGame, onSettings: () => settings(false) });
+  // The title is the outside of the mall at dusk; starting walks in through its doors.
+  titleScene = startTitleScene(document.getElementById('ui'), { mall: saved && saved.player && saved.player.mall });
+  view.covered = true;
+  const enter = go => async () => { await titleScene.enter(); view.covered = false; go(); titleScene.fadeOut(); titleScene = null; };
+  UI.showTitle({ hasSave: !!saved, onContinue: enter(continueGame), onNew: enter(newGame), onSettings: () => settings(false) });
   UI.iosInstallTip();
 }
 async function newGame(){
@@ -347,7 +353,7 @@ function frame(now){
     if (Math.abs(c.x - px) + Math.abs(c.y - py) + Math.abs(c.s - ps) / 40 < 0.003) view.camTarget = null;
   }
   const p1 = performance.now();
-  render(t);
+  if (!view.covered) render(t);
   const p2 = performance.now();
   perf.step = perf.step * 0.95 + (p1 - p0) * 0.05; perf.render = perf.render * 0.95 + (p2 - p1) * 0.05;
   if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? topFloor() : 0, view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }

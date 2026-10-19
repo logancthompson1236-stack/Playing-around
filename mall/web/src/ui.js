@@ -276,8 +276,9 @@ export function confirmBox(text, yes = 'Yes', no = 'Cancel', detail = ''){
 
 /* ---------- Title ---------- */
 export function showTitle({ hasSave, onContinue, onNew, onSettings }){
+  // The logo is the neon sign on the mall in the title scene behind (titlescene.js).
   const el = h('div', { class: 'title' },
-    h('div', { class: 'logo' }, 'Mall Revival', h('small', {}, 'bring it back to life')),
+    h('h1', { class: 'sr-only' }, 'Mall Revival'),
     h('div', { class: 'buttons' },
       hasSave ? h('button', { class: 'btn primary', onclick: () => { el.remove(); onContinue(); } }, 'Continue') : null,
       h('button', { class: `btn ${hasSave ? '' : 'primary'}`, onclick: async () => { if (hasSave && !(await confirmBox('Start over? Your current mall will be lost.', 'Start over'))) return; el.remove(); onNew(); } }, 'New game'),
