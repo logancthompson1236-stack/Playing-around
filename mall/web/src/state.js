@@ -4,7 +4,8 @@ import { START_CASH, START_UNITS, START_KIOSKS, STORES, DECOR, VERSION, LEVEL_XP
 const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
 
-export const S = { save: null, settings: { sound: true, music: true, tips: true } };
+// Volumes are 0-100. `sound` and `music` follow them (on when above zero); older settings only had the switches.
+export const S = { save: null, settings: { sound: true, music: true, tips: true, volMaster: 80, volSfx: 80, volMusic: 70, saver: false } };
 
 export function newSave(player){
   const save = {
@@ -88,11 +89,34 @@ export function writeSave(){
   if (!S.save) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S.save)); } catch {}
 }
+// A save backup is the last saved copy (from the end of the last night) as a code to copy and paste,
+// e.g. from the Android app to an iPhone.
+const CODE_TAG = 'MALL1:';
+export function exportSave(){
+  const raw = localStorage.getItem(SAVE_KEY);
+  return raw ? CODE_TAG + btoa(unescape(encodeURIComponent(raw))) : null;
+}
+// Returns the save the code holds (for a confirm), or null if it isn't one.
+export function readSaveCode(code){
+  try {
+    const t = String(code).trim(), raw = t.startsWith(CODE_TAG) ? decodeURIComponent(escape(atob(t.slice(CODE_TAG.length)))) : t;
+    const s = JSON.parse(raw);
+    return s && s.v === 1 && s.player && Array.isArray(s.units) ? s : null;
+  } catch { return null; }
+}
+export function importSave(s){
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); return true; } catch { return false; }
+}
 export function clearSave(){
   try { localStorage.removeItem(SAVE_KEY); } catch {}
 }
 export function loadSettings(){
-  try { Object.assign(S.settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch {}
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch {}
+  if (saved.volSfx === undefined && saved.sound === false) saved.volSfx = 0;
+  if (saved.volMusic === undefined && saved.music === false) saved.volMusic = 0;
+  Object.assign(S.settings, saved);
+  S.settings.sound = S.settings.volSfx > 0; S.settings.music = S.settings.volMusic > 0;
 }
 export function writeSettings(){
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S.settings)); } catch {}

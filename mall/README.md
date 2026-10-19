@@ -11,7 +11,7 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 
 ## How to play (v0.16)
 
-- **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch, sorted onto shelves (All, **New** = unlocked but not owned yet, Food, Shops, Fun, Decor, Casino); **Fix up** has storage, the fountain and expansions; **Style** has wallpaper and floors. Swipe the cards sideways.
+- **Mall Market** (Build, at night): a full-screen shop. **Shop** has every store, stand and decor piece as a card with a little pitch: switch between All, Stores & Stands and Decor, and pick a category (Food, Retail, Fun, Scenery, Casino). Things you don't own yet come first; a New tag marks anything just unlocked; **Fix up** has storage, the fountain and expansions; **Style** has wallpaper and floors. Swipe the cards sideways.
 
 - **iPhone:** open the GitHub Pages link in Safari, tap Share, then Add to Home Screen. It runs full screen and opens offline after the first visit (the home-screen app keeps its own save).
 
@@ -26,7 +26,7 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 - **Staff panel:** tabs along the top show one role at a time (or All); the team is grouped by role.
 - **Supervisor** (level 5): makes the rounds, gets staff off their phones for you, and gives nearby staff a small boost.
 - **Mall styles** (level 10): Build → Style changes the wallpaper and the concourse floor. Tap one to preview it, **Next** to flip through, then **Buy** or **Use it**.
-- **Pause → Reset save** starts over from the intro.
+- **Settings:** volume sliders, battery saver, save backup/restore (move your mall between devices), and Reset save (it's only in Settings now).
 - **Night:** tap **Build** and pick a store. Every storefront of its size lights up with its price (fixing up a boarded-up one is included). Tap one, then **Open**. **Build new** puts up a brand-new storefront anywhere instead; building on dusty storage clears that room out as part of the price. Tap things in the mall to move, close or sell them, or to fix the fountain. A store or piece being moved follows your finger, and its old spot shows empty. Stores and stands with nobody to run the register put out a **Help Wanted** sign at night; clerks without a register take new and empty ones on their own (their dream store first). **Staff** hires janitors (level 3), clerks (level 4, two at first; more at higher levels), a greeter (12) and Sunny the mascot (15). Applicants are rated 1–3 stars (better is faster and costs more), and clerks sell more in their dream store (♥). New hires are available the same night you unlock them.
 - Drag to look around, pinch (or scroll) to zoom.
 

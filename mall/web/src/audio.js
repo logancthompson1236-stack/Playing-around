@@ -8,8 +8,8 @@ export function unlockAudio(){
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   ac = new AC();
-  master = ac.createGain(); master.gain.value = 0.8; master.connect(ac.destination);
-  sfxBus = ac.createGain(); sfxBus.gain.value = S.settings.sound ? 0.7 : 0; sfxBus.connect(master);
+  master = ac.createGain(); master.gain.value = S.settings.volMaster / 100; master.connect(ac.destination);
+  sfxBus = ac.createGain(); sfxBus.gain.value = sfxLevel(); sfxBus.connect(master);
   musicBus = ac.createGain(); musicBus.gain.value = 0; musicBus.connect(master);
   applySettings();
 }
@@ -18,9 +18,12 @@ export function setBackground(hidden){
   if (!ac) return;
   if (hidden) ac.suspend(); else ac.resume();
 }
+const sfxLevel = () => 0.85 * S.settings.volSfx / 100;
 export function applySettings(){
+  S.settings.sound = S.settings.volSfx > 0; S.settings.music = S.settings.volMusic > 0;
   if (!ac) return;
-  sfxBus.gain.setTargetAtTime(S.settings.sound ? 0.7 : 0, ac.currentTime, 0.05);
+  master.gain.setTargetAtTime(S.settings.volMaster / 100, ac.currentTime, 0.05);
+  sfxBus.gain.setTargetAtTime(sfxLevel(), ac.currentTime, 0.05);
   setMusicMode(mode);
 }
 
@@ -80,7 +83,7 @@ export function setMusicMode(m){
   mode = m;
   if (!ac) return;
   const on = S.settings.music && m !== 'off';
-  musicBus.gain.setTargetAtTime(on ? (m === 'night' ? 0.5 : 0.65) : 0, ac.currentTime, 0.6);
+  musicBus.gain.setTargetAtTime(on ? (m === 'night' ? 0.5 : 0.65) * S.settings.volMusic / 70 : 0, ac.currentTime, 0.6);
   if (on && !timer){
     nextBar = ac.currentTime + 0.1;
     timer = setInterval(() => {

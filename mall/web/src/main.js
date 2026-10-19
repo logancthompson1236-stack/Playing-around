@@ -287,10 +287,13 @@ function pauseMenu(){
   if (pauseOpen) return;
   pauseOpen = true;
   sim.paused = true;
+  // Reset save lives in Settings now, out of the way.
+  const s = S.save;
   const m = UI.modal(UI.h('div', {}, UI.h('h2', {}, 'Paused'),
+    UI.h('p', { style: 'margin:0 0 4px;font:600 15px var(--display)' }, `${s.player.mall} · Day ${s.day} · Level ${s.level}`),
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
-    UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end' },
-      UI.h('button', { class: 'btn danger', onclick: async () => { close(); if (await UI.confirmResetSave()){ clearSave(); location.reload(); } else pauseMenu(); } }, 'Reset save'),
+    UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap' },
+      UI.h('button', { class: 'btn', onclick: () => { close(); UI.showHelp(pauseMenu); } }, 'How to play'),
       UI.h('button', { class: 'btn', onclick: () => { close(); settings(true, pauseMenu); } }, 'Settings'),
       UI.h('button', { class: 'btn primary', onclick: () => { close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { close(); sim.paused = false; } });
   const close = () => { m.close(); pauseOpen = false; };
@@ -314,6 +317,8 @@ let last = performance.now(), hudT = 0;
 const perf = { step: 0, render: 0 };   // smoothed ms per frame, for playtests
 const t0 = performance.now();
 function frame(now){
+  // Battery saver: every other frame on a 60 Hz screen (about 30 a second).
+  if (S.settings.saver && now - last < 30){ requestAnimationFrame(frame); return; }
   // A long gap between frames means the app was frozen in the background: come back paused.
   if (now - last > 1500 && phase === 'day' && !sim.paused) pauseMenu();
   const dt = Math.min(0.1, (now - last) / 1000); last = now;

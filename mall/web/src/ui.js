@@ -1,7 +1,7 @@
 // DOM overlay: HUD, panels, dialogs, tips, toasts and full-screen screens. Game rules live elsewhere.
 import * as A from './art.js';
 import * as C from './config.js';
-import { S, levelProgress } from './state.js';
+import { S, levelProgress, exportSave, readSaveCode, importSave } from './state.js';
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
@@ -473,19 +473,89 @@ export function showReport(r, firstDay){
 }
 
 /* ---------- Settings ---------- */
+// Sound (three volume sliders), game options, the save (back up, restore, and Reset save, kept in here so nobody
+// taps it by accident) and the version.
 export function showSettings({ onRestart, onChange, inGame, onClose }){
-  const tog = (key, label) => {
-    const b = h('button', { class: 'toggle', 'aria-pressed': S.settings[key] ? 'true' : 'false', 'aria-label': label, onclick: () => { S.settings[key] = !S.settings[key]; b.setAttribute('aria-pressed', S.settings[key]); onChange(); } });
-    return h('div', { class: 'row' }, h('span', {}, label), b);
+  const set = S.settings;
+  const tog = (key, label, note) => {
+    const b = h('button', { class: 'toggle', 'aria-pressed': set[key] ? 'true' : 'false', 'aria-label': label, onclick: () => { set[key] = !set[key]; b.setAttribute('aria-pressed', set[key]); onChange(); } });
+    return h('div', { class: 'row' }, h('span', {}, label, note ? h('small', {}, note) : null), b);
   };
+  const slider = (key, label, preview) => {
+    const val = h('span', { class: 'val' }, `${set[key]}%`);
+    const r = h('input', { type: 'range', min: 0, max: 100, step: 5, value: set[key], 'aria-label': label });
+    r.addEventListener('input', () => { set[key] = +r.value; val.textContent = set[key] ? `${set[key]}%` : 'Off'; onChange(); });
+    r.addEventListener('change', () => preview && preview());
+    if (!set[key]) val.textContent = 'Off';
+    return h('div', { class: 'row slider' }, h('span', {}, label), r, val);
+  };
+  const close = () => { m.close(); onClose && onClose(); };
+  const hasSave = !!exportSave();
   const m = modal(h('div', { class: 'settings' },
     h('h2', {}, 'Settings'),
-    tog('sound', 'Sound effects'), tog('music', 'Music'), tog('tips', 'Notebook tips'),
+    h('div', { class: 'set-cols' },
+      h('section', {},
+        h('div', { class: 'section-label' }, 'Sound'),
+        slider('volMaster', 'Master', () => sfx('coin')), slider('volSfx', 'Sound effects', () => sfx('coin')), slider('volMusic', 'Music')),
+      h('section', {},
+        h('div', { class: 'section-label' }, 'Game'),
+        tog('tips', 'Notebook tips', 'Helpful tips at night'),
+        tog('saver', 'Battery saver', 'Draws at 30 frames a second'),
+        h('div', { class: 'section-label' }, 'Your save'),
+        h('div', { class: 'row' }, h('span', {}, 'Move to another device', h('small', {}, 'Copy a backup code, paste it on the other one')),
+          h('span', { style: 'display:flex;gap:6px' },
+            h('button', { class: 'btn small', disabled: !hasSave, onclick: () => backupBox() }, 'Back up'),
+            h('button', { class: 'btn small', onclick: () => restoreBox() }, 'Restore'))),
+        inGame ? h('div', { class: 'row' }, h('span', {}, 'Start over', h('small', {}, 'Deletes this mall for good')),
+          h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save')) : null)),
     h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px' },
       h('span', { class: 'muted' }, `Mall Revival v${C.VERSION}`),
-      h('div', { style: 'display:flex;gap:8px' },
-        inGame ? h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save') : null,
-        h('button', { class: 'btn primary small', onclick: () => { m.close(); onClose && onClose(); } }, 'Done')))), { onBackdrop: () => { m.close(); onClose && onClose(); } });
+      h('button', { class: 'btn primary small', onclick: close }, 'Done'))), { onBackdrop: close });
+}
+// A quick refresher, from the pause menu.
+export function showHelp(onClose){
+  const tip = (title, text) => h('div', { class: 'row', style: 'display:block' }, h('b', {}, title), h('small', { style: 'font-size:13px' }, text));
+  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'How to play'),
+    h('div', { class: 'set-cols' },
+      h('section', {},
+        tip('Daytime', 'Tap a shopper’s bubble or a store to rush to that register. Tap trash to sweep it. You can queue up to 3 jobs.'),
+        tip('Lines', 'Shoppers who wait too long leave frustrated. Hire clerks to keep registers staffed.'),
+        tip('Floors', 'Tap the arrows on the left to switch floors. A red dot means something up or down there needs you.')),
+      h('section', {},
+        tip('Night', 'Build opens the Mall Market: stores, stands, decor, fix-ups and styles. Tap anything in the mall to move, close or sell it.'),
+        tip('Staff', 'Hire janitors, clerks and more under Staff. Stores with a Help Wanted sign need a clerk.'),
+        tip('Camera', 'Drag to look around, pinch or scroll to zoom.'))),
+    h('div', { style: 'display:flex;justify-content:flex-end;margin-top:10px' }, h('button', { class: 'btn primary small', onclick: () => { m.close(); onClose && onClose(); } }, 'Got it'))),
+    { onBackdrop: () => { m.close(); onClose && onClose(); } });
+}
+// The backup code, ready to copy.
+function backupBox(){
+  const code = exportSave(); if (!code) return;
+  const ta = h('textarea', { readonly: true, rows: 4, 'aria-label': 'Backup code' }); ta.value = code;
+  const msg = h('p', { class: 'muted', style: 'margin:6px 0 0' }, 'This is your mall as of the end of the last night. Keep it somewhere safe, or paste it into Settings → Restore on another device.');
+  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'Back up your save'), ta, msg,
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px' },
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Close'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        let ok = false;
+        try { await navigator.clipboard.writeText(code); ok = true; } catch { ta.select(); try { ok = document.execCommand('copy'); } catch {} }
+        msg.textContent = ok ? 'Copied! Paste it into Settings → Restore on the other device.' : 'Select the code above and copy it.';
+        sfx('coin');
+      } }, 'Copy code'))));
+  setTimeout(() => ta.select(), 50);
+}
+function restoreBox(){
+  const ta = h('textarea', { rows: 4, placeholder: 'Paste a backup code here', 'aria-label': 'Backup code' });
+  const msg = h('p', { class: 'muted', style: 'margin:6px 0 0' }, 'Restoring replaces the mall on this device with the one in the code.');
+  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'Restore a save'), ta, msg,
+    h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;margin-top:10px' },
+      h('button', { class: 'btn', onclick: () => m.close() }, 'Cancel'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        const save = readSaveCode(ta.value);
+        if (!save){ sfx('error'); msg.textContent = 'That doesn’t look like a Mall Revival backup code.'; return; }
+        if (!(await confirmBox(`Restore ${save.player.mall}?`, 'Restore', 'Cancel', `Day ${save.day}, level ${save.level}, $${Math.round(save.money).toLocaleString()}. This replaces the mall on this device.`))) return;
+        if (importSave(save)) location.reload(); else msg.textContent = 'Couldn’t save it on this device.';
+      } }, 'Restore'))));
 }
 
 /* ---------- Level ups ---------- */

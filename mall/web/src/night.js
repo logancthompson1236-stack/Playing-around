@@ -113,7 +113,8 @@ function openInUnit(u){
   const items = Object.entries(C.STORES)
     .filter(([, def]) => !def.kiosk && fits(def, u) && (!def.casino || floorOf(u.x) === 2))
     .map(([key, def]) => storeEntry(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }))
-    .sort((a, b) => (a.locked - b.locked) || (a.locked ? a.level - b.level : a.cost - b.cost));
+    .sort(byRank);
+  fresh = new Set(); noticeNew(items);
   openPanel({ title: 'Open a store here', full: true, headerExtra: h('span', { class: 'chip mk-money' }, money(s.money)), render: body => {
     body.append(h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-hint', style: 'margin-left:0' },
       `${u.state === 'derelict' ? 'Boarded-up' : 'Empty'} ${u.w}×${u.h} storefront · every ${u.w}×${u.h} store fits${fix ? ` · prices include ${money(fix)} to fix it up` : ''}`)));
@@ -175,10 +176,28 @@ function zoneCard(z){
 /* ---------- The Mall Market (Build menu) ---------- */
 // A full-screen shop: Shop (stores, stands, decor), Fix up (storage, the fountain, expansions) and Style.
 // Shop items sit on shelves (Food, Shops, Fun, Decor, Casino), with All and New (unlocked, not owned yet) up front.
-let shelf = 'all';
-export function openBuild(startTab = 0, startShelf = null){
+// The Shop tab filters by type (all, stores and stands, decor) and by category. Its cards are grouped: things
+// you can buy and don't own yet first, then each category in turn (what you own, then what's still locked).
+// A New tag shows on something the first time the market opens after it unlocks.
+let kind = 'all', shelf = 'all', fresh = new Set();
+const KINDS = [['all', 'All'], ['stores', 'Stores & Stands'], ['decor', 'Decor']];
+function seenSet(){
+  const s = S.save;
+  if (!s.flags.shopSeen){
+    // First time with New tags: everything unlocked before this level counts as already seen.
+    s.flags.shopSeen = [...shopItems(), ...styleItems()].filter(it => !it.locked && it.level < s.level).map(it => it.key);
+  }
+  return new Set(s.flags.shopSeen);
+}
+function noticeNew(items){
+  const seen = seenSet(), now = items.filter(it => !it.locked && !seen.has(it.key)).map(it => it.key);
+  for (const k of now) fresh.add(k);
+  if (now.length){ S.save.flags.shopSeen.push(...now); writeSave(); }
+}
+export function openBuild(startTab = 0, startKind = null){
   endPick(); endPlacement(); endStyle(); hideCard(); view.selected = null;
-  if (startShelf) shelf = startShelf;
+  if (startKind){ kind = startKind; shelf = 'all'; }
+  fresh = new Set(); noticeNew([...shopItems(), ...styleItems()]);
   openPanel({ title: 'Build', heading: 'Mall Market', full: true, tabs: ['Shop', 'Fix up', 'Style'], tab: startTab,
     headerExtra: h('span', { class: 'chip mk-money' }, money(S.save.money)),
     render: (body, tab, redraw) => {
@@ -189,8 +208,8 @@ export function openBuild(startTab = 0, startShelf = null){
 }
 // A store's Mall Market card.
 function storeEntry(key, def, cost, pick){
-  const s = S.save, [sh, blurb] = STORE_INFO[key] || ['shops', ''], noCasino = def.casino && !s.expansions.casino;
-  return { shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false, pick,
+  const s = S.save, [sh, blurb] = STORE_INFO[key] || ['retail', ''], noCasino = def.casino && !s.expansions.casino;
+  return { key: 's:' + key, shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false, pick,
     icon: () => A.storeIcon(def.icon, 0.5, 0.5, 0.62),
     kind: def.kiosk ? 'Stand' : def.attraction ? `Attraction ${def.w}×${def.h}` : `Store ${def.w}×${def.h}`,
     stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}`,
@@ -204,9 +223,9 @@ function shopItems(){
     out.push(storeEntry(key, def, room.length ? room[0].cost : newCost(key), () => { closePanel(); startPick(key); }));
   }
   for (const [key, def] of Object.entries(C.DECOR)){
-    const [sh, blurb] = DECOR_INFO[key] || ['decor', ''];
+    const [sh, blurb] = DECOR_INFO[key] || ['scenery', ''];
     const noCasino = def.casino && !s.expansions.casino;
-    out.push({ shelf: sh, name: def.name, blurb, level: def.level, cost: def.cost, decor: true,
+    out.push({ key: 'd:' + key, shelf: sh, name: def.name, blurb, level: def.level, cost: def.cost, decor: true,
       icon: () => A.decorThumb(key, def.w),
       kind: `${def.game ? 'Game table' : def.coin ? 'Machine' : def.play ? 'Play area' : 'Decor'} ${def.w}×${def.h}`,
       stats: def.sub.replace(/^\+ambience$/, 'Makes the mall nicer (+ambience)') + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : ''),
@@ -214,17 +233,36 @@ function shopItems(){
       have: s.decor.filter(d => d.type === key).length,
       pick: () => { closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } });
   }
-  // What you can buy now first (stores, then decor, cheapest first), then what's coming, in level order.
-  return out.sort((a, b) => (a.locked - b.locked) || (a.locked ? a.level - b.level : (a.decor - b.decor) || a.cost - b.cost));
+  return out;
 }
+// Buyable and not owned, then owned, then locked (in unlock order).
+const rank = it => it.locked ? 2 : it.have ? 1 : 0;
+const byRank = (a, b) => (rank(a) - rank(b)) || (rank(a) === 2 ? a.level - b.level : a.cost - b.cost);
 function shopTab(body, redraw){
-  const items = shopItems(), fresh = items.filter(it => !it.locked && !it.have);
-  const shown = items.filter(it => shelf === 'all' || (shelf === 'new' ? !it.locked && !it.have : it.shelf === shelf));
-  body.append(h('div', { class: 'mk-shelves', role: 'tablist', 'aria-label': 'Shelves' },
-    SHELVES.map(sv => h('button', { class: 'mk-shelf', role: 'tab', 'aria-selected': shelf === sv.id ? 'true' : 'false', style: sv.color ? `--c:${sv.color}` : '',
-      onclick: () => { sfx('tap'); shelf = sv.id; redraw(); } }, sv.name, sv.id === 'new' && fresh.length ? h('span', { class: 'mk-count' }, fresh.length) : null)),
-    h('span', { class: 'mk-hint' }, 'Stores open in a glowing storefront · decor goes anywhere')));
-  body.append(shown.length ? cardRow(shown) : h('div', { class: 'mk-empty' }, shelf === 'new' ? 'You own one of everything you’ve unlocked. Level up for more!' : 'Nothing here yet.'));
+  const ofKind = shopItems().filter(it => kind === 'all' || (kind === 'decor') === it.decor);
+  const cats = SHELVES.filter(sv => ofKind.some(it => it.shelf === sv.id));
+  if (shelf !== 'all' && !cats.some(c => c.id === shelf)) shelf = 'all';
+  const chip = (id, name, color, sel, onclick, cls) => h('button', { class: cls, role: 'tab', 'aria-selected': sel ? 'true' : 'false', style: color ? `--c:${color}` : '', onclick: () => { sfx('tap'); onclick(); redraw(); } }, name);
+  body.append(h('div', { class: 'mk-shelves' },
+    h('span', { class: 'mk-seg', role: 'tablist', 'aria-label': 'Type' }, KINDS.map(([id, name]) => chip(id, name, null, kind === id, () => { kind = id; }, 'mk-segbtn'))),
+    h('span', { class: 'mk-div' }),
+    h('span', { class: 'mk-cats', role: 'tablist', 'aria-label': 'Category' },
+      chip('all', 'All', null, shelf === 'all', () => { shelf = 'all'; }, 'mk-shelf'),
+      cats.map(c => chip(c.id, c.name, c.color, shelf === c.id, () => { shelf = c.id; }, 'mk-shelf')))));
+  const out = [];
+  if (shelf === 'all'){
+    // Everything: what you could add next up front, then category by category.
+    const next = ofKind.filter(it => rank(it) === 0).sort((a, b) => SHELVES.findIndex(c => c.id === a.shelf) - SHELVES.findIndex(c => c.id === b.shelf) || a.cost - b.cost);
+    if (next.length) out.push({ sep: 'Not owned yet', color: '#3fb8af' }, ...next);
+    for (const c of cats){
+      const rest = ofKind.filter(it => it.shelf === c.id && rank(it) > 0).sort(byRank);
+      if (rest.length) out.push({ sep: c.name, color: c.color }, ...rest);
+    }
+  } else {
+    const list = ofKind.filter(it => it.shelf === shelf).sort(byRank);
+    ['Not owned yet', 'Owned', 'Coming soon'].forEach((name, r) => { const g = list.filter(it => rank(it) === r); if (g.length) out.push({ sep: name, color: shelfColor(shelf) }, ...g); });
+  }
+  body.append(out.length ? cardRow(out) : h('div', { class: 'mk-empty' }, 'Nothing here yet.'));
 }
 function fixTab(body){
   const s = S.save, f = C.FOUNTAIN, items = [];
@@ -240,20 +278,21 @@ function fixTab(body){
   for (const e of C.EXPANSIONS){
     const done = !!s.expansions[e.id], prev = e.requires && C.EXPANSIONS.find(q => q.id === e.requires), blocked = prev && !s.expansions[prev.id];
     items.push({ shelf: e.id === 'casino' || e.id === 'vip' ? 'casino' : 'fun', name: e.name, kind: 'Expansion', icon: () => A.storeIcon('sun', 0.5, 0.5, 0.62), cost: e.cost,
-      blurb: e.sub + '.', done, doneText: 'Open', locked: s.level < e.level || blocked, lockText: s.level < e.level ? `Level ${e.level}` : prev ? `After ${prev.name}` : "",
+      blurb: e.sub + '.', done, doneText: 'Open', locked: s.level < e.level || blocked, lockText: s.level < e.level ? `Level ${e.level}` : prev ? `After ${prev.name}` : '',
       pick: () => buyExpansion(e) });
   }
   // Still to do first, finished last.
   body.append(cardRow(items.sort((a, b) => (!!a.done - !!b.done) || (!!a.locked - !!b.locked))));
 }
 // The cards scroll sideways (or in two rows on a tall screen); a mouse wheel scrolls them too.
+// A { sep } entry is a slim label between groups.
 function cardRow(items){
-  const row = h('div', { class: 'mk-row' }, items.map(mkCard));
+  const row = h('div', { class: 'mk-row' }, items.map(it => it.sep ? h('div', { class: 'mk-sep', style: `--c:${it.color}` }, h('span', {}, it.sep)) : mkCard(it)));
   row.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ row.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
   return row;
 }
 function mkCard(it){
-  const afford = S.save.money >= it.cost, isNew = !it.locked && !it.done && it.have === 0;
+  const afford = S.save.money >= it.cost, isNew = !it.locked && fresh.has(it.key);
   const state = it.locked ? 'locked' : it.done ? 'owned' : it.priceText ? 'can' : afford ? 'can' : 'short';
   const price = it.locked ? it.lockText : it.done ? it.doneText : it.priceText || money(it.cost);
   return h('button', { class: `mk-card ${state}`, disabled: it.locked || (it.done && !it.openDone), style: `--c:${it.color || shelfColor(it.shelf)}`,
@@ -272,21 +311,24 @@ const LOCK = '<svg viewBox="0 0 12 14" width="11" height="13"><path d="M3 6V4a3 
 /* ---------- Mall styles: tap one to see it on the mall, then keep it or go back ---------- */
 const STYLE_SLOTS = { wall: { table: C.WALLPAPERS, label: 'Wallpaper', noun: 'wallpaper' }, floor: { table: C.FLOORS, label: 'Flooring', noun: 'floor' } };
 const ownsStyle = (slot, id) => S.save.style[slot + 's'].includes(id);
-function styleTab(body){
-  const s = S.save, locked = s.level < C.STYLE_LEVEL;
-  body.append(h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-hint', style: 'display:block' }, locked ? `Unlocks at level ${C.STYLE_LEVEL}: new wallpaper and flooring for the whole mall.` : 'Tap a style to try it on your mall. Ones you own are free to switch back to.')));
-  const items = [];
+function styleItems(){
+  const s = S.save, items = [];
   for (const [slot, { table, label }] of Object.entries(STYLE_SLOTS)){
     for (const [id, d] of Object.entries(table)){
       // Each style unlocks at its own level milestone.
       const have = ownsStyle(slot, id), inUse = s.style[slot] === id, needs = d.level || 0;
-      items.push({ shelf: 'style', color: slot === 'wall' ? '#3fb8af' : '#c9a227', name: d.name, kind: label, blurb: d.sub + (d.ambience ? ' · +ambience' : ''), cost: d.cost,
-        icon: () => styleSwatch(slot, id), locked: s.level < needs && !have, lockText: `Level ${needs}`,
+      items.push({ key: `${slot}:${id}`, shelf: 'style', color: slot === 'wall' ? '#3fb8af' : '#c9a227', name: d.name, kind: label, blurb: d.sub + (d.ambience ? ' · +ambience' : ''), cost: d.cost, level: needs,
+        icon: () => styleSwatch(slot, id), locked: (s.level < needs || s.level < C.STYLE_LEVEL) && !have, lockText: `Level ${Math.max(needs, C.STYLE_LEVEL)}`,
         done: inUse, doneText: 'In use', openDone: true, priceText: !inUse && have ? 'Owned' : null, have: have ? -1 : 0,
         pick: () => { closePanel(); startStyle(slot, id); } });
     }
   }
-  body.append(cardRow(items));
+  return items;
+}
+function styleTab(body){
+  const locked = S.save.level < C.STYLE_LEVEL;
+  body.append(h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-hint', style: 'display:block;margin-left:0' }, locked ? `Unlocks at level ${C.STYLE_LEVEL}: new wallpaper and flooring for the whole mall.` : 'Tap a style to try it on your mall. Ones you own are free to switch back to.')));
+  body.append(cardRow(styleItems()));
 }
 // A little square of wall over floor (wallpaper), or just floor.
 export function styleSwatch(slot, id){
