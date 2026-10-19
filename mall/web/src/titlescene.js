@@ -135,15 +135,11 @@ export function startTitleScene(parent, { mall } = {}){
     g.setLineDash([0.35, 0.3]); g.strokeStyle = 'rgba(255,214,90,.6)'; g.beginPath(); g.moveTo(0, 7.52); g.lineTo(W, 7.52); g.stroke(); g.setLineDash([]);
     // Palms in planters by the doors, bushes along the curb.
     for (const px of [L.door.x0 - 1.55, L.door.x1 + 1.55]){ A.box(px - 0.32, base + 0.12, 0.64, 0.3, 0.3, '#e09a7a', '#c97b5a'); A.palm(px, base + 0.15); }
-    // A row of bushes along the foot of the wings, under the shop windows.
+    // A row of bushes snug against the foot of the wings, under the shop windows.
     const rb = A.mulberry(13);
-    for (const [a, b] of [[x0 + 0.35, c0 - 0.3], [c1 + 0.3, x1 - 0.35]]){
-      const n = Math.max(1, Math.round((b - a) / 1.15));
-      for (let i = 0; i <= n; i++){
-        const bx = a + (b - a) * i / n, rx = 0.36 + rb() * 0.12;
-        A.ell(bx, base + 0.08, rx, 0.2); A.fs('#4fa85e', 0.035); A.ell(bx - rx * 0.35, base, rx * 0.45, 0.11); A.fs('#6cc47a', 0);
-        if (rb() < 0.5){ A.circ(bx + rx * 0.3, base + 0.02, 0.04); A.fs(rb() < 0.5 ? '#ff8fab' : '#ffd23f', 0.015); }
-      }
+    for (const [a, b] of [[x0 + 0.4, c0 - 0.35], [c1 + 0.35, x1 - 0.4]]){
+      const n = Math.max(1, Math.round((b - a) / 0.95));
+      for (let i = 0; i <= n; i++) bush(g, a + (b - a) * i / n, base + 0.05, 0.78 + rb() * 0.16, 0.62 + rb() * 0.14, rb);
     }
     // The mall's own name on a pylon sign at the edge of the lot.
     const name = (mall || 'Sunnyside Mall').toUpperCase(), sx = L.signX, sy = base + 0.55;
@@ -152,6 +148,27 @@ export function startTitleScene(parent, { mall } = {}){
     A.rr(sx + 0.08, sy - 3.12, 0.84, 0.99, 0.08); A.fs('#fff6ea', 0.03);
     const words = name.split(' '), mid = Math.ceil(words.length / 2), lines = words.length > 1 ? [words.slice(0, mid).join(' '), words.slice(mid).join(' ')] : [name];
     lines.forEach((ln, i) => A.text(ln, sx + 0.5, sy - 2.62 + (i - (lines.length - 1) / 2) * 0.26, 0.2, '#3a2346', 700, 'Fredoka', 0.76));
+  }
+
+  // A rounded bush: a clump of leafy puffs with one outline around the lot, darker underneath, lit on top,
+  // a few leaf ticks and sometimes little flowers.
+  function bush(g, x, y, w, h, r){
+    A.shadow(x, y, w * 0.55, 0.07, 0.22);
+    const puffs = [[0, -h * 0.32, w * 0.46, h * 0.34]];
+    for (let i = 0; i < 5; i++){ const k = i / 4; puffs.push([(k - 0.5) * w * 0.72, -h * (0.5 + Math.sin(Math.PI * k) * 0.28), w * (0.2 + r() * 0.06), 0]); }
+    const blob = ([dx, dy, rx, ry]) => ry ? A.ell(x + dx, y + dy, rx, ry) : A.circ(x + dx, y + dy, rx);
+    for (const p of puffs){ blob(p); A.fs('#3f8f4f', 0.07); }
+    for (const p of puffs){ blob(p); A.fs('#3f8f4f', 0); }
+    for (const [dx, dy, rx, ry] of puffs.slice(1)){ A.circ(x + dx - rx * 0.12, y + dy - rx * 0.12, rx * 0.78); A.fs('#52ad61', 0); }
+    for (const [dx, dy, rx] of puffs.slice(1)){ A.circ(x + dx - rx * 0.3, y + dy - rx * 0.32, rx * 0.4); A.fs('#74c97f', 0); }
+    // Leaf ticks.
+    g.strokeStyle = 'rgba(40,90,50,.55)'; g.lineWidth = 0.022; g.lineCap = 'round'; g.beginPath();
+    for (let k = 0; k < 7; k++){ const lx = x + (r() - 0.5) * w * 0.75, ly = y - h * (0.15 + r() * 0.55); g.moveTo(lx, ly); g.lineTo(lx + 0.05, ly - 0.04); }
+    g.stroke();
+    if (r() < 0.55){
+      const fc = r() < 0.5 ? '#ff8fab' : r() < 0.5 ? '#ffd23f' : '#fff6ea';
+      for (let k = 0; k < 3; k++){ const fx = x + (r() - 0.5) * w * 0.6, fy = y - h * (0.35 + r() * 0.4); for (let q = 0; q < 5; q++){ A.circ(fx + Math.cos(q * 1.257) * 0.035, fy + Math.sin(q * 1.257) * 0.035, 0.028); A.fs(fc, 0); } A.circ(fx, fy, 0.022); A.fs('#ffb627', 0); }
+    }
   }
 
   /* ---------- Cars and people ---------- */

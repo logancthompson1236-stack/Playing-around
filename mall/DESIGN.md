@@ -747,3 +747,5 @@ v0.16.6: **a new title screen** (`web/src/titlescene.js`). The mall from the out
 v0.16.7, title screen polish: shoppers heading home walk up to the driver's side of their car, the door swings open, they climb in, it shuts and the lights blink; arriving shoppers climb out the same way and walk to the mall (front row of the lot). The street lamps stand along the front of the sidewalk, not in the lot, with light pools on the pavement. Parked cars are redrawn in the game's top-down-and-in-front view: roof, rear window sloping toward us, trunk, taillights, bumper and plate on the near end (headlights and grille for the cars facing us), wheels at the corners, mirrors, and a driver's door that opens.
 
 v0.16.8: on the title screen the bushes moved from the curb to a row along the foot of the building, under the shop windows, with a few flowers.
+
+v0.16.9: title screen bushes are taller and snug against the wall: clumps of leafy puffs with one outline, darker underneath and lit on top, leaf ticks, and little flowers on some.
