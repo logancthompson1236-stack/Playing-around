@@ -550,7 +550,12 @@ function profileHead(o){
   else { ell(0.13, -0.865, 0.032, 0.045); fs(OUT, 0); circ(0.142, -0.88, 0.011); fs('#fff', 0); }
   ell(0.13, -0.79, 0.05, 0.028); g.fillStyle = 'rgba(255,110,140,.4)'; g.fill();
   g.beginPath(); g.moveTo(0.262, -0.87); g.quadraticCurveTo(0.31, -0.83, 0.262, -0.805); g.strokeStyle = OUT; g.lineWidth = 0.025; g.stroke();
-  g.beginPath(); if (o.mood === 'wait' || o.mood === 'mad'){ g.moveTo(0.17, -0.785); g.lineTo(0.22, -0.785); } else g.arc(0.2, -0.8, 0.03, 0.4, Math.PI - 0.8); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke();
+  if (o.chew !== undefined){
+    // Chewing: the cheek puffs out and the mouth works open and shut.
+    ell(0.15, -0.79, 0.065, 0.045); g.fillStyle = 'rgba(255,110,140,.3)'; g.fill();
+    if (o.chew){ ell(0.205, -0.795, 0.022, 0.018); fs(OUT, 0); }
+    else { g.beginPath(); g.moveTo(0.18, -0.795); g.lineTo(0.225, -0.79); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke(); }
+  } else { g.beginPath(); if (o.mood === 'wait' || o.mood === 'mad'){ g.moveTo(0.17, -0.785); g.lineTo(0.22, -0.785); } else g.arc(0.2, -0.8, 0.03, 0.4, Math.PI - 0.8); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke(); }
   if (o.glasses){ circ(0.13, -0.865, 0.07); fs(null, 0.025); }
 }
 function face(o){
@@ -578,13 +583,19 @@ export function person(x, y, o){
   g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s);
   if (o.mop !== undefined){ ell(0.5, 0.04, 0.32, 0.1); g.fillStyle = 'rgba(150,210,240,.45)'; g.fill(); }
   if (!o.noShadow) shadow(0, 0, 0.24, 0.085, 0.22);
-  const ph = t * 9, sw = walking ? Math.sin(ph) : 0, sit = !!o.sit;
-  // Walking bobs twice a stride; standing still, folks breathe and now and then blink.
-  const bob = walking ? Math.abs(Math.sin(ph)) * 0.04 : 0, breathe = walking ? 0 : Math.sin(t * 2.2) * 0.01;
+  // Walking: steps keep pace with the ground covered (o.stride, in tiles) so feet don't skate, and kids take more of
+  // them. A full stride (two steps) is about 0.85 tiles, 1.2 at a run. o.side is how sideways they're heading (0 =
+  // toward or away from us, 1 = across): across, the legs and arms swing fore and aft; toward us, the feet lift.
+  const run = walking && !!o.run, side = walking ? Math.min(1, o.side ?? (o.back ? 0 : 1)) : 0, sit = !!o.sit;
+  const ph = o.stride !== undefined ? o.stride / s * (run ? 5.2 : 7.4) : t * 9, sw = walking ? Math.sin(ph) : 0;
+  // Highest when passing (one foot up), lowest as the heel lands; breathing and the odd blink when standing still.
+  const bob = walking ? Math.abs(Math.cos(ph)) * (run ? 0.07 : 0.04) : 0, breathe = walking ? 0 : Math.sin(t * 2.2) * 0.01;
   o = { ...o, blink: !walking && (t % 3.7) < 0.13 };
   // Side-on seats and machines show the person in profile.
   const profile = !o.back && (o.sitSide || o.reachSide);
   if (o.eat && !profile) o = { ...o, hold: o.eat, eat: undefined };
+  // Crouching down (to fish a can out of a machine's tray, say): knees bend, the body drops and leans in.
+  const crouch = o.crouch || 0, drop = crouch * 0.13, lean = (run ? 0.09 : walking ? 0.03 * side : 0) + crouch * 0.38;
   if (sit){
     // Seated: knees toward us, shins hanging over the seat edge, feet swinging a little.
     const swing = Math.sin(t * 2.4) * 0.025;
@@ -602,15 +613,22 @@ export function person(x, y, o){
     }
     g.translate(0, 0.1);
   } else {
-    // Each leg lifts and swings a touch forward in turn; the lifted one is a little shorter (knee bent).
+    // Each leg swings from the hip: forward with the foot up, back with it planted. Across the screen that's a
+    // stride; toward us it's mostly the foot lifting (and landing a touch nearer, or farther when seen from behind).
     for (const [lx, k] of [[-0.13, 1], [0.02, -1]]){
-      const lift = Math.max(0, sw * k) * 0.07, fwd = walking ? sw * k * 0.025 : 0;
-      rr(lx + fwd, -0.27 - lift * 0.4, 0.11, 0.24 - lift * 0.6, 0.05); fs(o.pants);
-      ell(lx + 0.055 + fwd, -0.035 - lift, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+      const fwd = walking ? Math.sin(ph) * k : 0, lift = walking ? Math.max(0, Math.cos(ph) * k) : 0;
+      const len = 0.235 - lift * (run ? 0.07 : 0.045) - crouch * 0.09, a = -fwd * side * (run ? 0.55 : 0.36) - crouch * 0.5;
+      const near = fwd * (1 - side) * (o.back ? -0.025 : 0.025);
+      g.save(); g.translate(lx + 0.055 + crouch * 0.04, -0.27 + drop + near - lift * (1 - side) * 0.03); g.rotate(a);
+      rr(-0.055, 0, 0.11, len + 0.035, 0.05); fs(o.pants);
+      ell(0.012 * side, len, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+      g.restore();
     }
   }
-  g.translate(0, -bob);
-  if (walking) g.rotate(sw * 0.03);
+  // The body hangs from the hips, so a lean or a crouch tips it over the legs.
+  g.translate(0, -0.27 - bob + drop); g.rotate(lean + (walking ? sw * 0.03 * (1 - side) : 0)); g.translate(0, 0.27);
+  // Where a point at the feet's frame (x, y) lands in the body's, for reaching to a spot on a machine.
+  const toBody = (x, y) => { const c = Math.cos(lean), sn = Math.sin(lean), dx = x, dy = y + 0.27 + bob - drop; return [dx * c + dy * sn, -dx * sn + dy * c - 0.27]; };
   if (o.back && o.hood){ circ(0, -0.88, 0.31); fs(o.shirt); }
   if (o.hairStyle === 'long' && !o.back){ if (profile){ rr(-0.32, -1.02, 0.36, 0.62, 0.18); fs(o.hair); } else { rr(-0.3, -1.05, 0.6, 0.6, 0.26); fs(o.hair); } }
   if (profile){ rr(-0.15, -0.63 - breathe, 0.3, 0.43 + breathe, 0.12); fs(o.shirt); }
@@ -646,14 +664,24 @@ export function person(x, y, o){
     g.restore();
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail') && !o.back && !walking && (t % 3.2) < 0.8;
+  const hand = [0.235, -0.31];   // the right hand, where a held item goes
+  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail') && !o.back && !walking && sipK(t) > 0;
+  const sipU = sipping ? sipK(t) : 0;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
-    if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
+    // Reaching for a spot on a machine (o.reachTo, from the feet), maybe with something in hand (o.reachHold).
+    if (o.cheer) raisedArm(o, 0.04, 0.16, -1.0);
+    else if (o.reachTo){ const [hx, hy] = toBody(o.reachTo[0], o.reachTo[1]); raisedArm(o, 0.04, hx, hy, 0.46); if (o.reachHold) heldItem(o.reachHold, hx + 0.01, hy + 0.06, o.bagColor, o.prize); }
+    else if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
     else if (o.eat){ /* drawn after the head */ }
     else if (!sipping){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
   }
   else for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
+    // Climbing a ladder, hand over hand; arms up for the ride down a slide; flailing in the ball pit; a wave.
+    if (o.climb){ const up = Math.sin(ph + (ax > 0 ? Math.PI : 0)); raisedArm(o, ax, ax * 0.75, -0.84 - Math.max(0, up) * 0.12); continue; }
+    if (o.cheer){ raisedArm(o, ax, ax * 1.7, -0.96); continue; }
+    if (o.splash){ raisedArm(o, ax, ax * 1.6 + Math.sin(t * 7 + ax * 9) * 0.06, -0.74 + Math.sin(t * 9 + ax * 12) * 0.12); continue; }
+    if (ax > 0 && o.wave){ raisedArm(o, ax, 0.32 + Math.sin(t * 12) * 0.06, -0.92); continue; }
     if (ax > 0 && sipping) continue;   // drawn after the head, so the drink is in front of the face
     if (ax > 0 && o.reach){ if (o.reachSide) raisedArm(o, ax, 0.42, -0.6); else raisedArm(o, ax, 0.2, -0.82); continue; }
     if (sit && !o.play){
@@ -669,11 +697,19 @@ export function person(x, y, o){
       circ(ax * 0.85, -0.66 + jig, 0.055); fs(o.skin, 0.035);
       continue;
     }
-    const swing = o.torch !== undefined && ax > 0 ? 0 : sw * dir * 0.065;
-    rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
-    circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
+    // Arms swing from the shoulder against the legs (the left arm with the right leg): fore and aft when heading
+    // across, bent at a run; toward us the forward hand just dips a little nearer.
+    // (We see a sideways walker more or less face on, so an arm swinging across the body only goes a little way.)
+    const af = walking && !(o.torch !== undefined && ax > 0) ? -sw * dir : 0, out = af * Math.sign(ax) > 0 ? 1 : 0.3;
+    const a = -af * side * out * (run ? 0.85 : 0.32), L = run ? 0.21 : 0.27;
+    const dip = af * (1 - side) * 0.035;
+    g.save(); g.translate(ax, -0.58 + dip); g.rotate(a);
+    rr(-0.055, -0.02, 0.11, L + 0.03, 0.055); fs(o.sleeve || o.shirt);
+    circ(0, L, 0.055); fs(o.skin, 0.035);
+    g.restore();
+    if (ax > 0){ hand[0] = ax - Math.sin(a) * L + 0.02; hand[1] = -0.58 + dip + Math.cos(a) * L; }
   }
-  if (o.hold && !o.back && !sipping) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : 0.235, profile ? -0.35 : sit ? -0.33 : -0.31, o.bagColor, o.prize);
+  if (o.hold && !o.back && !sipping) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : hand[0], profile ? -0.35 : sit ? -0.33 : hand[1], o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
@@ -690,18 +726,43 @@ export function person(x, y, o){
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
     if (o.vr){ rr(-0.28, -0.95, 0.56, 0.07, 0.03); fs('#2b2d42', 0.03); }
   } else {
+    // Eating: chew after each bite (and look pleased about it).
+    if (o.eat && profile){ const c = eatCycle(t, o.seed); if (c > 0.66 || c < 0.3) o = { ...o, chew: Math.sin(t * 16) > 0, mood: c > 0.84 && c < 0.97 ? 'happy' : o.mood }; }
     if (profile) profileHead(o); else { hairFront(o); face(o); }
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
     if (o.eat && profile) eatArm(o, t);
-    if (sipping){ raisedArm(o, profile ? 0.04 : 0.215, profile ? 0.2 : 0.09, -0.66); g.save(); g.translate(0.06, -0.64); g.rotate(-0.6); heldItem(o.hold, 0, 0.1, o.bagColor, o.prize); g.restore(); }
+    if (sipping){
+      // The drink comes up from the hand to the mouth, tips, and goes back down.
+      const u = sipU, rx = profile ? 0.19 : 0.235, ry = profile ? -0.35 : -0.31, hx = rx + ((profile ? 0.2 : 0.09) - rx) * u, hy = ry + (-0.66 - ry) * u;
+      raisedArm(o, profile ? 0.04 : 0.215, hx, hy);
+      g.save(); g.translate(hx - 0.03 * u, hy + 0.02 * u); g.rotate(-0.6 * u); heldItem(o.hold, 0, 0.1 * u, o.bagColor, o.prize); g.restore();
+    }
+    // Just cracked open: a can fizzes over the top.
+    if (o.fizz !== undefined && o.hold === 'can' && !sipping) fizz(hand[0], hand[1] - 0.14, o.fizz);
   }
   g.restore();
 }
+// A sip every few seconds: 0 at rest, easing up to 1 at the mouth and back down.
+function sipK(t){
+  const c = t % 3.2;
+  const u = c < 0.18 ? c / 0.18 : c < 0.62 ? 1 : c < 0.8 ? 1 - (c - 0.62) / 0.18 : 0;
+  return u * u * (3 - 2 * u);
+}
+// Bubbles spraying up out of a just-opened can, k from 0 (pop) to 1 (settled).
+function fizz(x, y, k){
+  if (k >= 1) return;
+  for (let i = 0; i < 6; i++){
+    const a = -Math.PI / 2 + (i - 2.5) * 0.32, d = 0.04 + k * (0.14 + (i % 3) * 0.04), r = 0.022 * (1 - k * 0.6);
+    circ(x + Math.cos(a) * d, y + Math.sin(a) * d + k * k * 0.08, r); g.fillStyle = `rgba(220,245,255,${0.9 * (1 - k)})`; g.fill();
+  }
+}
+// Where a diner is in their bite-chew cycle, 0 to 1 (about 2.4 s round).
+const eatCycle = (t, seed) => (t * 0.42 + (seed || 0)) % 1;
 // Eating at a table, side on: the hand rests at the plate a moment, then a bite comes up to the mouth, every couple of
 // seconds. Noodles come up twirled on a fork, sushi in chopsticks; anything else is eaten out of the hand.
 function eatArm(o, t){
-  const c = (t * 0.42 + (o.seed || 0)) % 1;
+  const c = eatCycle(t, o.seed);
   let u = c < 0.45 ? 0 : c < 0.6 ? (c - 0.45) / 0.15 : c < 0.82 ? 1 : 1 - (c - 0.82) / 0.18;
   u = u * u * (3 - 2 * u);
   const dig = c < 0.45 ? Math.sin(t * 8) * 0.012 : 0;
@@ -726,9 +787,9 @@ function eatArm(o, t){
   g.save(); g.translate(hx - 0.02, hy + 0.02); g.rotate(-0.5 * u); heldItem(o.eat, 0, 0.02, o.bagColor, o.prize); g.restore();
 }
 // An arm raised from the shoulder at (ax, -0.56) to a hand at (hx, hy).
-function raisedArm(o, ax, hx, hy){
+function raisedArm(o, ax, hx, hy, reach = 0.26){
   g.save(); g.translate(ax, -0.56); g.rotate(Math.atan2(-(hx - ax), hy + 0.56));
-  rr(-0.055, -0.02, 0.11, Math.min(0.26, Math.hypot(hx - ax, hy + 0.56) + 0.04), 0.055); fs(o.sleeve || o.shirt); g.restore();
+  rr(-0.055, -0.02, 0.11, Math.min(reach, Math.hypot(hx - ax, hy + 0.56) + 0.04), 0.055); fs(o.sleeve || o.shirt); g.restore();
   circ(hx, hy, 0.055); fs(o.skin, 0.035);
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
@@ -783,7 +844,7 @@ function heldItem(kind, hx, hy, color, prize){
 export function family(x, y, o){
   const k = o.kid;
   const side = o.sit && o.sitSide, kx = side ? x : x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + (side ? 0.45 : o.sit ? 0 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
+  person(kx, y + (side ? 0.45 : o.sit ? 0 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, stride: o.stride !== undefined ? o.stride + 0.2 : undefined, side: o.side, run: o.run, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
   person(x, y, o);
 }
 
@@ -2128,7 +2189,7 @@ export function decor(d, t = 0){
     case 'vending': vending(x, y, r, t, live); break;
     case 'ride': kiddieRide(x, y, r, t, live); break;
     case 'claw': clawMachine(x, y, r, t, live); break;
-    case 'gumball': gumball(x + 0.5, y + 0.8); break;
+    case 'gumball': gumball(x + 0.5, y + 0.8, live); break;
     case 'directory': directory(x, y, r); break;
     case 'tree': shadeTree(x + 0.5, y + 0.85); break;
     // In the mall the pit's near edge, the chute and the front rail are their own layers (render.js); thumbnails and
@@ -2216,23 +2277,38 @@ export function lampPost(x, y){
   rr(x - 0.15, y - 2.28, 0.3, 0.34, 0.08); fs('#fff3b0', 0.035);
   g.beginPath(); g.moveTo(x - 0.2, y - 2.26); g.lineTo(x, y - 2.42); g.lineTo(x + 0.2, y - 2.26); g.closePath(); fs('#3d405b', 0.035);
 }
+// The soda machine's routine, as fractions of live.k (how far along the shopper's turn is; it ends a little past
+// 0.9): step up, feed in a coin, punch a button, the can drops into the tray, crouch to fish it out, stand, step off.
+export const VEND = { coin: 0.1, press: 0.22, drop: 0.42, land: 0.48, grab: 0.72 };
 function vending(x, y, r, t = 0, live = null){
-  const bx = x + 0.12, by = y + 0.3, bw = 0.76, bd = 0.5, H = 1.3;
+  const bx = x + 0.12, by = y + 0.3, bw = 0.76, bd = 0.5, H = 1.3, k = live ? live.k : -1, V = VEND;
   shadow(x + 0.5, y + 0.82, 0.42, 0.1);
+  // A little shudder as the can thunks down.
+  const shake = k > V.land - 0.02 && k < V.land + 0.05 ? Math.sin(k * 900) * 0.012 : 0;
+  g.save(); g.translate(shake, 0);
   box(bx, by, bw, bd, H, '#c23e63', r === 2 ? '#b8355a' : '#ef476f');
-  const top = by + bd - H, k = live ? live.k : -1;
+  const top = by + bd - H;
   if (r === 0){
     // Lit header with the brand, a window full of cans, buttons, and the pickup tray.
     rr(bx + 0.05, top + 0.05, bw - 0.1, 0.16, 0.04); fs('#fff6ea', 0.025);
     text('POP!', bx + bw / 2, top + 0.135, 0.13, '#ef476f', 700);
     g.save(); g.globalAlpha = 0.25 + 0.15 * Math.sin(t * 3); rr(bx + 0.06, top + 0.25, 0.44, 0.78, 0.04); g.fillStyle = '#fffbe0'; g.fill(); g.restore();
     rr(bx + 0.06, top + 0.25, 0.44, 0.78, 0.04); fs('rgba(200,235,250,.85)', 0.03);
-    for (let row = 0; row < 4; row++){ g.fillStyle = 'rgba(61,43,53,.25)'; g.fillRect(bx + 0.07, top + 0.43 + row * 0.18, 0.42, 0.02); for (let i = 0; i < 3; i++){ rr(bx + 0.1 + i * 0.13, top + 0.29 + row * 0.18, 0.09, 0.14, 0.03); fs(['#118ab2', '#ffd23f', '#06d6a0', '#ff9f43'][(row + i) % 4], 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(bx + 0.115 + i * 0.13, top + 0.31 + row * 0.18, 0.015, 0.09); } }
-    for (let i = 0; i < 4; i++){ rr(bx + 0.56, top + 0.3 + i * 0.11, 0.14, 0.07, 0.02); fs(k > 0 && k < 0.5 && i === 1 ? '#7bd389' : '#fff6ea', 0.015); }
-    rr(bx + 0.58, top + 0.78, 0.1, 0.16, 0.02); fs('#3d2b35', 0); rr(bx + 0.61, top + 0.8, 0.04, 0.06, 0.01); fs('#ffd23f', 0);
+    const sold = k >= V.drop;   // the bottom-right can is the one that drops
+    for (let row = 0; row < 4; row++){ g.fillStyle = 'rgba(61,43,53,.25)'; g.fillRect(bx + 0.07, top + 0.43 + row * 0.18, 0.42, 0.02); for (let i = 0; i < 3; i++){ if (sold && row === 3 && i === 2) continue; rr(bx + 0.1 + i * 0.13, top + 0.29 + row * 0.18, 0.09, 0.14, 0.03); fs(['#118ab2', '#ffd23f', '#06d6a0', '#ff9f43'][(row + i) % 4], 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(bx + 0.115 + i * 0.13, top + 0.31 + row * 0.18, 0.015, 0.09); } }
+    // The pressed button lights up (and stays lit while the machine works).
+    const lit = k >= V.press + 0.03 && k < V.land + 0.06;
+    for (let i = 0; i < 4; i++){ rr(bx + 0.56, top + 0.3 + i * 0.11, 0.14, 0.07, 0.02); fs(lit && i === 3 ? '#7bd389' : '#fff6ea', 0.015); }
+    // The coin slot glints as the coin goes in.
+    const glint = k >= V.coin && k < V.press;
+    rr(bx + 0.58, top + 0.78, 0.1, 0.16, 0.02); fs('#3d2b35', 0); rr(bx + 0.61, top + 0.8, 0.04, 0.06, 0.01); fs(glint ? '#fff6c9' : '#ffd23f', 0);
     rr(bx + 0.1, top + 1.08, 0.4, 0.12, 0.03); fs('#3d2b35', 0.02);
-    // A can rolls down into the tray once it's paid for.
-    if (k >= 0.45){ const d = Math.min(1, (k - 0.45) / 0.2); rr(bx + 0.24, top + 0.85 + d * 0.25, 0.12, 0.08, 0.02); fs('#118ab2', 0.015); }
+    // The can: drops off its shelf, falls behind the glass and rolls into the tray, waiting there to be picked up.
+    if (k >= V.drop && k < V.grab){
+      const f = Math.min(1, (k - V.drop) / (V.land - V.drop)), cy = top + 0.83 + f * f * 0.3, cx = bx + 0.36 + f * 0.02;
+      if (f < 1){ rr(cx, cy, 0.09, 0.14, 0.03); fs('#ff9f43', 0.015); }
+      else { rr(cx, top + 1.11, 0.14, 0.08, 0.025); fs('#ff9f43', 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(cx + 0.02, top + 1.125, 0.09, 0.012); }
+    }
   } else if (r === 2){
     g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.025;
     for (let i = 0; i < 5; i++){ g.beginPath(); g.moveTo(bx + 0.15, top + 0.2 + i * 0.08); g.lineTo(bx + bw - 0.15, top + 0.2 + i * 0.08); g.stroke(); }
@@ -2245,6 +2321,7 @@ function vending(x, y, r, t = 0, live = null){
     const ex = r === 1 ? bx : bx + bw - 0.08;
     rr(ex, top + 0.08, 0.08, 1.0, 0.02); fs('rgba(200,235,250,.95)', 0.02);
   }
+  g.restore();
 }
 // The kiddie ride: a fat little rocket on a coin-op base. A kid rides in the open cockpit (see rideSeat), rocking
 // with it; while it runs, the base lights chase and the rocket puffs exhaust. live.k is how far along the ride is
@@ -2362,14 +2439,31 @@ function clawMachine(x, y, r, t, live){
   if (r === 0){ rr(x + 0.3, base + 0.52 - 0.4, 0.4, 0.16, 0.03); fs('#3d2b35', 0.02); circ(x + 0.42, base + 0.52 - 0.34, 0.035); fs('#ef476f', 0.015); rr(x + 0.58, base + 0.52 - 0.37, 0.04, 0.1, 0.015); fs('#fff', 0.015); }
   else if (r !== 2){ rr(r === 1 ? x + 0.14 : x + 0.8, base + 0.52 - 0.42, 0.06, 0.2, 0.02); fs('#3d2b35', 0.02); }
 }
-function gumball(x, y){
+// The gumball machine's routine, as fractions of live.k: step up, turn the crank a full turn, a gumball rolls out
+// into the little door at the bottom, crouch and take it, step off.
+export const GUM = { crank: 0.16, turned: 0.5, out: 0.58, grab: 0.72 };
+function gumball(x, y, live){
+  const k = live ? live.k : -1, G = GUM;
   shadow(x, y, 0.22, 0.07);
   rr(x - 0.18, y - 0.12, 0.36, 0.12, 0.04); fs('#c0392b', 0.03);
   rr(x - 0.1, y - 0.5, 0.2, 0.4, 0.05); fs('#e63946', 0.035);
   rr(x - 0.05, y - 0.38, 0.1, 0.08, 0.02); fs('#e9e1d4', 0.02);
+  // The crank: a knob on the plate that goes once round while it's turned.
+  const turn = k > G.crank && k < G.turned ? (k - G.crank) / (G.turned - G.crank) : 0, a = -Math.PI / 2 + turn * Math.PI * 2;
+  g.beginPath(); g.moveTo(x, y - 0.34); g.lineTo(x + Math.cos(a) * 0.045, y - 0.34 + Math.sin(a) * 0.035); g.strokeStyle = OUT; g.lineWidth = 0.022; g.lineCap = 'round'; g.stroke();
+  circ(x + Math.cos(a) * 0.045, y - 0.34 + Math.sin(a) * 0.035, 0.016); fs('#ffd23f', 0.01);
+  // The little door at the bottom, and a gumball waiting in it.
+  rr(x - 0.045, y - 0.22, 0.09, 0.07, 0.02); fs('#3d2b35', 0.015);
   circ(x, y - 0.72, 0.24); fs('rgba(232,248,255,.9)', 0.035);
   const cols = ['#ff6b8b', '#ffd23f', '#5cc8bf', '#9b7bff', '#ff9f43', '#7bd389'];
-  for (let i = 0; i < 9; i++){ const a = i * 2.4, rr2 = 0.05 + (i % 3) * 0.05; circ(x + Math.cos(a) * rr2, y - 0.68 + Math.sin(a) * rr2 * 0.8, 0.045); fs(cols[i % cols.length], 0.012); }
+  // The balls settle a little as one drops out the bottom.
+  const settle = k > G.turned - 0.1 && k < G.out ? Math.sin((k - G.turned + 0.1) / (G.out - G.turned + 0.1) * Math.PI) * 0.02 : 0;
+  for (let i = 0; i < 9; i++){ const a2 = i * 2.4, rr2 = 0.05 + (i % 3) * 0.05; circ(x + Math.cos(a2) * rr2, y - 0.68 + Math.sin(a2) * rr2 * 0.8 + settle * (i % 2 ? 1 : 0.5), 0.045); fs(cols[i % cols.length], 0.012); }
+  if (k >= G.turned && k < G.grab){
+    const f = Math.min(1, (k - G.turned) / (G.out - G.turned));
+    if (f >= 1){ circ(x, y - 0.185, 0.035); fs('#ff6b8b', 0.012); }
+    else if (f > 0.4){ circ(x, y - 0.3 + (f - 0.4) / 0.6 * 0.115, 0.035); fs('#ff6b8b', 0.012); }
+  }
   rr(x - 0.08, y - 0.99, 0.16, 0.07, 0.03); fs('#e63946', 0.03);
 }
 function directory(x, y, r){

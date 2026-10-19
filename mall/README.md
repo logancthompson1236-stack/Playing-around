@@ -58,6 +58,6 @@ web/src/
   config.js    tuning: stores, customers, levels, costs
   state.js     save file and settings
   audio.js     synthesized sound effects and muzak
-web/tools/     balance bot, icon/splash generator
+web/tools/     balance bot, icon/splash generator, animation preview (node tools/anim-preview.mjs: frame strips + a live page of people walking, eating and using decor)
 android/       Capacitor Android project (landscape, full screen, fixed test signing key)
 ```
