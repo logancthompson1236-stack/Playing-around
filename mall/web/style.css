@@ -126,7 +126,9 @@ input[type=text]{font:600 15px var(--body);color:var(--ink);background:#fff;bord
 .modal h2{margin:0 0 6px;font:700 22px var(--display)}
 
 /* Title */
-.title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:14px;padding-bottom:calc(5vh + var(--sb));text-align:center;animation:fade .6s ease 1.6s both}
+.title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:14px;padding-bottom:calc(23vh + var(--sb));text-align:center;animation:fade .6s ease 1.6s both}
+/* (Raised above the bottom of the screen, where phone browsers show their own notices, e.g. Chrome's "To exit full
+   screen" when a page goes full screen on itch.io, which otherwise sits right on top of the buttons.) */
 .title-scene{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;background:#24183f}
 .title .btn{box-shadow:0 4px 0 var(--ink),0 0 18px rgba(255,200,120,.35)}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
