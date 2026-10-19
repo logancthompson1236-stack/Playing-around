@@ -286,6 +286,21 @@ export function showTitle({ hasSave, onContinue, onNew, onSettings }){
   return el;
 }
 
+// On an iPhone or iPad in Safari (not already on the home screen), a little card shows how to install it like an app.
+export function iosInstallTip(){
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const installed = navigator.standalone || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  let seen = false; try { seen = localStorage.getItem('mall-revival-ios-tip') === '1'; } catch {}
+  if (!ios || installed || seen || window.Capacitor || window.top !== window || (location.protocol !== 'https:' && location.hostname !== 'localhost')) return;
+  const close = () => { el.remove(); try { localStorage.setItem('mall-revival-ios-tip', '1'); } catch {} };
+  const share = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M12 15V3M8 7l4-4 4 4M6 11H5v10h14V11h-1"/></svg>';
+  const el = h('div', { class: 'ios-tip', role: 'dialog', 'aria-label': 'Install on your iPhone' },
+    h('b', {}, 'Play it like an app'),
+    h('p', { html: `Tap ${share} <b>Share</b>, then <b>Add to Home Screen</b>: full screen, works offline. It keeps its own save, so start your mall there.` }),
+    h('button', { class: 'btn small primary', onclick: () => { sfx('tap'); close(); } }, 'Got it'));
+  root.append(el);
+}
+
 /* ---------- Intro ---------- */
 function drawScene(ctx, w, scene, t, mallName){
   const ppt = w / 16;

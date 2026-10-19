@@ -11,6 +11,8 @@ Both are built automatically by `.github/workflows/mall-build.yml` on every push
 
 ## How to play (v0.15)
 
+- **iPhone:** open the GitHub Pages link in Safari, tap Share, then Add to Home Screen. It runs full screen and opens offline after the first visit (the home-screen app keeps its own save).
+
 - **Day (about 2½ minutes):** tap a customer's bubble (or a store) to send yourself to that register. Tap trash to sweep it. You can queue up to 3 jobs.
 - **Trash cans** (Build → Decor): most shoppers inside the green circle toss their trash in instead of dropping it.
 - **Decor** unlocks as you level (a claw machine, planters, lamps, sofas, soda and gumball machines, a kiddie ride, a mall directory, shade trees, a kids play area at 15, and from level 19 a topiary bunny, a photo booth, an aquarium, a massage chair, a grand piano, a flower arch, a balloon cart, a wishing fountain, an arcade cabinet, a bubble machine and a koi pond). Tap **Rotate** while placing, or tap a placed piece, to turn it. Machines earn a little from shoppers.

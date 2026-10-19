@@ -49,6 +49,8 @@ const manifest = { name: 'Mall Revival', short_name: 'Mall Revival', display: 'f
 html = html.replaceAll('href="assets/icon-180.png"', () => `href="${png('icon-180.png')}"`);
 html = html.replace('href="manifest.json"', () => `href="data:application/manifest+json,${encodeURIComponent(JSON.stringify(manifest))}"`);
 fs.writeFileSync(path.join(dist, 'index.html'), html);
+// The offline service worker sits next to the page on GitHub Pages (the page registers it; see main.js).
+fs.copyFileSync(path.join(root, 'sw.js'), path.join(dist, 'sw.js'));
 
 const title = html.match(/<title>[\s\S]*?<\/title>/)[0];
 const style = html.match(/<style>[\s\S]*?<\/style>/)[0];

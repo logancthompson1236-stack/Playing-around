@@ -51,6 +51,12 @@ initInput(canvas, {
   onGrabEnd: () => {},
 });
 
+/* ---------- Offline ---------- */
+// On the web (GitHub Pages, or added to an iPhone's home screen) a service worker keeps a copy of the game so it opens
+// with no connection. Not inside the Android app (it's already installed) or when opened as a local file.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !window.Capacitor && window.top === window)
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
 /* ---------- Title ---------- */
 function boot(){
   const saved = loadSave();
@@ -60,6 +66,7 @@ function boot(){
   view.cam.x = 13; view.cam.y = 8; view.cam.s = view.minS * 1.15; clampCam();
   UI.setHudMode('none');
   UI.showTitle({ hasSave: !!saved, onContinue: continueGame, onNew: newGame, onSettings: () => settings(false) });
+  UI.iosInstallTip();
 }
 async function newGame(){
   clearSave();

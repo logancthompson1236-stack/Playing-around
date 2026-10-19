@@ -71,6 +71,8 @@ jobs:
           mkdir -p "pages/mall/v${VERSION}"
           cp mall/web/dist/index.html pages/mall/index.html
           cp mall/web/dist/index.html "pages/mall/v${VERSION}/index.html"
+          cp mall/web/dist/sw.js pages/mall/sw.js
+          cp mall/web/dist/sw.js "pages/mall/v${VERSION}/sw.js"
           touch pages/.nojekyll
           [ -f pages/index.html ] || printf '<!doctype html><meta http-equiv="refresh" content="0; url=mall/"><a href="mall/">Mall Revival</a>\n' > pages/index.html
           cd pages

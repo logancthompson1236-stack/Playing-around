@@ -646,6 +646,8 @@ v0.15.0 changes, from playtest feedback:
 - **Levels 36–50**, each with something casino-related or new styles (Neon Nights wallpaper at 48, Starburst Tile floor at 49), and more staff room every level: clerks keep growing (about 61 by level 50), up to 14 dealers. The balance bot buys the casino around day 120 and reaches level 50 around day 170.
 - **Stockers are gone:** the role was hardly needed. Existing stockers become clerks at a register that needs one, and clerks now top up their own store from the back when it runs low and no one's in line (at restocking prices).
 
+v0.15.1: **offline web build and an iPhone install tip.** The web build registers a small service worker (`web/sw.js`, published next to the page on GitHub Pages). It's network first, so a connection always gets the newest version, and offline the last copy that loaded opens, save and all (the whole game is one page; saves are in localStorage). On an iPhone or iPad in Safari, the title screen shows a one-time card: Share, then Add to Home Screen. Neither runs in the Android app or the claude.ai backup link.
+
 Milestone 1 scope:
 - One floor, free-form unit placement, renovating derelict units, 6 store types
 - Owner tap-to-task, trash, register queues
