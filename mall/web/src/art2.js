@@ -28,46 +28,69 @@ export function playArea(d, t){
 }
 function slideTower(d, t){
   const T = TOWER, x = d.x + T.x, y = d.y + T.y, top = y - T.h, roofZ = 0.55;
-  // Back posts and the striped roof up on top of them.
+  // Back posts holding up the roof, with a guard rail around the back and left of the deck.
   for (const qx of [x + 0.04, x + T.w - 0.04]){ rr(qx - 0.035, top - roofZ, 0.07, roofZ + 0.05, 0.03); fs('#5a8dee', 0.025); }
   // The platform: a little blue cabin with a porthole and a yellow deck.
   box(x, y, T.w, T.d, T.h, '#ffd23f', '#5a8dee');
-  circ(x + T.w * 0.72, y + T.d - T.h * 0.55, 0.11); fs('#bde0fe', 0.03);
+  circ(x + T.w * 0.7, y + T.d - T.h * 0.55, 0.1); fs('#bde0fe', 0.03);
   rr(x + 0.04, y + T.d - 0.1, T.w - 0.08, 0.05, 0.02); fs('#3f6fd1', 0);
-  // The roof: a red-and-yellow peak.
+  g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x + 0.04, top - 0.24); g.lineTo(x + T.w - 0.04, top - 0.24); g.moveTo(x + 0.04, top - 0.24); g.lineTo(x + 0.04, top + T.d - 0.26);
+  g.strokeStyle = OUT; g.lineWidth = 0.07; g.stroke(); g.strokeStyle = '#ef476f'; g.lineWidth = 0.04; g.stroke();
+  rr(x + 0.005, top + T.d - 0.3, 0.07, 0.3, 0.03); fs('#5a8dee', 0.025);
+  // The roof: a red-and-yellow peak with a pennant.
   const rx0 = x - 0.08, rx1 = x + T.w + 0.08, ry = top - roofZ + 0.02;
   for (let i = 0; i < 4; i++){
     const a = rx0 + (rx1 - rx0) * i / 4, b = rx0 + (rx1 - rx0) * (i + 1) / 4, mx = (rx0 + rx1) / 2;
     g.beginPath(); g.moveTo(a, ry); g.lineTo(b, ry); g.lineTo(mx, ry - 0.42); g.closePath(); fs(i % 2 ? '#ffd23f' : '#ef476f', 0.03);
   }
   g.beginPath(); g.moveTo(rx0, ry); g.lineTo((rx0 + rx1) / 2, ry - 0.42); g.lineTo(rx1, ry); g.strokeStyle = OUT; g.lineWidth = 0.035; g.stroke();
-  // A pennant on top.
   const fx = (rx0 + rx1) / 2, fy = ry - 0.42, wv = Math.sin(t * 4 + d.id) * 0.03;
   g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 0.26); g.strokeStyle = OUT; g.lineWidth = 0.02; g.stroke();
   g.beginPath(); g.moveTo(fx, fy - 0.26); g.lineTo(fx + 0.2, fy - 0.21 + wv); g.lineTo(fx, fy - 0.15); g.closePath(); fs('#06d6a0', 0.02);
   // The ladder up the front, with hand grips over the top.
   const lx = d.x + LADDER_X, lb = y + T.d + 0.06;
-  for (const sx of [lx - 0.1, lx + 0.1]){ rr(sx - 0.025, lb - T.h - 0.18, 0.05, T.h + 0.18, 0.02); fs('#ef476f', 0.02); }
+  for (const sx of [lx - 0.1, lx + 0.1]){ rr(sx - 0.025, lb - T.h - 0.2, 0.05, T.h + 0.2, 0.02); fs('#ef476f', 0.02); }
   for (let k = 1; k <= 4; k++){ rr(lx - 0.1, lb - k * T.h / 4.6, 0.2, 0.035, 0.015); fs('#ffd23f', 0.015); }
-  // The chute: a wide orange slide with raised yellow rails, curving down to a flat lip.
-  const N = 14, nx = -0.14, ny = 0.13, pts = [];
+}
+// The chute, drawn on its own layer: it runs off the side of the deck, a wide orange slide with walls and yellow
+// rail caps, grab bars at the top, a leg holding up the middle, and a flat run-out at the bottom.
+function slideChute(d){
+  const N = 20, pts = [];
   for (let k = 0; k <= N; k++) pts.push(slidePath(d, k / N));
+  const a = pts[0], b = pts[N], len = Math.hypot(b.x - a.x, b.y - a.y), hw = 0.19, wall = 0.09;
+  const nx = -(b.y - a.y) / len * hw, ny = (b.x - a.x) / len * hw;
+  // A point on one edge (s = -1 far, +1 near), lifted by `lift` above the bed.
   const at = (q, s, lift = 0) => [q.x + nx * s, q.y + ny * s - q.z - lift];
-  g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, -1); (i ? g.lineTo : g.moveTo).call(g, a, b); });
-  for (let i = N; i >= 0; i--){ const [a, b] = at(pts[i], 1); g.lineTo(a, b); }
-  g.closePath(); fs('#ff9f1c', 0.04);
-  g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, 0.1); (i ? g.lineTo : g.moveTo).call(g, a, b); }); g.strokeStyle = 'rgba(255,240,200,.85)'; g.lineWidth = 0.07; g.stroke();
-  for (const s of [-1, 1]){
-    g.beginPath(); pts.forEach((q, i) => { const [a, b] = at(q, s, 0.07); (i ? g.lineTo : g.moveTo).call(g, a, b); });
-    g.strokeStyle = OUT; g.lineWidth = 0.09; g.stroke(); g.strokeStyle = '#ffd23f'; g.lineWidth = 0.055; g.stroke();
+  const band = (s0, l0, s1, l1, fill) => {
+    g.beginPath(); pts.forEach((q, i) => { const [px, py] = at(q, s0, l0); (i ? g.lineTo : g.moveTo).call(g, px, py); });
+    for (let i = N; i >= 0; i--){ const [px, py] = at(pts[i], s1, l1); g.lineTo(px, py); }
+    g.closePath(); fs(fill, 0.035);
+  };
+  // A leg under the middle.
+  const mid = pts[Math.round(N * 0.45)];
+  for (const sv of [-0.8, 0.8]){ const [px, py] = at(mid, sv); rr(px - 0.03, py, 0.06, mid.z, 0.025); fs('#5a8dee', 0.025); }
+  band(1, 0, 1, -0.07, '#d9730d');               // underside, seen along the near edge
+  band(-1, 0, -1, wall, '#ffbe5c');              // far wall, inside face
+  band(-1, 0, 1, 0, '#ff9f1c');                  // the bed
+  g.beginPath(); pts.forEach((q, i) => { const [px, py] = at(q, -0.05); (i ? g.lineTo : g.moveTo).call(g, px, py); });
+  g.strokeStyle = 'rgba(255,240,200,.8)'; g.lineWidth = 0.08; g.stroke();
+  band(1, 0, 1, wall, '#f08a12');                // near wall
+  for (const sv of [-1, 1]){
+    g.beginPath(); pts.forEach((q, i) => { const [px, py] = at(q, sv, wall); (i ? g.lineTo : g.moveTo).call(g, px, py); });
+    g.strokeStyle = OUT; g.lineWidth = 0.08; g.stroke(); g.strokeStyle = '#ffd23f'; g.lineWidth = 0.045; g.stroke();
   }
-  // Little legs holding up the chute halfway down.
-  const mid = pts[Math.round(N * 0.55)];
-  for (const s of [-1, 1]){ const [a, b] = at(mid, s); rr(a - 0.025, b, 0.05, mid.z, 0.02); fs('#5a8dee', 0.02); }
+  // Grab bars at the top, where the kids sit down.
+  for (const sv of [-1, 1]){
+    const [px, py] = at(a, sv, wall);
+    g.beginPath(); g.moveTo(px, py); g.lineTo(px, py - 0.2); g.strokeStyle = OUT; g.lineWidth = 0.075; g.stroke(); g.strokeStyle = '#06d6a0'; g.lineWidth = 0.045; g.stroke();
+    circ(px, py - 0.22, 0.04); fs('#ffd23f', 0.02);
+  }
 }
 // In front of the kids: the near half of the ball pit (so pit kids sink in among the balls), or the low front rail.
 export function playFront(d, part){
   const x = d.x, y = d.y, px = x + PIT.x, py = y + PIT.y;
+  if (part === 'slide') return slideChute(d);
   if (part === 'pit'){
     g.save(); g.beginPath(); g.rect(px - PIT.rx, py, PIT.rx * 2, PIT.ry + 0.1); g.clip();
     const R = mulberry(d.id * 11 + 1);

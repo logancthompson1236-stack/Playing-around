@@ -1,20 +1,21 @@
 // The kids play area's layout and the kids' routines in it, shared by the sim (how long a visit lasts) and the art.
 // Everything is in tiles from the play area's top-left corner; z is height off the floor.
 
-export const PIT = { x: 2.3, y: 0.62, rx: 0.6, ry: 0.38 };         // ball pit, back right
-export const TOWER = { x: 0.3, y: 0.42, w: 0.62, d: 0.46, h: 0.82 }; // slide platform, back left
-export const LADDER_X = 0.5;
-const SLIDE_A = [0.92, 0.66], SLIDE_B = [1.62, 1.42];               // top of the chute, and its mouth
+export const PIT = { x: 2.28, y: 0.5, rx: 0.6, ry: 0.34 };          // ball pit, back right
+export const TOWER = { x: 0.2, y: 0.7, w: 0.64, d: 0.48, h: 0.82 };  // slide platform, left
+export const LADDER_X = 0.4;
+const SLIDE_A = [0.78, 0.96], SLIDE_B = [2.08, 1.42];               // top of the chute, and its mouth
 const GATE_Y = 1.88;                                                  // the gap in the front rail
 const RUN = 1.7, CLIMB = 0.8, SLIDE = 1.05;
 
-// The chute, k from 0 (top) to 1 (mouth): steep at the top, a flat lip at the end.
+// The chute, k from 0 (top) to 1 (mouth).
 export function slidePath(d, k){
-  const z = TOWER.h * Math.max(0, 1 - k / 0.86) ** 1.6;
+  // Level at the top, steepest in the middle, flat at the bottom.
+  const e = Math.min(1, Math.max(0, (k - 0.05) / 0.83)), z = TOWER.h * (1 - e * e * (3 - 2 * e));
   return { x: d.x + SLIDE_A[0] + (SLIDE_B[0] - SLIDE_A[0]) * k, y: d.y + SLIDE_A[1] + (SLIDE_B[1] - SLIDE_A[1]) * k, z };
 }
 // Where in the pit each pit kid plays.
-export const pitSpot = slot => slot === 1 ? [2.02, 0.72] : [2.56, 0.56];
+export const pitSpot = slot => slot === 1 ? [2.0, 0.55] : [2.52, 0.44];
 
 // The visit as a list of legs: walk in from the grown-up, play, and walk back out.
 // Slide kids loop ladder → slide → run around, and always finish at the slide's mouth before walking off.
@@ -22,8 +23,8 @@ function legs(slot, from, secs){
   const L = [], walk = (a, b, pose = 'walk') => L.push({ a, b, t: Math.hypot(b[0] - a[0], b[1] - a[1]) / RUN + 0.01, pose });
   const start = [from[0], from[1], 0];
   if (slot === 0){
-    const gate = [1.25, GATE_Y, 0], side = [0.3, 1.32, 0], foot = [LADDER_X, 0.98, 0], top = [LADDER_X, 0.93, TOWER.h];
-    const deck = [0.66, 0.66, TOWER.h], mouth = [SLIDE_B[0], SLIDE_B[1], 0], front = [1.05, 1.58, 0];
+    const ly = TOWER.y + TOWER.d, gate = [1.25, GATE_Y, 0], side = [0.12, 1.5, 0], foot = [LADDER_X, ly + 0.12, 0], top = [LADDER_X, ly + 0.06, TOWER.h];
+    const deck = [0.5, 0.94, TOWER.h], mouth = [SLIDE_B[0] + 0.1, SLIDE_B[1] + 0.06, 0], front = [1.2, 1.64, 0];
     walk(start, gate); walk(gate, side);
     const loop = () => {
       walk(side, foot);
@@ -40,12 +41,13 @@ function legs(slot, from, secs){
     for (let i = 1; i < n; i++){ walk(mouth, front); walk(front, side); loop(); }
     walk(mouth, gate); walk(gate, start);
   } else {
-    const [sx, sy] = pitSpot(slot), gate = [1.75, GATE_Y, 0], edge = [sx, PIT.y + PIT.ry + 0.16, 0], inPit = [sx, sy, 0];
-    walk(start, gate); walk(gate, edge);
+    // Around the end of the slide to the front of the pit.
+    const [sx, sy] = pitSpot(slot), gate = [1.75, GATE_Y, 0], past = [2.62, 1.52, 0], edge = [sx, PIT.y + PIT.ry + 0.16, 0], inPit = [sx, sy, 0];
+    walk(start, gate); walk(gate, past); walk(past, edge);
     L.push({ a: edge, b: inPit, t: 0.45, pose: 'hop' });
     L.push({ a: inPit, b: inPit, t: Math.max(2.5, secs - 3), pose: 'pit' });
     L.push({ a: inPit, b: edge, t: 0.45, pose: 'hop' });
-    walk(edge, gate); walk(gate, start);
+    walk(edge, past); walk(past, gate); walk(gate, start);
   }
   return L;
 }

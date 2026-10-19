@@ -2028,7 +2028,9 @@ export function decor(d, t = 0){
     case 'gumball': gumball(x + 0.5, y + 0.8); break;
     case 'directory': directory(x, y, r); break;
     case 'tree': shadeTree(x + 0.5, y + 0.85); break;
-    case 'playarea': A2.playArea(d, t); break;
+    // In the mall the pit's near edge, the chute and the front rail are their own layers (render.js); thumbnails and
+    // the placement preview get the whole thing at once.
+    case 'playarea': A2.playArea(d, t); for (const part of ['pit', 'slide', 'rail']) A2.playFront(d, part); break;
     case 'topiary': A2.topiary(x + 0.5, y + 0.85); break;
     case 'photobooth': A2.photobooth(x, y, r, t, live); break;
     case 'aquarium': A2.aquarium(x, y, t); break;

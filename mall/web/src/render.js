@@ -198,8 +198,8 @@ export function render(t){
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
     else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1 }); else A.decorState.delete(d);
-    add(decorSortY(d), () => A.decor(d, t));
-    if (d.type === 'playarea'){ add(d.y + PIT.y + PIT.ry, () => A2.playFront(d, 'pit')); add(d.y + 1.9, () => A2.playFront(d, 'rail')); }
+    add(decorSortY(d), () => d.type === 'playarea' ? A2.playArea(d, t) : A.decor(d, t));
+    if (d.type === 'playarea'){ add(d.y + PIT.y + PIT.ry, () => A2.playFront(d, 'pit')); add(d.y + 0.9, () => A2.playFront(d, 'slide')); add(d.y + 1.9, () => A2.playFront(d, 'rail')); }
   }
   if (!up && seenRect(C.FOUNTAIN.x - 1, C.FOUNTAIN.y - 2, 4, 5)) add(C.FOUNTAIN.y + 1.0, () => A.fountain(C.FOUNTAIN.x + 1, C.FOUNTAIN.y + 1.05, t, s.fountain));
   // The escalator: its belts under the riders, its glass sides in front of them.
