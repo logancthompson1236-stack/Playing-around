@@ -313,7 +313,8 @@ function updateCustomer(p, dt){
     p.mood = Math.max(0, Math.min(1, p.mood - Math.min(0.06, dirt * 0.012) + decorNear(p.x, p.y) * 0.004));
   }
   // Snacks and drinks get finished after a while (the wrapper is what ends up on the floor).
-  if (p.holding && SNACKS.has(p.holding) && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
+  // (Not while carrying it over to a table to sit down and eat.)
+  if (p.holding && SNACKS.has(p.holding) && p.state !== 'toCourt' && p.state !== 'courtIn' && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
   switch (p.state){
     case 'arrive':
       if (moveDirect(p, p.x, C.MAP_H - 0.5, dt)){ greet(p); p.state = 'decide'; }
@@ -614,7 +615,7 @@ function updateCustomer(p, dt){
 function decide(p){
   if (sim.phase === 'closing'){ p.state = 'exit'; return; }
   // Carrying something to eat and there's a food court: most sit down to eat it there.
-  if (p.holding && SNACKS.has(p.holding) && !p.ateAtCourt && rand() < 0.8){
+  if (p.holding && SNACKS.has(p.holding) && p.holding !== 'gum' && !p.ateAtCourt && rand() < 0.8){
     p.ateAtCourt = true;
     const c = findCourt(p);
     if (c){ p.court = c; p.state = 'toCourt'; return; }
@@ -687,7 +688,7 @@ function findSeat(p){
 }
 // A free seat at a food court (a family takes a whole table: the grown-up on one stool, the kid across).
 function findCourt(p){
-  let best = null, bd = 26;
+  let best = null, bd = 32;
   for (const d of S.save.decor){
     if (!C.DECOR[d.type].court) continue;
     const sp = courtSpots(d), e = sp.entry;
@@ -698,12 +699,15 @@ function findCourt(p){
     if (p.look.kid){ const t = [0, 1, 2, 3].find(t => !taken.has(t * 2) && !taken.has(t * 2 + 1)); if (t !== undefined){ seat = t * 2; kidSeat = t * 2 + 1; } }
     else seat = sp.seats.findIndex((_, i) => !taken.has(i));
     if (seat < 0) continue;
-    const dist = Math.hypot(e.x - p.x, e.y - p.y);
+    // A food court on another floor counts too, with the escalator ride on top.
+    const fe = floorOf(e.x), fp = floorOf(p.x);
+    const dist = fe === fp ? Math.hypot(e.x - p.x, e.y - p.y) : 12 + Math.hypot(e.x - floorRange(fe).x0 - (p.x - floorRange(fp).x0), e.y - p.y);
     if (dist < bd){ bd = dist; best = { d, seat, kidSeat }; }
   }
   return best;
 }
 const courtSeat = p => courtSpots(p.court.d).seats[p.court.seat];
+const courtBuilt = () => S.save.decor.some(d => C.DECOR[d.type].court);
 // The way back out of the food court: up the aisle, out the gap in the front rail.
 const courtOut = p => { const sp = courtSpots(p.court.d), s = courtSeat(p); return [{ x: sp.aisleX, y: s.y }, sp.entry]; };
 // A free spot at a kids play area (most families who pass one stop). The grown-up waits at the front.
@@ -882,7 +886,8 @@ function completeSale(u, st, p){
   sim.fx.push({ kind: 'coin', x: p.x, y: p.y - 1.3, t: 0, life: 1.1, text: `+$${price}` });
   if (p.mood > 0.75) sim.fx.push({ kind: 'heart', x: p.x + 0.2, y: p.y - 1.2, t: 0, life: 1.2 });
   emit('sale', { amount: price, store: u.store, tutorial: !!p.tutorial });
-  if (def.dine && startDining(p, u)) return;
+  // Dine-in places: most sit down inside, but with a food court in the mall some take it there instead.
+  if (def.dine && !(rand() < 0.3 && courtBuilt()) && startDining(p, u)) return;
   leaveStore(p, u);
 }
 // Dine-in stores: take a free stool and eat before heading out (a full place means takeout).
@@ -1207,7 +1212,7 @@ function updateSupervisor(p, dt){
     return;
   }
   if (!p.round || (p.round.wait -= dt) < -3){
-    const fronts = S.save.units.filter(u => u.state === 'store' || u.state === 'restroom');
+    const fronts = onBeat(p, S.save.units.filter(u => u.state === 'store' || u.state === 'restroom'));
     const u = fronts.length ? pick(fronts) : null;
     if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
   }
@@ -1282,6 +1287,18 @@ function shoo(q, by){
   sim.fx.push({ kind: 'coin', x: q.x, y: q.y - 1.5, t: 0, life: 1.2, text: by === 'guard' ? 'Out you go!' : 'Scram!' });
   emit('shooed', { by });
 }
+// Two or more guards, supervisors or mascots split up between the floors that have shops, each keeping to their own
+// floor (the ground floor gets the extra one when they don't divide evenly). A lone one covers the whole mall.
+function beatFloor(p){
+  const crew = sim.people.filter(q => q.kind === 'staff' && q.role === p.role);
+  if (crew.length < 2) return null;
+  const floors = [...new Set(S.save.units.filter(u => u.state === 'store').map(u => floorOf(u.x)))].sort((a, b) => a - b);
+  return floors.length < 2 ? null : floors[crew.indexOf(p) % floors.length];
+}
+function onBeat(p, units){
+  const f = beatFloor(p), mine = f === null ? units : units.filter(u => floorOf(u.x) === f);
+  return mine.length ? mine : units;
+}
 // Security guards walk the storefronts; anyone acting up within range gets walked out.
 function updateGuard(p, dt){
   const R = C.TROUBLE.guardRadius[p.skill];
@@ -1296,7 +1313,7 @@ function updateGuard(p, dt){
     return;
   }
   if (!p.round || (p.round.wait -= dt) < -3){
-    const fronts = S.save.units.filter(u => u.state === 'store');
+    const fronts = onBeat(p, S.save.units.filter(u => u.state === 'store'));
     const u = fronts.length ? pick(fronts) : null;
     if (u){ const f = u.kiosk ? kioskStaffAccess(u) : unitAccess(u); if (canReach(f.x, f.y)) p.round = { x: f.x + 0.5, y: f.y + 0.5, wait: 0 }; }
   }
@@ -1305,8 +1322,9 @@ function updateGuard(p, dt){
 // Sunny wanders the concourse, waving. Anyone close by perks up (once per visit).
 function updateMascot(p, dt){
   if (!p.wander || (p.wander.wait -= dt) < -4){
+    const f = beatFloor(p), r = f === null ? { x0: 0, x1: map.w } : floorRange(f);
     for (let k = 0; k < 30; k++){
-      const x = Math.floor(rand() * map.w), y = Math.floor(rand() * C.MAP_H);
+      const x = r.x0 + Math.floor(rand() * (r.x1 - r.x0)), y = Math.floor(rand() * C.MAP_H);
       if (canReach(x, y)){ p.wander = { x: x + 0.5, y: y + 0.5, wait: 0 }; break; }
     }
   }

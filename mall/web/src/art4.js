@@ -1,6 +1,6 @@
 // v0.17.2 painters: four more places to shop. Lemon Drop (a lemonade stand), Game Day (sporting goods), Glow Up
 // (a beauty bar) and Taco Loco (tacos). Same conventions as art.js: tile units, drawn on art.js's current `g`.
-import { g, rr, circ, ell, fs, box, shadow, text, storeIcon, OUT, local, cylinder, shade } from './art.js';
+import { g, rr, circ, ell, fs, box, shadow, text, storeIcon, OUT, local, cylinder, shade, tablePlates } from './art.js';
 
 export const ICONS = ['lemon', 'ball', 'lipstick', 'taco'];
 const FIESTA = ['#e76f51', '#2ec4b6', '#ffd23f', '#ff5d8f', '#5a8dee', '#7bd389'];
@@ -428,15 +428,8 @@ export function back2(ic, x, y, sw, t, id){
   return true;
 }
 export function mid2(ic, u, W, H, t){
-  if (ic === 'noodle'){
-    // Paper lanterns strung across the ceiling, and a little two-stool table.
-    const [x, y] = local(u, 0.42, 1.5);
-    shadow(x, y + 0.02, 0.2, 0.06);
-    for (const sx of [-0.28, 0.28]) cylinder(x + sx, y + 0.05, 0.08, 0.2, '#5a3a2e', '#e63946');
-    rr(x - 0.03, y - 0.36, 0.06, 0.36, 0.02); fs('#3d2b35', 0.02); rr(x - 0.2, y - 0.42, 0.4, 0.1, 0.04); fs('#8a5a44', 0.025);
-    g.save(); g.translate(x, y - 0.46); g.scale(0.09, 0.09); icon2('noodle', c => c); g.restore();
-    return true;
-  }
+  // Noodle Nook's table is a dine-in table now (see dineTable in art.js).
+  if (ic === 'noodle') return true;
   if (ic === 'brush' && H >= 3){
     // An easel with a painting in progress, and a craft table of yarn and paper.
     const [ex, ey] = local(u, 0.35, 2.05);
@@ -470,7 +463,7 @@ export function courtSpots(d){
   tables.forEach((tb, i) => { seats.push({ x: tb.x - 0.42, y: tb.y + 0.08, flip: false, table: i }); seats.push({ x: tb.x + 0.42, y: tb.y + 0.08, flip: true, table: i }); });
   return { tables, seats, entry: { x: d.x + 2, y: d.y + 3.35 }, aisleX: d.x + 2 };
 }
-export function foodCourt(d, part, i, t){
+export function foodCourt(d, part, i, t, plates){
   const x = d.x, y = d.y, sp = courtSpots(d);
   if (part === 'base'){
     shadow(x + 2, y + 2.95, 2.1, 0.14, 0.12);
@@ -497,12 +490,14 @@ export function foodCourt(d, part, i, t){
   }
   if (part === 'table'){
     const tb = sp.tables[i];
+    if (plates) plates = [plates[i * 2], plates[i * 2 + 1]];
     shadow(tb.x, tb.y + 0.06, 0.28, 0.08);
     rr(tb.x - 0.03, tb.y - 0.36, 0.06, 0.38, 0.02); fs('#7a8090', 0.025);
     ell(tb.x, tb.y - 0.38, 0.3, 0.14); fs('#fffaf3', 0.04);
     ell(tb.x, tb.y - 0.4, 0.25, 0.1); fs(null, 0.015, ['#e76f51', '#2ec4b6', '#ffd23f', '#ff5d8f'][i]);
     // Napkins and a little condiment caddy.
     rr(tb.x - 0.05, tb.y - 0.5, 0.1, 0.08, 0.02); fs('#c9d1d9', 0.012); rr(tb.x - 0.035, tb.y - 0.56, 0.03, 0.08, 0.01); fs('#e63946', 0.008); rr(tb.x + 0.005, tb.y - 0.55, 0.03, 0.07, 0.01); fs('#ffd23f', 0.008);
+    tablePlates(plates, tb.x, tb.y - 0.4, 0.17);
     return;
   }
   if (part === 'front'){

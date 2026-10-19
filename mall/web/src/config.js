@@ -166,7 +166,7 @@ export const STORES = {
   beauty:   { name: 'Glow Up',        w: 2, h: 3, cat: 'Fashion', level: 17, cost: 3300, price: [44, 92], stock: 35, icon: 'lipstick', litter: 0.03, color: '#ff5d8f', trim: '#ffe5ec', floor: 'blush' },
   tacos:    { name: 'Taco Loco',      w: 2, h: 2, cat: 'Food',    level: 19, cost: 3000, price: [14, 23], stock: 70, icon: 'taco',     litter: 0.3,  color: '#e76f51', trim: '#2ec4b6', floor: 'terracotta' },
   // v0.17.4: four more for levels 23-27.
-  noodle:   { name: 'Noodle Nook',    w: 2, h: 2, cat: 'Food', level: 23, cost: 4600, price: [15, 25], stock: 70, icon: 'noodle', litter: 0.28, color: '#c1121f', trim: '#ffd6a5', floor: 'wood2' },
+  noodle:   { name: 'Noodle Nook',    w: 2, h: 2, cat: 'Food', level: 23, cost: 4600, price: [15, 25], stock: 70, icon: 'noodle', litter: 0.28, color: '#c1121f', trim: '#ffd6a5', floor: 'wood2', dine: true },
   cotton:   { name: 'Cotton Cloud',   w: 2, h: 1, kiosk: true, cat: 'Food', level: 24, cost: 4200, price: [10, 16], stock: 70, icon: 'cotton', litter: 0.25, color: '#ffafcc', trim: '#a2d2ff' },
   crafty:   { name: 'Crafty Corner',  w: 2, h: 3, cat: 'Home', level: 26, cost: 5600, price: [26, 58], stock: 40, icon: 'brush', litter: 0.05, color: '#9b5de5', trim: '#fee440', floor: 'play' },
   sushi:    { name: 'Sushi Spin',     w: 3, h: 3, cat: 'Food', level: 27, cost: 7800, price: [22, 38], stock: 70, icon: 'sushi', litter: 0.25, color: '#264653', trim: '#e76f51', floor: 'bamboo', dine: true },

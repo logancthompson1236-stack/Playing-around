@@ -584,6 +584,7 @@ export function person(x, y, o){
   o = { ...o, blink: !walking && (t % 3.7) < 0.13 };
   // Side-on seats and machines show the person in profile.
   const profile = !o.back && (o.sitSide || o.reachSide);
+  if (o.eat && !profile) o = { ...o, hold: o.eat, eat: undefined };
   if (sit){
     // Seated: knees toward us, shins hanging over the seat edge, feet swinging a little.
     const swing = Math.sin(t * 2.4) * 0.025;
@@ -649,6 +650,7 @@ export function person(x, y, o){
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
     if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
+    else if (o.eat){ /* drawn after the head */ }
     else if (!sipping){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
   }
   else for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
@@ -691,9 +693,37 @@ export function person(x, y, o){
     if (profile) profileHead(o); else { hairFront(o); face(o); }
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
+    if (o.eat && profile) eatArm(o, t);
     if (sipping){ raisedArm(o, profile ? 0.04 : 0.215, profile ? 0.2 : 0.09, -0.66); g.save(); g.translate(0.06, -0.64); g.rotate(-0.6); heldItem(o.hold, 0, 0.1, o.bagColor, o.prize); g.restore(); }
   }
   g.restore();
+}
+// Eating at a table, side on: the hand rests at the plate a moment, then a bite comes up to the mouth, every couple of
+// seconds. Noodles come up twirled on a fork, sushi in chopsticks; anything else is eaten out of the hand.
+function eatArm(o, t){
+  const c = (t * 0.42 + (o.seed || 0)) % 1;
+  let u = c < 0.45 ? 0 : c < 0.6 ? (c - 0.45) / 0.15 : c < 0.82 ? 1 : 1 - (c - 0.82) / 0.18;
+  u = u * u * (3 - 2 * u);
+  const dig = c < 0.45 ? Math.sin(t * 8) * 0.012 : 0;
+  const hx = 0.3 - u * 0.1, hy = -0.48 - u * 0.2 + dig;      // at the plate → at the mouth
+  if (o.eat === 'noodles' || o.eat === 'sushi'){
+    // Tines (or tips) point down into the bowl, then swing up toward the mouth.
+    const a = 0.3 + (-2.3 - 0.3) * u, L = 0.17, ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
+    g.lineCap = 'round';
+    if (o.eat === 'noodles'){
+      g.strokeStyle = '#c0c6cc'; g.lineWidth = 0.022; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.stroke();
+      g.save(); g.translate(ex, ey); g.rotate(a); g.strokeStyle = '#c0c6cc'; g.lineWidth = 0.012; g.beginPath(); for (const k of [-0.022, 0, 0.022]){ g.moveTo(0, k); g.lineTo(0.05, k); } g.stroke(); g.restore();
+      // A forkful of noodles dangling once it's off the bowl.
+      if (u > 0.12){ g.strokeStyle = '#f4d58d'; g.lineWidth = 0.014; g.beginPath(); for (const k of [-0.02, 0.005, 0.03]){ g.moveTo(ex + k, ey); g.quadraticCurveTo(ex + k + 0.02, ey + 0.05, ex + k - 0.005, ey + 0.09 * u); } g.stroke(); }
+    } else {
+      g.strokeStyle = '#c9a27e'; g.lineWidth = 0.014; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.moveTo(hx + 0.015, hy + 0.01); g.lineTo(ex + 0.02, ey + 0.015); g.stroke();
+      if (u > 0.08){ circ(ex + 0.012, ey + 0.012, 0.03); fs('#1b2d2a', 0.01); circ(ex + 0.012, ey + 0.012, 0.016); fs('#fffaf3', 0); circ(ex + 0.012, ey + 0.012, 0.007); fs('#ff8c69', 0); }
+    }
+    raisedArm(o, 0.04, hx, hy);
+    return;
+  }
+  raisedArm(o, 0.04, hx, hy);
+  g.save(); g.translate(hx - 0.02, hy + 0.02); g.rotate(-0.5 * u); heldItem(o.eat, 0, 0.02, o.bagColor, o.prize); g.restore();
 }
 // An arm raised from the shoulder at (ax, -0.56) to a hand at (hx, hy).
 function raisedArm(o, ax, hx, hy){
@@ -1154,16 +1184,18 @@ export function storeSpots(u){
   const at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
   const counter = local(u, W - 1.05, 0.95, 0.95, 0.42);
   const staff = at(W - 0.55, 0.62);
-  const queue = [at(W - 0.55, Math.min(1.75, H - 0.25)), at(Math.max(0.45, W - 1.3), Math.min(1.75, H - 0.25))];
+  // (Noodle Nook's second in line waits by the door, clear of its little table.)
+  const queue = [at(W - 0.55, Math.min(1.75, H - 0.25)), u.store === 'noodle' ? at(1.12, 1.88) : at(Math.max(0.45, W - 1.3), Math.min(1.75, H - 0.25))];
   if (H >= 3) queue.push(at(W - 0.55, 2.55));
   const browse = [];
-  // At the burger place the left side is tables, so folks look at the menu from the middle instead.
-  const lx0 = u.store === 'burger' || u.store === 'pizza' ? 1.4 : 0.4;
+  // At the burger, pizza and sushi places the left side is tables, so folks look at the menu from the middle instead.
+  const lx0 = u.store === 'burger' || u.store === 'pizza' || u.store === 'sushi' ? 1.4 : 0.4;
   for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45){
     // Not standing in the middle of Threads' tee table or on the mannequin.
     if (u.store === 'boutique' && H >= 3 && ((lx > 0.75 && lx < 1.75 && ly > 1.1 && ly < 1.75) || (lx < 0.7 && ly > 1.7))) continue;
     browse.push(at(lx, ly));
   }
+  if (u.store === 'noodle') browse.splice(0, browse.length, at(1.12, 1.88));
   if (!browse.length) browse.push(at(0.45, H - 0.4));
   const dx = doorX(u) + 0.5;
   const door = { x: dx, y: u.face === 'down' ? u.y + u.h - 0.25 : u.y + 0.25 };
@@ -1720,22 +1752,75 @@ export function storeFurniture(u, def, t, layer){
   }
 }
 
-// Dine-in: two tables with a stool either side, on the left of the store (the counter's on the right).
+// Dine-in: two tables with a stool either side, on the left of the store (the counter's on the right). Noodle Nook
+// has just one little lacquered table for two, tucked by its kitchen.
+const NOODLE_SEAT = 0.25;
 export function dineSpots(u){
   const at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
-  const tables = [at(0.75, 1.55), at(0.75, 2.45)].slice(0, u.h >= 3 ? 2 : 1);
+  const noodle = u.store === 'noodle', off = noodle ? NOODLE_SEAT : 0.42;
+  const tables = noodle ? [at(0.55, 1.5)] : [at(0.75, 1.55), at(0.75, 2.45)].slice(0, u.h >= 3 ? 2 : 1);
   const seats = [];
-  for (const tb of tables){ seats.push({ x: tb.x - 0.42, y: tb.y + 0.08, flip: false }); seats.push({ x: tb.x + 0.42, y: tb.y + 0.08, flip: true }); }
+  for (const tb of tables){ seats.push({ x: tb.x - off, y: tb.y + 0.08, flip: false }); seats.push({ x: tb.x + off, y: tb.y + 0.08, flip: true }); }
   return { tables, seats };
 }
 // Stools and table are drawn as separate layers so someone sitting on a stool sits on it, beside the table.
-export function dineTable(u, i, part){
+// plates: what each of the table's two diners is eating (left seat, right seat), set out in front of them.
+export function dineTable(u, i, part, plates){
   const tb = dineSpots(u).tables[i];
+  if (u.store === 'noodle'){
+    if (part === 'stools'){ for (const sx of [-NOODLE_SEAT, NOODLE_SEAT]){ shadow(tb.x + sx, tb.y + 0.08, 0.12, 0.045); cylinder(tb.x + sx, tb.y + 0.05, 0.08, 0.2, '#5a3a2e', '#e63946'); } return; }
+    shadow(tb.x, tb.y + 0.02, 0.2, 0.06);
+    rr(tb.x - 0.03, tb.y - 0.36, 0.06, 0.36, 0.02); fs('#3d2b35', 0.02); rr(tb.x - 0.2, tb.y - 0.42, 0.4, 0.1, 0.04); fs('#8a5a44', 0.025);
+    // A soy sauce bottle and a cup of chopsticks in the middle.
+    rr(tb.x - 0.025, tb.y - 0.52, 0.05, 0.1, 0.015); fs('#3d2b35', 0.012); rr(tb.x - 0.012, tb.y - 0.56, 0.024, 0.04, 0.008); fs('#e63946', 0.008);
+    tablePlates(plates, tb.x, tb.y - 0.4, 0.11);
+    return;
+  }
   if (part === 'stools'){ for (const sx of [-0.42, 0.42]){ shadow(tb.x + sx, tb.y + 0.08, 0.14, 0.05); cylinder(tb.x + sx, tb.y + 0.06, 0.11, 0.2, '#d62828', '#ef476f'); } return; }
   shadow(tb.x, tb.y + 0.06, 0.28, 0.08);
   rr(tb.x - 0.03, tb.y - 0.36, 0.06, 0.38, 0.02); fs('#7a8090', 0.025);
   ell(tb.x, tb.y - 0.38, 0.3, 0.14); fs('#fff6e0', 0.04); ell(tb.x, tb.y - 0.4, 0.26, 0.11); fs(null, 0.015, 'rgba(214,40,40,.5)');
   rr(tb.x - 0.04, tb.y - 0.5, 0.05, 0.1, 0.01); fs('#ef476f', 0.012); rr(tb.x + 0.02, tb.y - 0.49, 0.05, 0.09, 0.01); fs('#fcbf49', 0.012);
+  tablePlates(plates, tb.x, tb.y - 0.4, 0.18);
+}
+// Each diner's food on the table in front of them: a steaming bowl of noodles, a slate of sushi, or (for things
+// eaten out of the hand) a paper boat and a soda. dx is how far out from the table's middle each plate sits.
+const DRINKS = new Set(['coffee', 'boba', 'lemonade', 'can', 'cocktail']);
+export function tablePlates(plates, cx, ty, dx){
+  if (!plates) return;
+  plates.forEach((food, side) => { if (food) tablePlate(food, cx + (side ? dx : -dx), ty, side ? -1 : 1); });
+}
+export function tablePlate(food, x, y, dir){
+  const t = performance.now() / 1000;
+  if (food === 'noodles'){
+    ell(x, y + 0.01, 0.1, 0.035); g.fillStyle = 'rgba(61,43,53,.18)'; g.fill();
+    g.beginPath(); g.moveTo(x - 0.1, y - 0.06); g.quadraticCurveTo(x - 0.09, y + 0.02, x, y + 0.02); g.quadraticCurveTo(x + 0.09, y + 0.02, x + 0.1, y - 0.06); g.closePath(); fs('#c1121f', 0.02);
+    g.fillStyle = '#fff6ea'; g.fillRect(x - 0.085, y - 0.035, 0.17, 0.018);
+    ell(x, y - 0.06, 0.1, 0.03); fs('#f4d58d', 0.018);
+    g.strokeStyle = '#e9c46a'; g.lineWidth = 0.008; g.beginPath(); for (let k = 0; k < 3; k++){ g.moveTo(x - 0.07 + k * 0.03, y - 0.065); g.quadraticCurveTo(x - 0.05 + k * 0.03, y - 0.045, x - 0.02 + k * 0.03, y - 0.07); } g.stroke();
+    circ(x + 0.04, y - 0.065, 0.018); fs('#fff1d6', 0.008); circ(x + 0.04, y - 0.065, 0.008); fs('#ffb703', 0);   // half an egg
+    rr(x - 0.06, y - 0.075, 0.03, 0.02, 0.005); fs('#7bd389', 0);                                                  // scallions
+    // Steam curling up.
+    g.strokeStyle = 'rgba(255,255,255,.65)'; g.lineWidth = 0.012; g.lineCap = 'round';
+    for (let k = 0; k < 2; k++){ const ph = (t * 0.6 + k * 0.5) % 1, sx = x - 0.02 + k * 0.05; g.globalAlpha = 1 - ph; g.beginPath(); g.moveTo(sx, y - 0.09 - ph * 0.12); g.quadraticCurveTo(sx + 0.03, y - 0.13 - ph * 0.12, sx, y - 0.17 - ph * 0.12); g.stroke(); }
+    g.globalAlpha = 1;
+    return;
+  }
+  if (food === 'sushi'){
+    rr(x - 0.11, y - 0.05, 0.22, 0.06, 0.015); fs('#2b2d42', 0.015);
+    for (let k = 0; k < 3; k++){ circ(x - 0.07 + k * 0.05, y - 0.05, 0.02); fs('#1b2d2a', 0.008); circ(x - 0.07 + k * 0.05, y - 0.05, 0.011); fs('#fffaf3', 0); circ(x - 0.07 + k * 0.05, y - 0.05, 0.005); fs('#ff8c69', 0); }
+    ell(x + 0.08 * dir, y + 0.03, 0.03, 0.012); fs('#fffaf3', 0.008); ell(x + 0.08 * dir, y + 0.03, 0.018, 0.007); fs('#6b3e26', 0);
+    return;
+  }
+  // A napkin, and a paper boat (or, with a drink, just the napkin) plus a soda with a straw.
+  rr(x - 0.06, y - 0.02, 0.12, 0.04, 0.008); fs('#fffaf3', 0.008);
+  if (!DRINKS.has(food)){
+    g.beginPath(); g.moveTo(x - 0.08, y - 0.05); g.lineTo(x + 0.06, y - 0.05); g.lineTo(x + 0.05, y - 0.01); g.lineTo(x - 0.07, y - 0.01); g.closePath(); fs('#fffaf3', 0.012);
+    for (let k = 0; k < 4; k++){ g.fillStyle = '#e63946'; g.fillRect(x - 0.07 + k * 0.03, y - 0.045, 0.012, 0.03); }
+    const cx = x - 0.09 * dir;
+    rr(cx - 0.025, y - 0.12, 0.05, 0.11, 0.01); fs('#ef476f', 0.012); g.fillStyle = '#fffaf3'; g.fillRect(cx - 0.025, y - 0.085, 0.05, 0.02);
+    g.strokeStyle = '#fffaf3'; g.lineWidth = 0.01; g.beginPath(); g.moveTo(cx + 0.005, y - 0.12); g.lineTo(cx + 0.02, y - 0.17); g.stroke();
+  }
 }
 export const roomState = new WeakMap();
 export function restroomSpots(u){
