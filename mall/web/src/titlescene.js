@@ -135,7 +135,16 @@ export function startTitleScene(parent, { mall } = {}){
     g.setLineDash([0.35, 0.3]); g.strokeStyle = 'rgba(255,214,90,.6)'; g.beginPath(); g.moveTo(0, 7.52); g.lineTo(W, 7.52); g.stroke(); g.setLineDash([]);
     // Palms in planters by the doors, bushes along the curb.
     for (const px of [L.door.x0 - 1.55, L.door.x1 + 1.55]){ A.box(px - 0.32, base + 0.12, 0.64, 0.3, 0.3, '#e09a7a', '#c97b5a'); A.palm(px, base + 0.15); }
-    for (let x = 2.95; x < W - 0.4; x += 3.1){ if (Math.abs(x - cx) < 3.2) continue; A.ell(x, base + 0.48, 0.42, 0.2); A.fs('#4fa85e', 0.035); A.ell(x - 0.15, base + 0.4, 0.2, 0.12); A.fs('#6cc47a', 0); }
+    // A row of bushes along the foot of the wings, under the shop windows.
+    const rb = A.mulberry(13);
+    for (const [a, b] of [[x0 + 0.35, c0 - 0.3], [c1 + 0.3, x1 - 0.35]]){
+      const n = Math.max(1, Math.round((b - a) / 1.15));
+      for (let i = 0; i <= n; i++){
+        const bx = a + (b - a) * i / n, rx = 0.36 + rb() * 0.12;
+        A.ell(bx, base + 0.08, rx, 0.2); A.fs('#4fa85e', 0.035); A.ell(bx - rx * 0.35, base, rx * 0.45, 0.11); A.fs('#6cc47a', 0);
+        if (rb() < 0.5){ A.circ(bx + rx * 0.3, base + 0.02, 0.04); A.fs(rb() < 0.5 ? '#ff8fab' : '#ffd23f', 0.015); }
+      }
+    }
     // The mall's own name on a pylon sign at the edge of the lot.
     const name = (mall || 'Sunnyside Mall').toUpperCase(), sx = L.signX, sy = base + 0.55;
     A.rr(sx + 0.42, sy - 2.2, 0.16, 2.2, 0.04); A.fs('#4a4f6a', 0.035);
