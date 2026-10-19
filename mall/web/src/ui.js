@@ -1,7 +1,7 @@
 // DOM overlay: HUD, panels, dialogs, tips, toasts and full-screen screens. Game rules live elsewhere.
 import * as A from './art.js';
 import * as C from './config.js';
-import { S, levelProgress, exportSave, readSaveCode, importSave } from './state.js';
+import { S, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot } from './state.js';
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
@@ -509,10 +509,45 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
             h('button', { class: 'btn small', disabled: !hasSave, onclick: () => backupBox() }, 'Back up'),
             h('button', { class: 'btn small', onclick: () => restoreBox() }, 'Restore'))),
         inGame ? h('div', { class: 'row' }, h('span', {}, 'Start over', h('small', {}, 'Deletes this mall for good')),
-          h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save')) : null)),
+          h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save')) : null,
+        h('div', { class: 'section-label' }, 'Dev options'),
+        h('div', { class: 'row' }, h('span', {}, 'Save slots', h('small', {}, `Playing slot ${activeSlot()} · keep several malls`)),
+          h('button', { class: 'btn small', onclick: () => showDevOptions() }, 'Open')))),
     h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px' },
       h('span', { class: 'muted' }, `Mall Revival v${C.VERSION}`),
       h('button', { class: 'btn primary small', onclick: close }, 'Done'))), { onBackdrop: close });
+}
+// Dev options: several malls side by side. Each slot is its own save; the game opens whichever was picked last.
+// Switching (or starting a new mall in an empty slot) reloads the game into that slot.
+export function showDevOptions(){
+  const midDay = sim.phase === 'day' || sim.phase === 'closing';
+  const list = h('div', { class: 'slots' });
+  const go = n => { setActiveSlot(n); location.reload(); };
+  const leaveOk = async what => !midDay || await confirmBox(what, 'Switch', 'Cancel', 'Today hasn’t been saved yet (the mall saves at night), so today starts over in this mall next time you play it.');
+  const render = () => {
+    const slots = listSlots();
+    list.replaceChildren(...slots.map(({ n, info, active }) => {
+      const label = info ? (info.broken ? 'Unreadable save' : `${info.mall}`) : 'Empty';
+      const sub = info && !info.broken ? `Day ${info.day} · Level ${info.level} · $${Math.round(info.money).toLocaleString()}` : info ? 'This slot’s data is damaged' : 'Start a new mall here';
+      const btns = [];
+      if (active) btns.push(h('span', { class: 'tag' }, 'Playing'));
+      else if (info && !info.broken) btns.push(h('button', { class: 'btn small primary', onclick: async () => { if (await leaveOk(`Switch to ${info.mall}?`)) go(n); } }, 'Play'));
+      if (!info && !active){
+        if (slots.find(q => q.active).info) btns.push(h('button', { class: 'btn small', onclick: () => { if (copySlot(activeSlot(), n)){ sfx('coin'); render(); } } }, 'Copy current'));
+        btns.push(h('button', { class: 'btn small primary', onclick: async () => { if (await leaveOk('Start a new mall in this slot?')) go(n); } }, 'New mall'));
+      }
+      if (info && !active) btns.push(h('button', { class: 'btn small danger', onclick: async () => {
+        if (await confirmBox(`Delete ${label}?`, 'Delete', 'Cancel', `Slot ${n} will be emptied for good.`)){ deleteSlot(n); render(); }
+      } }, 'Delete'));
+      return h('div', { class: 'row' }, h('span', {}, `${n}. ${label}`, h('small', {}, sub)), h('span', { style: 'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end' }, ...btns));
+    }));
+  };
+  render();
+  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'Dev options'),
+    h('div', { class: 'section-label' }, 'Save slots'),
+    h('p', { class: 'muted', style: 'margin:0 0 6px' }, 'Keep up to five malls. The game always opens the one you played last. Copy current makes a copy of the mall as of its last night.'),
+    list,
+    h('div', { style: 'display:flex;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary small', onclick: () => m.close() }, 'Done'))), { onBackdrop: () => m.close() });
 }
 // The backup code, ready to copy.
 function backupBox(){

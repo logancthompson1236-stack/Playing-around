@@ -1,8 +1,32 @@
 // The save file and per-device settings. The save is plain JSON so it can later be shared for mall visits.
 import { START_CASH, START_UNITS, START_KIOSKS, STORES, DECOR, VERSION, LEVEL_XP, MAX_LEVEL, WAGES, LAYOUT, EXPANSIONS, RESTROOM, F2X, MAP_W } from './config.js';
 
-const SAVE_KEY = 'mall-revival-save-v1';
 const SETTINGS_KEY = 'mall-revival-settings';
+// Save slots (Dev options). Slot 1 is the original save key, so saves from before slots existed are slot 1. The
+// slot in use is remembered on the device, and the game opens it next time.
+export const SAVE_SLOTS = 5;
+const ACTIVE_KEY = 'mall-revival-active-slot';
+const slotKey = n => n === 1 ? 'mall-revival-save-v1' : `mall-revival-save-v1-slot${n}`;
+export function activeSlot(){
+  let n = 1; try { n = parseInt(localStorage.getItem(ACTIVE_KEY), 10) || 1; } catch {}
+  return n >= 1 && n <= SAVE_SLOTS ? n : 1;
+}
+export function setActiveSlot(n){ try { localStorage.setItem(ACTIVE_KEY, String(n)); } catch {} }
+// What's in each slot, for the picker: null for an empty one.
+export function listSlots(){
+  const out = [];
+  for (let n = 1; n <= SAVE_SLOTS; n++){
+    let info = null;
+    try { const raw = localStorage.getItem(slotKey(n)); if (raw){ const s = JSON.parse(raw); info = { mall: s.player && s.player.mall || 'My Mall', day: s.day, level: s.level, money: s.money, version: s.version }; } } catch { info = { broken: true }; }
+    out.push({ n, info, active: n === activeSlot() });
+  }
+  return out;
+}
+export function deleteSlot(n){ try { localStorage.removeItem(slotKey(n)); } catch {} }
+export function copySlot(from, to){
+  try { const raw = localStorage.getItem(slotKey(from)); if (!raw) return false; localStorage.setItem(slotKey(to), raw); return true; } catch { return false; }
+}
+const saveKey = () => slotKey(activeSlot());
 
 // Volumes are 0-100. `sound` and `music` follow them (on when above zero); older settings only had the switches.
 export const S = { save: null, settings: { sound: true, music: true, tips: true, volMaster: 80, volSfx: 80, volMusic: 70, saver: false } };
@@ -34,11 +58,11 @@ export function newSave(player){
 const newStyle = () => ({ wall: 'classic', floor: 'classic', walls: ['classic'], floors: ['classic'] });
 
 export function hasSave(){
-  try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+  try { return !!localStorage.getItem(saveKey()); } catch { return false; }
 }
 export function loadSave(){
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(saveKey());
     if (!raw) return null;
     const s = JSON.parse(raw);
     return s && s.v === 1 ? upgradeSave(s) : null;
@@ -87,13 +111,13 @@ function upgradeSave(s){
 }
 export function writeSave(){
   if (!S.save) return;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S.save)); } catch {}
+  try { localStorage.setItem(saveKey(), JSON.stringify(S.save)); } catch {}
 }
 // A save backup is the last saved copy (from the end of the last night) as a code to copy and paste,
 // e.g. from the Android app to an iPhone.
 const CODE_TAG = 'MALL1:';
 export function exportSave(){
-  const raw = localStorage.getItem(SAVE_KEY);
+  const raw = localStorage.getItem(saveKey());
   return raw ? CODE_TAG + btoa(unescape(encodeURIComponent(raw))) : null;
 }
 // Returns the save the code holds (for a confirm), or null if it isn't one.
@@ -105,10 +129,10 @@ export function readSaveCode(code){
   } catch { return null; }
 }
 export function importSave(s){
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); return true; } catch { return false; }
+  try { localStorage.setItem(saveKey(), JSON.stringify(s)); return true; } catch { return false; }
 }
 export function clearSave(){
-  try { localStorage.removeItem(SAVE_KEY); } catch {}
+  try { localStorage.removeItem(saveKey()); } catch {}
 }
 export function loadSettings(){
   let saved = {};

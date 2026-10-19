@@ -303,6 +303,7 @@ function pauseMenu(){
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
     UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap' },
       UI.h('button', { class: 'btn', onclick: () => { close(); settings(true, pauseMenu); } }, 'Settings'),
+      UI.h('button', { class: 'btn', onclick: () => UI.showDevOptions() }, 'Dev options'),
       UI.h('button', { class: 'btn primary', onclick: () => { close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { close(); sim.paused = false; } });
   const close = () => { m.close(); pauseOpen = false; };
 }
