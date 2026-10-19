@@ -106,26 +106,19 @@ function openStore(u, key){
   tip('move');
   return true;
 }
+// Tapping an empty storefront: every store that fits it, as Mall Market cards.
 function openInUnit(u){
   hideCard();
-  const fix = fixCost(u);
-  openPanel({ title: 'Open a store here', render: body => {
-    body.append(h('p', { class: 'muted', style: 'margin:0' }, `This storefront is ${u.w}×${u.h}.${fix ? ` Prices include ${money(fix)} to fix it up.` : ''} ${u.w}×${u.h} stores:`));
-    for (const [key, def] of Object.entries(C.STORES)){
-      if (def.kiosk || !fits(def, u)) continue;
-      if (def.casino && floorOf(u.x) !== 2) continue;
-      body.append(storeItem(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }));
-    }
+  const fix = fixCost(u), s = S.save;
+  const items = Object.entries(C.STORES)
+    .filter(([, def]) => !def.kiosk && fits(def, u) && (!def.casino || floorOf(u.x) === 2))
+    .map(([key, def]) => storeEntry(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }))
+    .sort((a, b) => (a.locked - b.locked) || (a.locked ? a.level - b.level : a.cost - b.cost));
+  openPanel({ title: 'Open a store here', full: true, headerExtra: h('span', { class: 'chip mk-money' }, money(s.money)), render: body => {
+    body.append(h('div', { class: 'mk-shelves' }, h('span', { class: 'mk-hint', style: 'margin-left:0' },
+      `${u.state === 'derelict' ? 'Boarded-up' : 'Empty'} ${u.w}×${u.h} storefront · every ${u.w}×${u.h} store fits${fix ? ` · prices include ${money(fix)} to fix it up` : ''}`)));
+    body.append(items.length ? cardRow(items) : h('div', { class: 'mk-empty' }, `No ${u.w}×${u.h} stores yet.`));
   } });
-}
-function storeItem(key, def, cost, onPick){
-  const noCasino = def.casino && !S.save.expansions.casino, locked = S.save.level < def.level || noCasino, afford = S.save.money >= cost;
-  const have = stores(S.save).filter(u => u.store === key).length;
-  const b = h('button', { class: `item ${locked ? 'locked' : afford ? 'can' : ''}`, disabled: locked, onclick: () => { sfx('tap'); onPick(); } },
-    iconCanvas(() => A.storeIcon(def.icon, 0.5, 0.5, 0.62)),
-    h('span', { class: 'info' }, h('span', { class: 'name' }, def.name, have ? h('span', { class: 'have' }, `You have ${have}`) : null), h('span', { class: 'sub' }, def.attraction ? `${def.w}×${def.h} attraction · tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `${def.w}×${def.h} · ${def.cat} · sells $${def.price[0]}–${def.price[1]}`)),
-    h('span', { class: 'price' }, S.save.level < def.level ? `Level ${def.level}` : noCasino ? 'Casino' : money(cost)));
-  return b;
 }
 const DECOR_TEXT = {
   bin: 'Most shoppers inside the green circle toss their trash in here instead of on the floor.',
@@ -194,19 +187,21 @@ export function openBuild(startTab = 0, startShelf = null){
       else styleTab(body);
     } });
 }
+// A store's Mall Market card.
+function storeEntry(key, def, cost, pick){
+  const s = S.save, [sh, blurb] = STORE_INFO[key] || ['shops', ''], noCasino = def.casino && !s.expansions.casino;
+  return { shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false, pick,
+    icon: () => A.storeIcon(def.icon, 0.5, 0.5, 0.62),
+    kind: def.kiosk ? 'Stand' : def.attraction ? `Attraction ${def.w}×${def.h}` : `Store ${def.w}×${def.h}`,
+    stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}`,
+    locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
+    have: stores(s).filter(u => u.store === key).length };
+}
 function shopItems(){
   const s = S.save, out = [];
   for (const [key, def] of Object.entries(C.STORES)){
-    const [sh, blurb] = STORE_INFO[key] || ['shops', ''];
-    const room = roomFor(key), cost = room.length ? room[0].cost : newCost(key);
-    const noCasino = def.casino && !s.expansions.casino;
-    out.push({ shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false,
-      icon: () => A.storeIcon(def.icon, 0.5, 0.5, 0.62),
-      kind: def.kiosk ? 'Stand' : def.attraction ? `Attraction ${def.w}×${def.h}` : `Store ${def.w}×${def.h}`,
-      stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}`,
-      locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
-      have: stores(s).filter(u => u.store === key).length,
-      pick: () => { closePanel(); startPick(key); } });
+    const room = roomFor(key);
+    out.push(storeEntry(key, def, room.length ? room[0].cost : newCost(key), () => { closePanel(); startPick(key); }));
   }
   for (const [key, def] of Object.entries(C.DECOR)){
     const [sh, blurb] = DECOR_INFO[key] || ['decor', ''];
