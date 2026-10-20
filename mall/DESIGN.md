@@ -790,3 +790,5 @@ v0.20.2 polish:
 - **Crafty Corner:** a proper artist's palette icon, a craft table with a drawing, paint pots, pom-poms and a turning pinwheel, a finished landscape on the easel, and bunting along the wall.
 - **Bake My Day:** a three-tier pastry case (croissants, sprinkle donuts, cupcakes, a layer cake), a bread rack, a brick oven with a live fire and steaming loaves, a chalkboard menu with a rolling pin and whisk, a cake under a glass dome on the counter, candy-stripe wallpaper with an awning, and pink harlequin tiles.
 
+
+v0.20.3: **Pizza eating.** Diners at Slice Society (and anyone eating pizza at the food court) hold a real slice by the crust instead of a little pizza icon. It rests tip-out over the plate, swings up tip-first into the mouth, a bite comes off with a string of cheese stretching back as it pulls away, and the slice gets shorter bite by bite (four bites, then a fresh slice). It is drawn from the shared arm rig (`pizzaBites` in art.js), so it fits every shopper's look and kids at their smaller scale. Animation previews: `eat-pizza`, `eat-pizza-2` and `eat-pizza-close` in tools/anim-entry.js.

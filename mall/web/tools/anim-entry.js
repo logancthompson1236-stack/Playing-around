@@ -6,6 +6,7 @@ import * as A4 from '../src/art4.js';
 import * as C from '../src/config.js';
 import { drawPersonAt, drawPlayKid, playKidY, drawEatArms } from '../src/render.js';
 import { PIT, playLength } from '../src/play.js';
+import { S } from '../src/state.js';
 
 const SHOPPER = { skin: '#f1c7a5', hair: '#6b3e26', hairStyle: 'long', pants: '#33415c', shirt: '#f4a261' };
 const TEEN = { skin: '#c68e6a', hair: '#2b2230', hairStyle: 'short', pants: '#2b2d42', shirt: '#118ab2', hood: false };
@@ -33,6 +34,20 @@ function eater(food, seat, kid){
   const p = person(kid ? FAMILY : SHOPPER, { id: 5 + seat, state: 'court', holding: food, court: { d: court, seat, kidSeat: kid ? seat + 1 : undefined } });
   const s = A4.courtSpots(court).seats[seat]; p.x = s.x; p.y = s.y; p.flip = s.flip;
   return p;
+}
+// Two different-looking diners sharing a table at Slice Society, close up.
+const PIZZA = { id: 21, store: 'pizza', x: 0, y: 0, w: 3, h: 3, rot: 0 };
+S.save = S.save || { units: [PIZZA] };   // the diner code looks their store up in the save
+function pizzaScene(looks, close){
+  const sp = A.dineSpots(PIZZA), tb = sp.tables[0];
+  const ps = looks.map((look, i) => { const s = sp.seats[i]; return person(look, { id: 30 + i * 3, state: 'dine', holding: 'pizza', storeId: PIZZA.id, x: s.x, y: s.y, flip: s.flip }); });
+  return { cam: close ? [sp.seats[0].x + 0.2, sp.seats[0].y - 0.65] : [tb.x, tb.y - 0.5], span: close ? 0.75 : 1.7, cycle: 1 / 0.42, draw(t){
+    floorPatch(Math.floor(tb.x) - 2, Math.floor(tb.y) - 2, 5, 4);
+    for (const p of ps) p.t = t + p.id;
+    const items = [[tb.y, () => A.dineTable(PIZZA, 0, 'stools')], [tb.y + 0.12, () => A.dineTable(PIZZA, 0, 'table', ['pizza', 'pizza'])]];
+    for (const p of ps) items.push([p.y, () => drawPersonAt(p, t)], [p.y + 0.06, () => drawEatArms(p)]);
+    sorted(items);
+  } };
 }
 function vendingScene(rot){
   const d = { type: 'vending', x: 0, y: 0, rot, id: 9 }, secs = C.DECOR.vending.coin.secs, p = person(TEEN, { state: 'useMachine', machine: d });
@@ -97,6 +112,9 @@ const SCENES = {
     for (const p of ps) items.push([p.y, () => drawPersonAt(p, t)], [p.y + 0.06, () => drawEatArms(p)]);
     sorted(items);
   } },
+  'eat-pizza': pizzaScene([SHOPPER, TEEN]),
+  'eat-pizza-2': pizzaScene([WALKER, OWNER]),
+  'eat-pizza-close': pizzaScene([SHOPPER, TEEN], true),
   'vending-front': vendingScene(0),
   'vending-side': vendingScene(1),
   'gumball-teen': gumballScene(TEEN),
