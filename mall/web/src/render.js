@@ -258,6 +258,8 @@ export function render(t){
     // Playing a bar game: sorted where the game has them standing this moment.
     const gp = p.state === 'game' && p.game ? A6.playerPose(p.game.d, p.game.slot, sim.games.get(p.game.d), p, t) : null;
     add(m ? m.y + 0.9 : gp ? gp.y : p.y, () => drawPerson(p, t));
+    // Eating at a table: the hand and the bite come up in front of the table top (it's drawn just after the diner).
+    if ((p.state === 'dine' || p.state === 'court') && p.holding) add(p.y + 0.06, () => drawEatArms(p));
     // At the play area the kid runs off to play: drawn there, among the slide and the balls.
     if (p.state === 'playing' && p.play && p.play.from && p.look.kid) add(playKidY(p), () => drawPlayKid(p));
   }
@@ -333,6 +335,22 @@ function gait(p){
   const n = Math.hypot(p.hx, p.hy) || 1; p.hx /= n; p.hy /= n;
   if (p.hy < -0.62) p.away = true; else if (p.hy > -0.3) p.away = false;
 }
+// The eating arms of a diner (and the kid across from them), to go over the table: see A.eatOverlay.
+export function drawEatArms(p){
+  const L = p.look, eat = p.holding, seed = (p.id * 0.37) % 1;
+  if (L.costume) return;
+  let flip = p.flip, kidSeat = null;
+  if (p.state === 'court' && p.court){
+    const sp = A4.courtSpots(p.court.d); flip = sp.seats[p.court.seat].flip;
+    if (L.kid && p.court.kidSeat !== undefined) kidSeat = sp.seats[p.court.kidSeat];
+  } else if (L.kid && p.kidSeat !== undefined){
+    const u = saveNow().units.find(v => v.id === p.storeId); kidSeat = u && A.dineSpots(u).seats[p.kidSeat];
+  }
+  // How far in front of them their plate sits: Noodle Nook's little table is closer.
+  const plateX = p.state === 'dine' && saveNow().units.some(v => v.id === p.storeId && v.store === 'noodle') ? 0.14 : 0.24;
+  A.eatOverlay(p.x, p.y, { ...L, kid: undefined, t: p.t, flip, eat, seed, plateX });
+  if (kidSeat) A.eatOverlay(kidSeat.x, kidSeat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, flip: kidSeat.flip, eat, seed: seed + 0.5, plateX });
+}
 export function drawPersonAt(p, t){
   const L = p.look;
   gait(p);
@@ -381,7 +399,7 @@ export function drawPersonAt(p, t){
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
   if (p.tryTeddy) o.hold = 'teddy';
   // Sat at a table with their food: eating it, a bite at a time.
-  if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; }
+  if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; o.eatLater = true; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
   // At the soda machine: face it and press a button, until the can drops.
@@ -443,13 +461,13 @@ export function drawPersonAt(p, t){
   // A family at a diner table: the grown-up on one stool, the kid on the stool across from them.
   if (p.state === 'dine' && L.kid && p.kidSeat !== undefined){
     const u = saveNow().units.find(v => v.id === p.storeId), seat = u && A.dineSpots(u).seats[p.kidSeat];
-    if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, eat: o.eat, seed: (o.seed || 0) + 0.5 });
+    if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, eat: o.eat, seed: (o.seed || 0) + 0.5, eatLater: true });
     return A.person(p.x, p.y, { ...o, kid: undefined });
   }
   // Eating at the food court: on a stool, side on; a kid sits on the stool across.
   if (p.state === 'court' && p.court){
     const sp = A4.courtSpots(p.court.d);
-    if (L.kid && p.court.kidSeat !== undefined){ const ks = sp.seats[p.court.kidSeat]; A.person(ks.x, ks.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: ks.flip, mood: 'happy', eat: o.eat, seed: (o.seed || 0) + 0.5 }); }
+    if (L.kid && p.court.kidSeat !== undefined){ const ks = sp.seats[p.court.kidSeat]; A.person(ks.x, ks.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: ks.flip, mood: 'happy', eat: o.eat, seed: (o.seed || 0) + 0.5, eatLater: true }); }
     return A.person(p.x, p.y, { ...o, kid: undefined, sit: true, sitSide: true, flip: sp.seats[p.court.seat].flip });
   }
   // A grown-up waiting at the play area, watching their kid.

@@ -252,6 +252,15 @@ export function floor(kind, x, y, w, h, seed){
   else if (kind === 'wood2'){ planks('#c49a6c', '#b98d5f', 'rgba(70,40,20,.25)'); }
   else if (kind === 'grass'){ checker(0.5, '#d5f0d0', '#c2e8bb'); grid(0.5, 'rgba(40,120,60,.12)', 0.02); }
   else if (kind === 'cafe'){ checker(0.5, '#f2e3cf', '#c99f7a'); grid(0.5, 'rgba(80,50,30,.15)', 0.02); }
+  else if (kind === 'bakery'){
+    // Cream and strawberry-pink harlequin tiles with a thin gold line.
+    g.fillStyle = '#fff4e6'; g.fillRect(x, y, w, h);
+    for (let i = Math.floor(x * 2) / 2; i < x + w; i += 0.5) for (let j = Math.floor(y * 2) / 2; j < y + h; j += 0.5){
+      if (((i + j) * 2) % 2 === 0) continue;
+      g.beginPath(); g.moveTo(i + 0.25, j); g.lineTo(i + 0.5, j + 0.25); g.lineTo(i + 0.25, j + 0.5); g.lineTo(i, j + 0.25); g.closePath(); g.fillStyle = '#f9cfd8'; g.fill();
+    }
+    grid(0.5, 'rgba(201,162,39,.18)', 0.012);
+  }
   else if (kind === 'plain'){ checker(1, '#efe8f5', '#e7def0'); grid(1, 'rgba(90,70,110,.15)', 0.025); }
   else if (kind === 'sidewalk'){ g.fillStyle = '#d6d0c6'; g.fillRect(x, y, w, h); grid(1, 'rgba(80,70,60,.2)', 0.03); }
   else if (kind === 'asphalt'){
@@ -742,7 +751,7 @@ export function person(x, y, o){
     A5.headwear(o, false, profile);
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
-    if (o.eat && profile) eatArm(o, t);
+    if (o.eat && profile && !o.eatLater) eatArm(o, t);
     if (sipping){
       // The drink comes up from the hand to the mouth, tips, and goes back down.
       const u = sipU, rx = profile ? 0.19 : 0.235, ry = profile ? -0.35 : -0.31, hx = rx + ((profile ? 0.2 : 0.09) - rx) * u, hy = ry + (-0.66 - ry) * u;
@@ -777,10 +786,12 @@ function eatArm(o, t){
   let u = c < 0.45 ? 0 : c < 0.6 ? (c - 0.45) / 0.15 : c < 0.82 ? 1 : 1 - (c - 0.82) / 0.18;
   u = u * u * (3 - 2 * u);
   const dig = c < 0.45 ? Math.sin(t * 8) * 0.012 : 0;
-  const hx = 0.3 - u * 0.1, hy = -0.48 - u * 0.2 + dig;      // at the plate → at the mouth
-  if (o.eat === 'noodles' || o.eat === 'sushi'){
-    // Tines (or tips) point down into the bowl, then swing up toward the mouth.
-    const a = 0.3 + (-2.3 - 0.3) * u, L = 0.17, ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
+  // The hand rests just over the plate (on the table top, in front of it) and comes up to the mouth.
+  const utensil = o.eat === 'noodles' || o.eat === 'sushi';
+  const px = o.plateX ?? 0.24, hx = (utensil ? px - 0.12 : px - 0.03) + u * (utensil ? 0.33 - px : 0.23 - px), hy = (utensil ? -0.63 : -0.6) - u * (utensil ? 0.08 : 0.1) + dig;
+  if (utensil){
+    // Tines (or tips) dip into the bowl, then swing up toward the mouth.
+    const a = 0.35 + (-2.3 - 0.35) * u, L = 0.17, ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
     g.lineCap = 'round';
     if (o.eat === 'noodles'){
       g.strokeStyle = '#c0c6cc'; g.lineWidth = 0.022; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.stroke();
@@ -796,6 +807,14 @@ function eatArm(o, t){
   }
   raisedArm(o, 0.04, hx, hy);
   g.save(); g.translate(hx - 0.02, hy + 0.02); g.rotate(-0.5 * u); heldItem(o.eat, 0, 0.02, o.bagColor, o.prize); g.restore();
+}
+// The eating arm (and the bite in it) of someone sat side on at (x, y), on its own: drawn after the table, so the
+// hand and food come up in front of the table top instead of behind it. Pairs with person(x, y, { ...o, eatLater }).
+export function eatOverlay(x, y, o){
+  const s = o.s || 1;
+  g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s); g.translate(0, 0.1);
+  eatArm(o, o.t || 0);
+  g.restore();
 }
 // An arm raised from the shoulder at (ax, -0.56) to a hand at (hx, hy).
 function raisedArm(o, ax, hx, hy, reach = 0.26){

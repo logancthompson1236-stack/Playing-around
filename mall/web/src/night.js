@@ -303,7 +303,15 @@ function mkCard(it){
   const state = it.locked ? 'locked' : it.done ? 'owned' : it.priceText ? 'can' : afford ? 'can' : 'short';
   const price = it.locked ? it.lockText : it.done ? it.doneText : it.priceText || money(it.cost);
   return h('button', { class: `mk-card ${state}`, disabled: it.locked || (it.done && !it.openDone), style: `--c:${it.color || shelfColor(it.shelf)}`,
-    onclick: () => { sfx('tap'); it.pick(); } },
+    onclick: e => {
+      // Can't afford it: say so right on the card instead of heading off to place it.
+      if (state === 'short'){
+        sfx('error'); toast(`Not enough money: ${it.name} is ${money(it.cost)}`, 2600);
+        const c = e.currentTarget; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+        return;
+      }
+      sfx('tap'); it.pick();
+    } },
     h('span', { class: 'mk-art' }, iconCanvas(it.icon, 78),
       h('span', { class: 'mk-kind' }, it.kind),
       isNew ? h('span', { class: 'mk-new' }, 'New') : it.have > 0 ? h('span', { class: 'mk-have' }, `Own ${it.have}`) : null),

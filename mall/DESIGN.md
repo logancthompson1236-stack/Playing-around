@@ -782,3 +782,11 @@ v0.17.5:
 v0.17.7: the title screen buttons sit higher, clear of the bottom of the screen. On itch.io, going full screen in Chrome on Android shows a "To exit full screen" notice across the bottom middle, right on top of where Continue / New game were.
 
 v0.20.1: the title screen buttons are back at their original spot near the bottom of the screen (the v0.17.7 raise is undone at logan's request).
+
+v0.20.2 polish:
+- **Shop:** tapping something you can't afford in the Mall Market shakes the card and says how much it costs, instead of starting placement.
+- **Eating:** diners' hands and food come up in front of the table at every eatery and the food court (the eating arm is drawn as its own layer after the table: `eatOverlay` in art.js, `drawEatArms` in render.js); the hand rests over the plate between bites.
+- **Carousel:** real carousel horses (arched neck, flowing mane and tail, bridle, fringed saddle, galloping legs, six coats), poles that reach the canopy, a painted deck skirt with chasing bulbs, slower bobbing, and the rider sits in the saddle.
+- **Crafty Corner:** a proper artist's palette icon, a craft table with a drawing, paint pots, pom-poms and a turning pinwheel, a finished landscape on the easel, and bunting along the wall.
+- **Bake My Day:** a three-tier pastry case (croissants, sprinkle donuts, cupcakes, a layer cake), a bread rack, a brick oven with a live fire and steaming loaves, a chalkboard menu with a rolling pin and whisk, a cake under a glass dome on the counter, candy-stripe wallpaper with an awning, and pink harlequin tiles.
+

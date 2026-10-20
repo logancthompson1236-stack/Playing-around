@@ -170,7 +170,7 @@ export const STORES = {
   jewelry:  { name: 'Sparkle Jewelers', w: 2, h: 3, cat: 'Fashion', level: 16, cost: 3800, price: [90, 180], stock: 25, icon: 'ring',   litter: 0.02, color: '#1d3557', trim: '#f2d68a', floor: 'royal' },
   boba:     { name: 'Boba Bliss',       w: 2, h: 1, kiosk: true, cat: 'Food', level: 20, cost: 3600, price: [12, 19], stock: 70, icon: 'boba', litter: 0.3, color: '#b388eb', trim: '#6d4c41' },
   vr:       { name: 'Virtual Voyage',   w: 3, h: 3, cat: 'Fun',     level: 25, cost: 7500, price: [38, 62], stock: 60, icon: 'vr',      litter: 0.08, color: '#240046', trim: '#00f5d4', floor: 'neon', play: true },
-  bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'cafe' },
+  bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'bakery' },
   comics:   { name: 'Comic Vault',      w: 2, h: 3, cat: 'Fun',     level: 31, cost: 6800, price: [32, 66], stock: 40, icon: 'comic',   litter: 0.04, color: '#e63946', trim: '#ffd23f', floor: 'carpet' },
   // v0.15: casino stores. casino: only on the casino floor.
   chips:    { name: 'Chip Cage',        w: 2, h: 2, cat: 'Casino',  level: 30, cost: 4000, price: [40, 110], stock: 80, icon: 'chip',    litter: 0.02, color: '#1b4332', trim: '#f2c14e', floor: 'royal', casino: true },

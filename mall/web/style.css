@@ -263,6 +263,9 @@ tr.neg td:last-child{color:var(--red)}
 .mk-stats{font-size:10.5px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mk-buy{flex:none;margin:4px 8px 8px;border:2px solid var(--ink);border-radius:12px;padding:5px 6px;text-align:center;font:700 15px var(--display);background:var(--green);color:#fff;box-shadow:0 3px 0 var(--ink)}
 .mk-card.short .mk-buy{background:#fff;color:var(--red)}
+.mk-card.short .mk-art,.mk-card.short .mk-text{opacity:.62}
+.mk-card.shake{animation:mkshake .38s ease}
+@keyframes mkshake{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 .mk-card.owned .mk-buy{background:var(--paper);color:var(--ink2);box-shadow:none}
 .mk-card.locked{filter:saturate(.25);opacity:.75}
 .mk-card.locked .mk-buy{background:var(--ink);color:var(--cream);font-size:13px;box-shadow:none}

@@ -4,7 +4,7 @@ import * as A from '../src/art.js';
 import * as A2 from '../src/art2.js';
 import * as A4 from '../src/art4.js';
 import * as C from '../src/config.js';
-import { drawPersonAt, drawPlayKid, playKidY } from '../src/render.js';
+import { drawPersonAt, drawPlayKid, playKidY, drawEatArms } from '../src/render.js';
 import { PIT, playLength } from '../src/play.js';
 
 const SHOPPER = { skin: '#f1c7a5', hair: '#6b3e26', hairStyle: 'long', pants: '#33415c', shirt: '#f4a261' };
@@ -71,6 +71,15 @@ function playScene(slot){
       [p.y, () => drawPersonAt(p, t)], [playKidY(p), () => drawPlayKid(p)]]);
   } };
 }
+// The carousel going round with a kid riding (k runs 0 to 1 over the ride).
+function carouselScene(){
+  const d = { type: 'carousel', x: 0, y: 0, id: 12, rot: 0 }, cycle = 8;
+  return { cam: [1.5, 0.6], span: 4.2, cycle, draw(t){
+    floorPatch(-1, -1, 5, 5);
+    const k = (t % cycle) / cycle;
+    A4.carousel(d, t, { k, rider: FAMILY.kid }, A.person);
+  } };
+}
 const SCENES = {
   'walk-side': walker(SHOPPER, 1.3, 1, 0),
   'walk-down': walker(TEEN, 1.6, 0, 1),
@@ -85,7 +94,7 @@ const SCENES = {
     const pl = []; for (const [s, f] of plates) pl[s] = f;
     const items = [[court.y + 0.05, () => A4.foodCourt(court, 'base', 0, t)], [court.y + 2.92, () => A4.foodCourt(court, 'front', 0, t)]];
     A4.courtSpots(court).tables.forEach((tb, i) => { items.push([tb.y, () => A4.foodCourt(court, 'stools', i, t)], [tb.y + 0.12, () => A4.foodCourt(court, 'table', i, t, pl)]); });
-    for (const p of ps) items.push([p.y, () => drawPersonAt(p, t)]);
+    for (const p of ps) items.push([p.y, () => drawPersonAt(p, t)], [p.y + 0.06, () => drawEatArms(p)]);
     sorted(items);
   } },
   'vending-front': vendingScene(0),
@@ -94,6 +103,7 @@ const SCENES = {
   'gumball-kid': gumballScene(FAMILY),
   'play-slide': playScene(0),
   'play-pit': playScene(1),
+  'carousel': carouselScene(),
 };
 
 function paint(g, name, t, w, h){
