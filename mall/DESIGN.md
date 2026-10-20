@@ -780,3 +780,5 @@ v0.17.5:
 - **Guards, supervisors and mascots split up between floors.** With two or more of a role and shops on more than one floor, each keeps to their own floor (the ground floor gets the extra one); a lone one still covers the whole mall (`beatFloor` in sim.js).
 
 v0.17.7: the title screen buttons sit higher, clear of the bottom of the screen. On itch.io, going full screen in Chrome on Android shows a "To exit full screen" notice across the bottom middle, right on top of where Continue / New game were.
+
+v0.20.1: the title screen buttons are back at their original spot near the bottom of the screen (the v0.17.7 raise is undone at logan's request).
