@@ -1,6 +1,6 @@
 // The Mall Market (the Build menu): which shelf each store and decor piece sits on, and its little sales pitch.
-// Five categories keep it easy to browse: Food, Retail, Fun, Scenery (decor that's just for looks and comfort) and
-// Casino. The Shop tab also splits by type: stores and stands, or decor.
+// Six categories keep it easy to browse: Food, Retail, Fun, Scenery (decor that's just for looks and comfort),
+// Casino and Speakeasy. The Shop tab also splits by type: stores and stands, or decor.
 
 export const SHELVES = [
   { id: 'food', name: 'Food', color: '#ff9f43' },
@@ -8,6 +8,7 @@ export const SHELVES = [
   { id: 'fun', name: 'Fun', color: '#5a8dee' },
   { id: 'scenery', name: 'Scenery', color: '#4cc38a' },
   { id: 'casino', name: 'Casino', color: '#9b5de5' },
+  { id: 'speakeasy', name: 'Speakeasy', color: '#b5523b' },
 ];
 export const shelfColor = id => (SHELVES.find(s => s.id === id) || {}).color || '#3fb8af';
 
@@ -57,6 +58,7 @@ export const STORE_INFO = {
   chips:    ['casino', 'Cash in, chips out. Every high roller’s first stop on the casino floor.'],
   lounge:   ['casino', 'Glowing cocktails, velvet booths and smooth music under the neon.'],
   giftshop: ['casino', 'Lucky charms, dice keychains and “I hit the jackpot” tees.'],
+  bar:      ['speakeasy', 'Grandma Rose’s old bar: bottles glowing on the back shelf and a bartender who knows your usual.'],
 };
 
 export const DECOR_INFO = {
@@ -103,4 +105,14 @@ export const DECOR_INFO = {
   jackpot:    ['casino', 'A glowing counter that never stops climbing. Somebody’s gotta win it.'],
   dicestatue: ['casino', 'A pair of giant golden dice. Rub them for luck.'],
   champagne:  ['casino', 'A tower of glasses bubbling over. Pure celebration.'],
+  stool:      ['speakeasy', 'A padded stool with a brass footrest. Regulars sit and nurse their drink.'],
+  bistro:     ['speakeasy', 'A little round table for two. Clink glasses, swap stories.'],
+  booth:      ['speakeasy', 'Tufted red velvet around a table for four. The best seat in the house.'],
+  darts:      ['speakeasy', 'Three darts each, aim for the bullseye. Bragging rights included.'],
+  pool:       ['speakeasy', 'Rack ’em up! Players circle the felt, chalk their cues and call their shots.'],
+  foosball:   ['speakeasy', 'Spin the rods, slam the ball, shout GOAL. Pure bar chaos.'],
+  shuffle:    ['speakeasy', 'Slide the pucks down the long sanded table. Closest to the edge wins.'],
+  pinball:    ['speakeasy', 'Flippers, bumpers, bells and a high score to beat.'],
+  jukebox:    ['speakeasy', 'Drop a coin, pick a record, and the whole bar starts swaying.'],
+  barrels:    ['speakeasy', 'Oak barrels stacked high and stamped with the Velvet Rose.'],
 };

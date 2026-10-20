@@ -82,7 +82,7 @@ export const EXPAND_SCENES = {
   garden: [
     'That second floor’s humming. Better than I ever saw it.',
     'Rose had one dream she never got to. A garden up there, under a glass roof. Real trees, sunlight, somewhere to sit that doesn’t smell like pretzels.',
-    'The far end of the second floor is still boarded up. Forty-five grand and it’s yours. Just saying.',
+    'The far end of the second floor is still boarded up. Twenty-five grand and it’s yours. Just saying.',
   ],
   // The first night you could afford the casino: Gus takes stock of how far it's all come.
   casino: [
@@ -97,6 +97,22 @@ export const EXPAND_SCENES = {
     'Boss, that casino of yours is the talk of the town. I saw a fellow in a gold tie tip a dealer fifty bucks.',
     'Folks with that kind of money want somewhere quieter to play. A high roller suite at the end of the casino floor: gold carpet, golden slots, champagne.',
     'A hundred and twenty grand. Big number. Bigger crowd. Your call.',
+  ],
+};
+
+// Level 30: Gus leads you to the east end of the concourse and knocks Rose's old knock on a wall panel.
+export const SPEAKEASY_SCENE = {
+  intro: [
+    'Evening, boss. Level thirty! Rose made me promise that if you ever got this far, I’d show you something.',
+    'Follow me. East end of the concourse. Mind the dust.',
+  ],
+  knock: 'knock, knock-knock... knock knock!',
+  reveal: [
+    'Shave and a haircut. Rose’s old knock. There’s a stairway behind this panel, and a whole basement nobody’s set foot in since ’89.',
+    'The Velvet Rose. Your grandma ran a speakeasy under her own mall. Jazz on Thursdays, a long walnut bar and the best old fashioned in the county.',
+    'Officially it was the boiler room. Unofficially, half the town knew the password. “Rose sent me.”',
+    'The bar’s still down there under a sheet. Thirty grand gets the stairs open, the lights on and the taps flowing.',
+    'Pool, darts, shuffleboard, all that comes later as you go. Look under Build, then Fix up. And boss? Kids stay upstairs.',
   ],
 };
 

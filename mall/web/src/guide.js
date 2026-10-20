@@ -5,7 +5,7 @@ import { sim, spawnTutorialCustomer, releaseTutorial, addTrash, spotsFor, spawnG
 import { litterSpot } from './map.js';
 import { say, hint, clearHint, showTip, tipVisible, dialogOpen, hideTipFor } from './ui.js';
 import { view } from './render.js';
-import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES, CLERK_SCENE, STORE_SCENE, TROUBLE_SCENE } from './story.js';
+import { DAY1, MEMORIES, DEE_SCENE, EXPAND_SCENES, CLERK_SCENE, STORE_SCENE, TROUBLE_SCENE, SPEAKEASY_SCENE } from './story.js';
 
 /* ---------- Waiting on game state from async scripts ---------- */
 const waiters = [];
@@ -188,7 +188,9 @@ export async function runTroubleScene(){
 let expandRunning = false;
 export function expansionToSuggest(){
   const s = S.save;
-  return C.EXPANSIONS.find(e => !s.expansions[e.id] && (!e.requires || s.expansions[e.requires]) && s.level >= e.level && s.money >= e.cost && !s.flags.memories['wing_' + e.id]);
+  // Most come up the first night you can afford them; the speakeasy (gus: 'level') the night you reach its level.
+  const ready = e => !s.expansions[e.id] && (!e.requires || s.expansions[e.requires]) && s.level >= e.level && (e.gus === 'level' || s.money >= e.cost) && !s.flags.memories['wing_' + e.id];
+  return C.EXPANSIONS.find(e => e.gus === 'level' && ready(e)) || C.EXPANSIONS.find(ready);
 }
 export async function runExpandScene(){
   const e = expansionToSuggest();
@@ -199,11 +201,36 @@ export async function runExpandScene(){
   g.state = 'walkTo'; g.goal = { x: C.ENTRANCE.x + 1.6, y: C.MAP_H - 3.4 };
   view.camTarget = { x: g.goal.x, y: g.goal.y - 1.5 };
   await until(() => g.state === 'stand');
-  await say(EXPAND_SCENES[e.id]);
+  if (e.id === 'speakeasy') await speakeasyScene(g);
+  else await say(EXPAND_SCENES[e.id]);
   f.memories['wing_' + e.id] = true; writeSave();
   const buildBtn = document.querySelector('.night-bar .tool:nth-child(1)');
   buildBtn && buildBtn.classList.add('pulse');
   g.state = 'leave';
   expandRunning = false;
   until(() => document.querySelector('.panel[aria-label="Build"]') || S.save.phase !== 'night').then(() => buildBtn && buildBtn.classList.remove('pulse'));
+}
+
+// The speakeasy: Gus walks you to the east end of the concourse, knocks Rose's old knock on the end wall beside where
+// the stairs will go, and tells you what's down there.
+async function speakeasyScene(g){
+  await say(SPEAKEASY_SCENE.intro);
+  const stairs = C.ESCALATORS.find(q => q.id === 'c0'), spot = { x: C.MAP_W - 0.55, y: stairs.y + 1.5 };
+  g.state = 'walkTo'; g.goal = spot;
+  view.camTarget = { x: spot.x - 1, y: spot.y - 1.5, s: view.minS * 2.2 };
+  await until(() => g.state === 'stand');
+  g.flip = false;
+  // Night has no clock running, so the knocks fade out on their own here.
+  const tick = setInterval(() => { for (const fx of sim.fx) fx.t += 0.05; sim.fx = sim.fx.filter(fx => fx.t < fx.life); }, 50);
+  const wall = { x: C.MAP_W - 0.2, y: stairs.y + 0.9 };
+  g.knock = true;
+  for (const [i, word] of ['knock', 'knock-knock', 'knock knock!'].entries()){
+    sim.fx.push({ kind: 'coin', x: wall.x - 1.2 + i * 0.25, y: wall.y - 1.3 - i * 0.35, t: 0, life: 1.6, text: word });
+    await wait(i === 1 ? 0.75 : 0.55);
+  }
+  g.knock = false;
+  await wait(1.1);
+  sim.fx.push({ kind: 'sparkle', x: wall.x, y: wall.y - 0.4, t: 0, life: 0.9 });
+  clearInterval(tick);
+  await say(SPEAKEASY_SCENE.reveal);
 }

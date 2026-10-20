@@ -1,7 +1,7 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
 import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks } from './state.js';
-import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor } from './map.js';
+import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor, openFloors, floorLevel } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
 import { initInput } from './input.js';
@@ -38,9 +38,11 @@ UI.buildHud({
   notebook: () => openNotebook(),
   settings: () => settings(true),
   open: () => openDoors(),
-  floorUp: () => { view.camTarget = null; setFloor(view.floor + 1); },
-  floorDown: () => { view.camTarget = null; setFloor(view.floor - 1); },
+  floorUp: () => { view.camTarget = null; stepFloor(1); },
+  floorDown: () => { view.camTarget = null; stepFloor(-1); },
 });
+// The ▲/▼ buttons step through the open floors in order: the basement, the ground floor, then up.
+function stepFloor(d){ const fl = openFloors(), i = fl.indexOf(view.floor); if (fl[i + d] !== undefined) setFloor(fl[i + d]); }
 setLevelUpHandler(async levels => {
   await UI.showLevelUp(levels);
   if (phase === 'night' && S.save.level >= 3) runDeeScene();
@@ -318,7 +320,7 @@ function floorsNeedingYou(){
     if ((p.kind === 'customer' && p.state === 'queue' && p.patience / p.patienceMax < 0.35) || (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act'))) need.add(floorOf(p.x));
   }
   for (const u of S.save.units) if (u.state === 'restroom' && (sim.rooms.get(u.id) || {}).dirt >= 70) need.add(floorOf(u.x));
-  return [[...need].some(f => f > view.floor), [...need].some(f => f < view.floor)];
+  return [[...need].some(f => floorLevel(f) > floorLevel(view.floor)), [...need].some(f => floorLevel(f) < floorLevel(view.floor))];
 }
 
 // The escalator under (x, y), if any: switch to the floor at its other end and look at where it comes out.
@@ -358,7 +360,7 @@ function frame(now){
   if (view.camTarget){
     const c = view.cam, T = view.camTarget, k = Math.min(1, dt * 4);
     // Heading for something on the other floor: switch floors and cut straight there.
-    if (floorOf(T.x) !== view.floor && floorOf(T.x) <= topFloor()){ setFloor(floorOf(T.x)); c.x = T.x; }
+    if (floorOf(T.x) !== view.floor && openFloors().includes(floorOf(T.x))){ setFloor(floorOf(T.x)); c.x = T.x; }
     const px = c.x, py = c.y, ps = c.s;
     c.x += (T.x - c.x) * k; c.y += (T.y - c.y) * k;
     if (T.s) c.s += (T.s - c.s) * k;
@@ -370,7 +372,7 @@ function frame(now){
   if (!view.covered) render(t);
   const p2 = performance.now();
   perf.step = perf.step * 0.95 + (p1 - p0) * 0.05; perf.render = perf.render * 0.95 + (p2 - p1) * 0.05;
-  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? topFloor() : 0, view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }
+  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? openFloors() : [0], view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }
   requestAnimationFrame(frame);
 }
 document.fonts && document.fonts.ready ? document.fonts.ready.then(() => { invalidate(); boot(); requestAnimationFrame(frame); }) : (boot(), requestAnimationFrame(frame));

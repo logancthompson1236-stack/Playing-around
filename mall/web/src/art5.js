@@ -12,6 +12,7 @@ const FRAMES = ['#2b2d42', '#c1121f', '#00798c', '#edae49', '#9b5de5', '#8a5a44'
 const FRUIT = { berry: '#ef476f', mango: '#ffb703', kiwi: '#7bd389', blue: '#7b6cf6' };
 const BALLS = ['#3a86ff', '#ff006e', '#8338ec', '#fb5607', '#06d6a0', '#ffbe0b', '#2b2d42'];
 const ease = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+const clamp01 = k => Math.max(0, Math.min(1, k)), lerp = (a, b, k) => a + (b - a) * k;
 const seg = (k, a, b) => ease((k - a) / (b - a));
 const hash = (a, b) => { let t = Math.imul(a | 0, 73856093) ^ Math.imul(b | 0, 19349663); t = Math.imul(t ^ t >>> 13, 0x5bd1e995); return ((t ^ t >>> 15) >>> 0) / 4294967296; };
 
@@ -552,50 +553,97 @@ export function backLayer(u, def, t, live = [], only){
   }
   HOLES.forEach((h, i) => { if (only === undefined || only === i) golfHole(u, h, i, live[i], t, dir); });
 }
-// Ten pins on the deck, head pin nearest the bowler. Rows step back toward the pinsetter.
+// Ten pins on the deck in their triangle, head pin nearest the bowler; each row steps back toward the pinsetter.
+// Columns are in half-pin steps, so the rows interleave.
 const PIN_ROWS = [[0], [-1, 1], [-2, 0, 2], [-3, -1, 1, 3]];
+const PIN_COL = 0.085, PIN_ROW = 0.075, PIN_HEAD = 0.79;
 function bowlState(p){
   if (!p) return null;
   const c = CYCLE.bowl, k = p.k % c, n = Math.floor(p.k / c), r = hash(p.seed * 7 + 1, n);
   const strike = r < 0.42, left = strike ? 10 : Math.floor(2 + r * 7);
   return { k, n, strike, down: strike ? 10 : 10 - left, seed: p.seed, ball: p.ball };
 }
+// The ball's sideways hook, store-local, at r of the way down the lane.
+const hookAt = (st, lane, r) => Math.sin(r * Math.PI) * 0.12 * (lane % 2 ? 1 : -1) * (st.strike ? 0.6 : 1.4);
+const HIT = 4.15;
 function bowlingLane(u, lx, lane, p, t, dir){
   const st = bowlState(p);
   const pinY = ly => lanePt(u, lx, ly);
-  // Pins: stand, get knocked flying, swept away, then set back down.
-  let hit = 0, gone = false, reset = 1;
-  if (st){
-    hit = seg(st.k, 4.15, 4.6);
-    gone = st.k > 5.25 && st.k < 6.05;
-    reset = st.k < 5.25 ? 1 : st.k < 6.05 ? 0 : seg(st.k, 6.05, 6.6);
-  }
   const R = mulberry((st ? st.seed * 31 + st.n : lane) + 5);
   const pins = [];
-  PIN_ROWS.forEach((row, ri) => row.forEach(col => pins.push({ lx: lx + col * 0.065, ly: 0.82 - ri * 0.11, fall: R() })));
+  PIN_ROWS.forEach((row, ri) => row.forEach(col => pins.push({ lx: lx + col * PIN_COL, ly: PIN_HEAD - ri * PIN_ROW, fall: R(), spin: R() })));
+  // Which pins go down: the ball hits the pocket beside the head pin and the rest fall in a chain, nearest first.
+  // A strike takes all ten; otherwise the ones farthest out on the far side are left standing.
+  const impact = { lx: lx + (lane % 2 ? 0.03 : -0.03), ly: PIN_HEAD + 0.02 };
+  const dist = q => Math.hypot(q.lx - impact.lx, (q.ly - impact.ly) * 1.2);
   const falls = new Set();
-  if (st){ const order = pins.map((q, i) => i).sort((a, b) => Math.abs(pins[a].lx - lx) - Math.abs(pins[b].lx - lx)); for (let i = 0; i < st.down; i++) falls.add(order[i]); }
-  // Farthest first, so nearer pins overlap them.
-  const draw = pins.map((q, i) => ({ ...q, i })).sort((a, b) => dir > 0 ? a.ly - b.ly : b.ly - a.ly);
-  for (const q of draw){
-    const knocked = falls.has(q.i), at = pinY(q.ly);
-    if (gone) continue;
-    if (reset < 1){ g.save(); g.globalAlpha = reset; }
-    if (knocked && hit > 0){
-      const sx = (q.lx - lx) * 3 + (q.fall - 0.5) * 1.2, fly = hit;
-      pin(at.x + sx * fly * 0.25, at.y - dir * fly * 0.15 - Math.sin(fly * Math.PI) * 0.18, (sx >= 0 ? 1 : -1) * fly * (1.4 + q.fall), 1 - fly * 0.15);
-    } else pin(at.x, at.y, 0, 1);
-    if (reset < 1) g.restore();
+  if (st){ const order = pins.map((q, i) => i).sort((a, b) => dist(pins[a]) - dist(pins[b])); for (let i = 0; i < st.down; i++) falls.add(order[i]); }
+  const k = st ? st.k : -1;
+  // The pinsetter: lowers onto the deck to lift the standing pins, then later to set a fresh rack.
+  const grab = k > 4.95 && k < 5.75, rerack = k > 5.9 && k < 6.95;
+  let setH = 0.55;
+  if (grab) setH = k < 5.2 ? lerp(0.55, 0.04, seg(k, 4.95, 5.2)) : lerp(0.04, 0.55, seg(k, 5.35, 5.65));
+  if (rerack) setH = k < 6.45 ? lerp(0.55, 0.0, seg(k, 5.9, 6.4)) : lerp(0.0, 0.55, seg(k, 6.55, 6.9));
+  // The sweep bar drops in front of the deck and pushes the fallen pins back into the pit.
+  const sweeping = k > 5.0 && k < 6.0, sweepLy = k < 5.3 ? 0.96 : lerp(0.96, 0.2, seg(k, 5.3, 5.85));
+  const draw = [];
+  for (let i = 0; i < pins.length; i++){
+    const q = pins[i], knocked = falls.has(i);
+    let x = q.lx, ly = q.ly, lift = 0, rot = 0, sc = 1, alpha = 1, lying = 0;
+    if (st && knocked && k > HIT){
+      // Each pin goes when the chain reaches it: tipping away from the hit, skidding and bouncing, then lying flat.
+      const delay = dist(q) * 1.5 + q.fall * 0.05, f = clamp01((k - HIT - delay) / 0.38);
+      if (k < 5.9 && f > 0){
+        const away = Math.sign(q.lx - impact.lx + (q.fall - 0.5) * 0.02) || 1;
+        const slide = ease(f);
+        x += away * slide * (0.05 + q.fall * 0.08);
+        ly -= slide * (0.05 + q.spin * 0.06);
+        lift = Math.sin(f * Math.PI) * (0.05 + q.fall * 0.05);
+        rot = away * slide * (1.35 + q.spin * 0.25);
+        lying = slide;
+        // Swept: pushed back with the bar and dropped into the pit.
+        if (sweeping && sweepLy < ly + 0.04){ ly = Math.min(ly, sweepLy - 0.04); if (ly < 0.32) alpha = clamp01((ly - 0.24) / 0.08); }
+      } else if (k >= 5.9) alpha = 0;
+    } else if (st && !knocked && k > HIT){
+      // Left standing: rattled by its neighbors going down, then lifted by the pinsetter while the deck's swept.
+      const near = Math.min(...[...falls].map(j => Math.hypot(pins[j].lx - q.lx, pins[j].ly - q.ly)), 1);
+      const since = k - HIT - dist(q) * 1.5;
+      if (since > 0 && near < 0.2) rot = Math.sin(since * 26) * 0.16 * Math.exp(-since * 3.2) * (1 - near * 3);
+      if (k > 5.2 && k < 5.9) lift = 0.55 - setH;
+      if (k >= 5.9) alpha = 0;
+    }
+    // The fresh rack rides down in the pinsetter.
+    if (st && k >= 5.9){ alpha = 1; rot = 0; lying = 0; x = q.lx; ly = q.ly; lift = k < 6.45 ? setH : 0; }
+    const at = lanePt(u, x, ly);
+    draw.push({ x: at.x, y: at.y, lift, rot, sc, alpha, lying });
   }
-  // The sweep bar comes down to clear the deck.
-  if (st && st.k > 5.0 && st.k < 6.2){
-    const s = seg(st.k, 5.0, 5.3) * (1 - seg(st.k, 5.9, 6.2)), a = pinY(0.95 - s * 0.6);
-    rr(a.x - 0.36, a.y - 0.32, 0.72, 0.06, 0.02); fs('#a0a8b0', 0.02);
+  // The deck's back edge, where pins drop into the pit.
+  const pit = pinY(0.27); g.fillStyle = 'rgba(20,20,30,.55)'; g.fillRect(pit.x - 0.33, pit.y - 0.03, 0.66, 0.06);
+  // Farthest first, so nearer pins overlap them.
+  draw.sort((a, b) => a.y - b.y);
+  for (const q of draw){
+    if (q.alpha <= 0) continue;
+    if (q.alpha < 1){ g.save(); g.globalAlpha = q.alpha; }
+    pin(q.x, q.y - q.lift, q.rot, q.sc, q.lift > 0.02 || q.lying > 0.5);
+    if (q.alpha < 1) g.restore();
+  }
+  // The pinsetter's rack frame, while it's down near the deck.
+  if (grab || rerack){
+    const c = pinY(PIN_HEAD - PIN_ROW * 1.5);
+    g.save(); g.globalAlpha = 0.85;
+    rr(c.x - 0.34, c.y - 0.2 - setH, 0.68, 0.3, 0.04); g.fillStyle = 'rgba(160,168,176,.35)'; g.fill(); g.strokeStyle = '#6c757d'; g.lineWidth = 0.02; g.stroke();
+    g.strokeStyle = '#a0a8b0'; g.lineWidth = 0.025; g.beginPath(); g.moveTo(c.x - 0.3, c.y - 0.2 - setH); g.lineTo(c.x - 0.3, c.y - 0.75); g.moveTo(c.x + 0.3, c.y - 0.2 - setH); g.lineTo(c.x + 0.3, c.y - 0.75); g.stroke();
+    g.restore();
+  }
+  if (sweeping){
+    const s = seg(k, 5.0, 5.25), a = pinY(sweepLy);
+    rr(a.x - 0.36, a.y - 0.16 - (1 - s) * 0.3, 0.72, 0.06, 0.02); fs('#a0a8b0', 0.02);
+    g.strokeStyle = '#6c757d'; g.lineWidth = 0.015; g.beginPath(); g.moveTo(a.x - 0.33, a.y - 0.13 - (1 - s) * 0.3); g.lineTo(a.x - 0.33, a.y + 0.02 - (1 - s) * 0.3); g.moveTo(a.x + 0.33, a.y - 0.13 - (1 - s) * 0.3); g.lineTo(a.x + 0.33, a.y + 0.02 - (1 - s) * 0.3); g.stroke();
   }
   if (!st) return;
   // The ball: in the bowler's hand until the release, then down the lane with a little hook, into the pins.
   if (st.k > 2.25 && st.k < 4.7){
-    const r = seg(st.k, 2.3, 4.2), hook = Math.sin(r * Math.PI) * 0.12 * (lane % 2 ? 1 : -1) * (st.strike ? 0.6 : 1.4);
+    const r = seg(st.k, 2.3, 4.2), hook = hookAt(st, lane, r);
     const ly = 2.62 - r * 1.8 - (st.k > 4.2 ? (st.k - 4.2) * 0.4 : 0), at = pinY(ly);
     if (st.k < 4.55){ ball(at.x + hook, at.y - 0.09, 0.09 * (1 - r * 0.15), st.ball, st.k * 9 * dir); }
   }
@@ -618,9 +666,9 @@ function ballReturns(u){
     for (let k = 0; k < 2; k++){ circ(p.x, p.y - 0.28 + k * 0.13, 0.06); fs(BALLS[(i * 2 + k) % BALLS.length], 0.015); }
   }
 }
-function pin(x, y, rot, s){
-  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s * 0.6, s * 0.6);
-  shadow(0, 0, 0.07, 0.025, 0.25);
+function pin(x, y, rot, s, noShadow){
+  if (!noShadow){ g.save(); g.translate(x, y); shadow(0, 0, 0.035, 0.012, 0.3); g.restore(); }
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s * 0.45, s * 0.45);
   g.beginPath(); g.moveTo(0, -0.34); g.bezierCurveTo(0.06, -0.34, 0.06, -0.24, 0.035, -0.2); g.bezierCurveTo(0.1, -0.12, 0.1, -0.02, 0.06, 0); g.lineTo(-0.06, 0); g.bezierCurveTo(-0.1, -0.02, -0.1, -0.12, -0.035, -0.2); g.bezierCurveTo(-0.06, -0.24, -0.06, -0.34, 0, -0.34); fs('#fffaf3', 0.025);
   g.fillStyle = '#e63946'; g.fillRect(-0.04, -0.25, 0.08, 0.02); g.fillRect(-0.042, -0.22, 0.084, 0.015);
   g.restore();

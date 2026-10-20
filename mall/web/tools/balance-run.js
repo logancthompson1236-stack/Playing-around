@@ -1,6 +1,6 @@
 import * as C from '../src/config.js';
 import { S, newSave, stores, addXp } from '../src/state.js';
-import { rebuildMap, validatePlacement, map, clearEscalators } from '../src/map.js';
+import { rebuildMap, validatePlacement, map, clearEscalators, floorOf } from '../src/map.js';
 import { sim, step, startDay, buildReport, addJob, setRandom, staffLook, roomInfo } from '../src/sim.js';
 const staffLookFor = m => staffLook(m.role, m.id);
 import { mulberry } from '../src/art.js';
@@ -57,6 +57,7 @@ function player(){
   }
 }
 
+function floorOk(d, x){ return (!d.casino || floorOf(x) === 2) && (!d.bar || floorOf(x) === 3); }
 function night(){
   const s = S.save, gain = n => addXp(n);
   const lim = role => C.STAFF_LIMITS[role][s.level], has = role => s.staff.filter(m => m.role === role).length;
@@ -68,7 +69,7 @@ function night(){
     const choices = Object.entries(C.STORES).filter(([k, d]) => !d.kiosk && d.level <= s.level).sort((a, b) => (owned.has(a[0]) - owned.has(b[0])) || a[1].cost - b[1].cost);   // new kinds first, the cheapest it can afford
     let opened = false;
     for (const u of vacant){
-      const pick = choices.find(([k, d]) => d.w === u.w && d.h === u.h && s.money >= d.cost + 150 && (!owned.has(k) || owned.size >= choices.length));
+      const pick = choices.find(([k, d]) => d.w === u.w && d.h === u.h && floorOk(d, u.x) && s.money >= d.cost + 150 && (!owned.has(k) || owned.size >= choices.length));
       if (pick){ s.money -= pick[1].cost; u.state = 'store'; u.store = pick[0]; u.stock = pick[1].stock; gain(40); opened = true; break; }
     }
     if (opened) continue;
@@ -76,12 +77,12 @@ function night(){
     const der = s.units.filter(u => u.state === 'derelict').sort((a, b) => a.w * a.h - b.w * b.h);
     for (const [k, d] of choices){
       if (owned.has(k) && owned.size < choices.length) continue;
-      const u = der.find(v => v.w === d.w && v.h === d.h), fix = u ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
+      const u = der.find(v => v.w === d.w && v.h === d.h && floorOk(d, v.x)), fix = u ? u.w * u.h * C.RENOVATE_PER_TILE : 0;
       if (u && s.money >= fix + d.cost + 150){ s.money -= fix + d.cost; u.state = 'store'; u.store = k; u.stock = d.stock; gain(65); opened = true; break; }
     }
     if (opened) continue;
     // No shell left for a store we don't have yet (or a kiosk): put up a new one on clean floor.
-    const all = Object.entries(C.STORES).filter(([k, d]) => d.level <= s.level);
+    const all = Object.entries(C.STORES).filter(([k, d]) => d.level <= s.level && !d.casino && !d.bar);
     const want = all.find(([k]) => !owned.has(k)) || (stores(s).length < 24 && s.money > 6000 ? all.sort((a, b) => b[1].price[1] - a[1].price[1])[0] : null);
     if (want){
       const [k, d] = want, cost = d.cost + (d.kiosk ? 0 : d.w * d.h * C.BUILD_PER_TILE);

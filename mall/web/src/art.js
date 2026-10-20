@@ -6,6 +6,7 @@ import * as A2 from './art2.js';
 import * as A3 from './art3.js';
 import * as A4 from './art4.js';
 import * as A5 from './art5.js';
+import * as A6 from './art6.js';
 // Older WebViews and Safari before 16 lack roundRect.
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
@@ -278,7 +279,7 @@ export function floor(kind, x, y, w, h, seed){
       g.fillStyle = kind === 'dark' ? 'rgba(160,150,140,.5)' : 'rgba(240,235,220,.8)'; g.fillRect(-0.07, -0.05, 0.14, 0.1); g.restore();
     }
   }
-  else A5.floor(kind, x, y, w, h);
+  else if (!A6.floor(kind, x, y, w, h)) A5.floor(kind, x, y, w, h);
   g.restore();
 }
 
@@ -376,6 +377,7 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'comic': A2.comicIcon(c); break;
     case 'lemon': case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'cotton': case 'brush': case 'sushi': A4.icon(icon, c); break;
     case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': case 'smoothie': case 'bowling': case 'golf': A5.icon(icon, c); break;
+    case 'bar': A6.icon(icon, c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -668,7 +670,7 @@ export function person(x, y, o){
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
   const hand = [0.235, -0.31];   // the right hand, where a held item goes
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie') && !o.back && !walking && sipK(t) > 0;
+  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie' || o.hold === 'beer' || o.hold === 'whiskey' || o.hold === 'martini') && !o.back && !walking && sipK(t) > 0;
   const sipU = sipping ? sipK(t) : 0;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
@@ -803,7 +805,7 @@ function raisedArm(o, ax, hx, hy, reach = 0.26){
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
 function heldItem(kind, hx, hy, color, prize){
-  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy) || A5.held(kind, hx, hy)) return;
+  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy) || A5.held(kind, hx, hy) || A6.held(kind, hx, hy)) return;
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -876,8 +878,9 @@ export const WALLPAPER = {
   casino:  { face: '#7a1734', dark: '#4f0e22', cap: '#f2c14e', base: '#1b1440' },
   neonights: { face: '#2a1650', dark: '#1b0e38', cap: '#ff6fb5', base: '#4cc9f0' },
   ...A5.WALLPAPER,
+  ...A6.WALLPAPER,
 };
-const FLOOR_KIND = { ...A5.FLOOR_KIND, classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
+const FLOOR_KIND = { ...A5.FLOOR_KIND, ...A6.FLOOR_KIND, classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
 let style = { wall: 'classic', floor: 'classic' };
 export function setStyle(st){ if (st) style = st; }
 export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
@@ -1060,7 +1063,7 @@ function wallPattern(id, P, w, top){
     for (let x = 0.15; x < w; x += 0.3){ circ(x, top + 0.12, 0.06); g.fillStyle = Math.floor(x / 0.3) % 2 ? '#fff3b0' : '#ffd23f'; g.fill(); }
     const suits = ['♠', '♥', '♦', '♣'];
     for (let i = 0; i < w; i += 1.5){ const k = Math.floor(i / 1.5) % 4; text(suits[k], i + 0.75, -0.55, 0.3, k === 1 || k === 2 ? '#ff4f6d' : '#f2c14e', 700); }
-  } else if (!A5.wallPattern(id, P, w, top)){
+  } else if (!A5.wallPattern(id, P, w, top) && !A6.wallPattern(id, P, w, top)){
     g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
   }
 }
@@ -1400,6 +1403,7 @@ function storeWallpaper(u, def, x0, y0, w, H){
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallpaper(ic, x0, y0, w, H); break;
     case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallpaper(ic, x0, y0, w, H); break;
+    case 'bar': A6.wallpaper(ic, x0, y0, w, H); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
@@ -1465,6 +1469,7 @@ function wallPieceArt(ic, wx, wy, t){
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallPiece(ic, wx, wy, t); break;
     case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallPiece(ic, wx, wy, t); break;
+    case 'bar': A6.wallPiece(ic, wx, wy, t); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
@@ -1569,6 +1574,9 @@ function counter(u, def){
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
     A2.newCounter(ic, cx, top);
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (A6.ICONS.includes(ic)){
+    A6.counter(ic, cx, top, performance.now() / 1000);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (A5.ICONS.includes(ic)){
     A5.counter(ic, cx, top, performance.now() / 1000);
@@ -1717,6 +1725,8 @@ export function storeFurniture(u, def, t, layer){
       A3.casinoBack(ic, x, y, sw, t);
     } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
       A2.newBack(ic, x, y, sw, t, u.id);
+    } else if (A6.ICONS.includes(ic)){
+      A6.back(ic, x, y, sw, t, u.id);
     } else if (A5.ICONS.includes(ic)){
       A5.back(ic, x, y, sw, t, u.id);
     } else if (A4.ICONS.includes(ic)){
@@ -1744,7 +1754,7 @@ export function storeFurniture(u, def, t, layer){
     if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
       return;
   }
-  if (A4.mid(ic, u, W, H, t) || A5.mid(ic, u, W, H, t)) return;
+  if (A4.mid(ic, u, W, H, t) || A5.mid(ic, u, W, H, t) || A6.mid(ic)) return;
   if (ic === 'vr'){
     // Glowing play pads where folks try the headsets.
     for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
@@ -2205,7 +2215,7 @@ const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
 // A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
-const THUMB = { popcorn: [2.3, 0.35], hotair: [3.4, 1.2], iceswan: [2.2, 0.3], penny: [2.2, 0.3], slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35] };
+const THUMB = { popcorn: [2.3, 0.35], hotair: [3.4, 1.2], iceswan: [2.2, 0.3], penny: [2.2, 0.3], slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35], ...A6.THUMB };
 export function decorThumb(type, w){
   const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
   g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
@@ -2214,6 +2224,7 @@ export function decorThumb(type, w){
 export const decorState = new WeakMap();
 export function decor(d, t = 0){
   const r = d.rot || 0, x = d.x, y = d.y, live = decorState.get(d);
+  if (A6.TYPES.has(d.type)) return A6.decor(d, t, live);
   switch (d.type){
     case 'plant': palm(x + 0.5, y + 0.85); break;
     case 'bin': trashCan(x + 0.5, y + 0.8); break;

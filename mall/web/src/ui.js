@@ -5,6 +5,7 @@ import { S, levelProgress, exportSave, readSaveCode, importSave, listSlots, acti
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
+import { floorName } from './map.js';
 
 const root = document.getElementById('ui');
 
@@ -85,14 +86,15 @@ export function buildHud(on){
   setHudMode('none');
 }
 // top: the highest floor open (0 = ground only). alert: [up, down] whether a floor that way needs you.
-export function updateFloorBtn(top, floor, alert = [false, false]){
-  hud.floor.hidden = !top || hud.top.hidden;
-  if (!top) return;
-  const txt = `${floor + 1}F`;
+// floors: the open floors, bottom to top (the basement first).
+export function updateFloorBtn(floors, floor, alert = [false, false]){
+  hud.floor.hidden = floors.length < 2 || hud.top.hidden;
+  if (floors.length < 2) return;
+  const txt = floorName(floor), i = floors.indexOf(floor), top = i >= floors.length - 1, bottom = i <= 0;
   if (hud.floorLabel.textContent !== txt) hud.floorLabel.textContent = txt;
-  hud.floorUp.disabled = floor >= top; hud.floorDown.disabled = floor <= 0;
-  hud.floorUp.querySelector('.dot').hidden = !alert[0] || floor >= top;
-  hud.floorDown.querySelector('.dot').hidden = !alert[1] || floor <= 0;
+  hud.floorUp.disabled = top; hud.floorDown.disabled = bottom;
+  hud.floorUp.querySelector('.dot').hidden = !alert[0] || top;
+  hud.floorDown.querySelector('.dot').hidden = !alert[1] || bottom;
 }
 export function setHudMode(mode){
   hud.top.hidden = mode === 'none';
@@ -588,7 +590,7 @@ export function unlockList(levels){
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
     if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = d.attraction ? `New ${d.w}×${d.h} attraction. It needs a big plot, like the ones on the second floor.` : `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
-    else if (u.expand){ const e = C.EXPANSIONS.find(q => q.id === u.expand); paint = () => A.storeIcon(u.expand === 'casino' || u.expand === 'vip' ? 'chip' : 'sun', 0.5, 0.5, 0.62); title = e.name; where = `${e.sub}. Build, then Fix up ($${e.cost.toLocaleString()}).`; }
+    else if (u.expand){ const e = C.EXPANSIONS.find(q => q.id === u.expand); paint = () => A.storeIcon(u.expand === 'casino' || u.expand === 'vip' ? 'chip' : u.expand === 'speakeasy' ? 'bar' : 'sun', 0.5, 0.5, 0.62); title = e.name; where = `${e.sub}. Build, then Fix up ($${e.cost.toLocaleString()}).`; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
     else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => A.decorThumb(u.decor, d.w); title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){

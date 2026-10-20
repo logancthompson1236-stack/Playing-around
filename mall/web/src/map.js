@@ -1,5 +1,5 @@
 // The tile grid: floor types, what occupies each tile, walkability, flow-field pathfinding and placement rules.
-import { MAP_W, MAP_W_MAX, MAP_H, OUTSIDE_H, START_CLEAN, ZONES, ENTRANCE, FOUNTAIN, STORES, DECOR, EXPANSIONS, F2X, F3X, ESCALATORS, ESCALATOR_RIDE } from './config.js';
+import { MAP_W, MAP_W_MAX, MAP_H, OUTSIDE_H, START_CLEAN, ZONES, ENTRANCE, FOUNTAIN, STORES, DECOR, EXPANSIONS, F2X, F3X, F4X, ESCALATORS, ESCALATOR_RIDE } from './config.js';
 import { doorX } from './art.js';
 
 // The grid is always as wide as the biggest mall; map.w is how far across it the building reaches right now.
@@ -8,12 +8,20 @@ import { doorX } from './art.js';
 export const GW = MAP_W_MAX, GH = MAP_H + OUTSIDE_H;
 export const FLOOR_NONE = 0, FLOOR_CLEAN = 1, FLOOR_DUST = 2, FLOOR_OUT = 3;
 export const FOUNTAIN_ID = -1, ESCALATOR_ID = -2;
-// Which floor a spot is on (0 ground, 1 second), and the columns each floor covers.
-export const floorOf = x => x >= F3X - 5 ? 2 : x >= F2X - 5 ? 1 : 0;
-const FLOOR_X = [0, F2X, F3X];
+// Which floor a spot is on (0 ground, 1 second, 2 the casino, 3 the basement), and the columns each floor covers.
+// The basement sits at the far end of the grid but below the ground floor: LEVELS lists the floors bottom to top.
+export const floorOf = x => x >= F4X - 5 ? 3 : x >= F3X - 5 ? 2 : x >= F2X - 5 ? 1 : 0;
+const FLOOR_X = [0, F2X, F3X, F4X];
+export const FLOORS = [0, 1, 2, 3];
+const LEVELS = [3, 0, 1, 2];
 export const floorRange = f => ({ x0: FLOOR_X[f], x1: FLOOR_X[f] + map.fw[f] });
 export const hasUpstairs = () => map.f2w > 0;
 export const topFloor = () => map.fw[2] ? 2 : map.fw[1] ? 1 : 0;
+// The floors that are open, bottom to top, and a short name for each (B1, 1F, 2F, 3F).
+export const openFloors = () => LEVELS.filter(f => f === 0 || map.fw[f] > 0);
+export const floorName = f => f === 3 ? 'B1' : `${f + 1}F`;
+// How far up a floor is (the basement is -1), for "is that floor above or below this one?".
+export const floorLevel = f => f === 3 ? -1 : f;
 // Walking time the escalator ride counts as, for finding the way.
 const RIDE_COST = ESCALATOR_RIDE * 2 * 1.4;
 
@@ -23,7 +31,7 @@ export const map = {
   zone: new Array(GW * GH).fill(null),
   hidden: new Uint8Array(GW * GH),   // 1 where something tall drawn in front would cover the floor
   garden: new Uint8Array(GW * GH),   // special floor: 1 the garden's grass, 2 casino carpet, 3 the high-roller suite's gold carpet
-  w: MAP_W, f2w: 0, fw: [MAP_W, 0, 0],
+  w: MAP_W, f2w: 0, fw: [MAP_W, 0, 0, 0],
   esc: [],              // the escalators that are running (their floors are open)
   portals: new Map(),   // landing tile index -> the other floor's landing
   reach: new Uint8Array(GW * GH),   // 1 where you can walk to from the doors
@@ -39,19 +47,19 @@ export const upstairsWidth = save => floorWidth(save, 1);
 export const activeEscalators = save => ESCALATORS.filter(e => save.expansions && save.expansions[e.needs]);
 export function rebuildMap(save){
   map.floor.fill(FLOOR_NONE); map.occ.fill(0); map.zone.fill(null); map.fields.clear(); map.garden.fill(0); map.portals.clear();
-  map.fw = [MAP_W, floorWidth(save, 1), floorWidth(save, 2)];
+  map.fw = [MAP_W, floorWidth(save, 1), floorWidth(save, 2), floorWidth(save, 3)];
   map.f2w = map.fw[1];
-  map.w = map.fw[2] ? F3X + map.fw[2] : map.f2w ? F2X + map.f2w : MAP_W;
+  map.w = map.fw[3] ? F4X + map.fw[3] : map.fw[2] ? F3X + map.fw[2] : map.f2w ? F2X + map.f2w : MAP_W;
   map.esc = activeEscalators(save);
   for (let y = 0; y < MAP_H; y++){
     for (let x = 0; x < MAP_W; x++) map.floor[idx(x, y)] = FLOOR_DUST;
-    for (const f of [1, 2]) for (let x = FLOOR_X[f]; x < FLOOR_X[f] + map.fw[f]; x++) map.floor[idx(x, y)] = FLOOR_CLEAN;
+    for (const f of [1, 2, 3]) for (let x = FLOOR_X[f]; x < FLOOR_X[f] + map.fw[f]; x++) map.floor[idx(x, y)] = FLOOR_CLEAN;
   }
   for (const e of EXPANSIONS) if (save.expansions && save.expansions[e.id] && e.garden){
     const r = e.garden; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) map.garden[idx(x, y)] = 1;
   }
   for (const e of EXPANSIONS) if (save.expansions && save.expansions[e.id] && e.theme)
-    for (let y = 0; y < MAP_H; y++) for (let x = e.x; x < e.x + e.w; x++) map.garden[idx(x, y)] = e.theme === 'vip' ? 3 : 2;
+    for (let y = 0; y < MAP_H; y++) for (let x = e.x; x < e.x + e.w; x++) map.garden[idx(x, y)] = e.theme === 'vip' ? 3 : e.theme === 'speakeasy' ? 4 : 2;
   for (const z of ZONES) for (let y = z.y; y < z.y + z.h; y++) for (let x = z.x; x < z.x + z.w; x++){
     map.zone[idx(x, y)] = z.id;
     if (save.zones[z.id]) map.floor[idx(x, y)] = FLOOR_CLEAN;
@@ -81,9 +89,9 @@ function markHidden(save){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
     else row(u.x, u.w, u.y - 1);
   }
-  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles', 'slots', 'goldslots', 'neon', 'jackpot', 'wheel', 'dicestatue', 'champagne', 'popcorn', 'iceswan', 'penny', 'hotair'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
+  for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles', 'slots', 'goldslots', 'neon', 'jackpot', 'wheel', 'dicestatue', 'champagne', 'popcorn', 'iceswan', 'penny', 'hotair', 'jukebox', 'barrels', 'darts', 'pinball', 'booth', 'pool'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
-  for (const f of [0, 1, 2]) row(FLOOR_X[f], map.fw[f], MAP_H - 1);
+  for (const f of FLOORS) row(FLOOR_X[f], map.fw[f], MAP_H - 1);
   for (const e of map.esc) row(e.x, e.w, e.y - 1);
 }
 // The nearest open, visible walkway spot to (x, y), snapped toward the middle of its tile.
@@ -186,7 +194,7 @@ export function decorAccess(d){
   if (DECOR[d.type] && DECOR[d.type].court) return { x: d.x + 2, y: d.y + z.h };
   return r === 0 ? { x: d.x, y: d.y + z.h } : r === 1 ? { x: d.x - 1, y: d.y } : r === 2 ? { x: d.x, y: d.y - 1 } : { x: d.x + z.w, y: d.y };
 }
-const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin || DECOR[type].play || DECOR[type].game || DECOR[type].court);
+const usable = type => DECOR[type] && (DECOR[type].seat || DECOR[type].coin || DECOR[type].play || DECOR[type].game || DECOR[type].court || DECOR[type].perch || DECOR[type].bargame);
 export function fountainSpots(){
   const out = [];
   for (const [x, y] of [[FOUNTAIN.x, FOUNTAIN.y + 2], [FOUNTAIN.x + 1, FOUNTAIN.y + 2], [FOUNTAIN.x - 1, FOUNTAIN.y + 1], [FOUNTAIN.x + 2, FOUNTAIN.y + 1], [FOUNTAIN.x, FOUNTAIN.y - 1], [FOUNTAIN.x + 1, FOUNTAIN.y - 1]]) if (canReach(x, y)) out.push({ x, y });
@@ -216,6 +224,7 @@ function checkPlacement(save, kind, x, y, w, h, face, ignoreId){
   }
   const ddef = DECOR[kind];
   if (ddef && ddef.casino && floorOf(x) !== 2) return { ok: false, reason: 'This goes on the casino floor' };
+  if (ddef && ddef.bar && floorOf(x) !== 3) return { ok: false, reason: 'This goes down in the speakeasy' };
   // A casino table's three seats run along its front: all of it needs to be open walkway.
   if (ddef && ddef.game) for (let i = x; i < x + w; i++) if (!isWalkWith(i, y + h, occ, x, y, w, h)) return { ok: false, reason: 'The seats along the front need open floor' };
   if (kind === 'kiosk'){
@@ -294,6 +303,18 @@ function nearestSpot(save, kind, x0, y0, w, h, face){
   return null;
 }
 const unitKind = u => u.kiosk ? 'kiosk' : 'unit';
+// The nearest spot on the same floor, or failing that the nearest on another open floor (from its middle), so a
+// crowded floor never costs the player something they built.
+function spotAnywhere(save, kind, x0, y0, w, h, face){
+  const here = nearestSpot(save, kind, x0, y0, w, h, face);
+  if (here) return here;
+  for (const f of FLOORS){
+    if (f === floorOf(x0) || !map.fw[f]) continue;
+    const at = nearestSpot(save, kind, FLOOR_X[f] + Math.floor(map.fw[f] / 2), 8, w, h, face);
+    if (at) return at;
+  }
+  return null;
+}
 // Older saves could have a store (or a bench, machine...) whose front opened onto the outside wall, so shoppers
 // walked through the wall. Turn it around if that works where it stands, or else move it to the nearest spot that
 // does. Nothing is removed (a decoration that truly can't fit anywhere is refunded).
@@ -332,7 +353,7 @@ export function clearEscalators(save){
   const out = { moved: 0, refund: 0 };
   const over = (x, y, w, h, rx, ry, rw, rh) => x < rx + rw && x + w > rx && y < ry + rh && y + h > ry;
   const esc = activeEscalators(save);
-  const hits = (x, y, w, h) => (x + w > MAP_W && x < F2X) || (x + w > F2X + 28 && x < F3X) || esc.some(e => over(x, y, w, h, e.x, e.y, e.w, e.h) || over(x, y, w, h, e.land.x, e.land.y, 1, 1));
+  const hits = (x, y, w, h) => (x + w > MAP_W && x < F2X) || (x + w > F2X + 28 && x < F3X) || (x + w > F3X + 28 && x < F4X) || esc.some(e => over(x, y, w, h, e.x, e.y, e.w, e.h) || over(x, y, w, h, e.land.x, e.land.y, 1, 1));
   // Also anything whose front (the tile you use it from) the escalator would cover.
   const blocks = a => esc.some(e => over(a.x, a.y, 1, 1, e.x, e.y, e.w, e.h));
   const decor = save.decor.filter(d => { const z = decorSize(d); return hits(d.x, d.y, z.w, z.h) || (usable(d.type) && blocks(decorAccess(d))); });
@@ -341,12 +362,17 @@ export function clearEscalators(save){
     save.decor = save.decor.filter(d => !decor.includes(d)); save.units = save.units.filter(u => !units.includes(u));
     rebuildMap(save);
     for (const u of units){
-      const at = nearestSpot(save, unitKind(u), u.x, u.y, u.w, u.h, u.face);
+      // A storefront whose door the stairs cover: turning it around where it stands is the smallest change.
+      if (!u.kiosk && !hits(u.x, u.y, u.w, u.h)){
+        const flip = u.face === 'down' ? 'up' : 'down';
+        if (validatePlacement(save, 'unit', u.x, u.y, u.w, u.h, flip).ok){ u.face = flip; save.units.push(u); rebuildMap(save); out.moved++; continue; }
+      }
+      const at = spotAnywhere(save, unitKind(u), u.x, u.y, u.w, u.h, u.face);
       if (at){ u.x = at.x; u.y = at.y; if (!u.kiosk) u.face = at.face; save.units.push(u); rebuildMap(save); out.moved++; }
       else { out.refund += u.state === 'store' ? STORES[u.store].cost : 0; for (const m of save.staff) if (m.storeId === u.id) m.storeId = null; }
     }
     for (const d of decor){
-      const z = decorSize(d), at = nearestSpot(save, d.type, d.x, d.y, z.w, z.h, d.rot || 0);
+      const z = decorSize(d), at = spotAnywhere(save, d.type, d.x, d.y, z.w, z.h, d.rot || 0);
       if (at){ d.x = at.x; d.y = at.y; save.decor.push(d); rebuildMap(save); out.moved++; }
       else out.refund += Math.round(DECOR[d.type].cost);
     }

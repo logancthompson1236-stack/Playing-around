@@ -1,11 +1,12 @@
 // The day simulation. Pure logic: no drawing, no DOM. The renderer reads `sim`, the UI reads `sim.events`.
 import * as C from './config.js';
 import { S, stores, addXp, staffSkill, wageOf } from './state.js';
-import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf } from './map.js';
+import { map, isWalk, nextStep, unitAccess, kioskStaffAccess, decorAccess, fountainSpots, idx, GW, litterSpot, isRide, escalatorAt, floorRange, canReach, floorOf, FLOORS } from './map.js';
 import { storeSpots, kioskSpots, mulberry, local, restroomSpots, attractionSpots, dineSpots } from './art.js';
 import { CYCLE, ballColor, randomHat, randomSpecs } from './art5.js';
 import { playLength } from './play.js';
 import { courtSpots } from './art4.js';
+import { perchSpots, gameSpots } from './art6.js';
 
 export const sim = {
   t: 0, phase: 'idle', speed: 1, paused: false, clockFrozen: false, spawning: true,
@@ -14,6 +15,8 @@ export const sim = {
   stats: null, boost: null, gus: null, wishCoin: false, closeT: 0,
   storeState: new Map(),   // unit id -> { queue: [], server: null, serveT: 0, soldOut: false }
   rooms: new Map(),        // restroom unit id -> { dirt: 0–100, claimed: person id }
+  games: new Map(),        // bar game (decor) -> { kind, players, on, t, len, seed, winner, solo, done, postT, wait }
+  juke: new Map(),         // jukebox (decor) -> seconds of music left
 };
 let rand = Math.random;
 export function setRandom(fn){ rand = fn; }
@@ -36,6 +39,7 @@ function lookFor(type){
     case 'walker': return { ...base, hair: pick(['#f4f4f4', '#d8d8d8', '#bdb6c4']), hairStyle: pick(['visor', 'short', 'bun']), acc: '#ffffff', shirt: pick(['#7b6fd6', '#06a77d', '#e07a5f']), shoe: '#fff', glasses: rand() < 0.4 };
     case 'teen': { const hood = rand() < 0.5; return { ...base, hairStyle: pick(['short', 'long']), shirt: pick(['#7b2cbf', '#ef476f', '#118ab2', '#2b2d42']), hood }; }
     case 'family': return { ...base, hairStyle: pick(['short', 'long', 'bun']), shirt: pick(['#5cb85c', '#f4b942', '#118ab2', '#e76f51']), kid: { skin: base.skin, hair: base.hair, hairStyle: pick(['bun', 'short']), shirt: pick(['#ffd23f', '#ff8fab', '#7bd389']), pants: pick(['#5a8dee', '#ef476f']), balloon: rand() < 0.4 ? pick(['#ef476f', '#5a8dee', '#ffd23f']) : null } };
+    case 'regular': return { ...base, hairStyle: pick(['short', 'bun', 'long']), shirt: pick(['#6b2737', '#2f3e46', '#5c4033', '#3d405b', '#7a4e2d']), pants: pick(['#2b2230', '#3d3a4b', '#4a3b30']), hat: rand() < 0.45 ? { kind: 'fedora', color: pick(['#2b2d42', '#5c4033', '#6a4c93', '#3a3a3a']) } : null, glasses: rand() < 0.25 };
     case 'highroller': return { ...base, hairStyle: pick(['short', 'bun', 'long']), shirt: pick(['#2b2d42', '#1d3557', '#5a189a', '#9b2335']), pants: '#2b2230', glasses: rand() < 0.6, chain: true };
     case 'fashion': return { ...base, hairStyle: pick(['long', 'bun']), shirt: pick(['#e63946', '#ff8fab', '#f4a261', '#9b5de5']), bag: true, bagColor: pick(['#ff8fab', '#ffd23f', '#5cc8bf']) };
     default: return { ...base, hairStyle: pick(['short', 'long', 'bun']), shirt: pick(['#8ecae6', '#f4a261', '#90be6d', '#cdb4db']) };
@@ -92,7 +96,7 @@ const HOLD_FROM = {
   noodle: 'noodles', cotton: 'cotton', crafty: ['bag', '#9b5de5'], sushi: 'sushi',
   hats: 'hatbox', candles: 'candle', bears: 'teddy', skate: 'skateboard', specs: ['bag', '#00798c'], smoothie: 'smoothie',
 };
-const SNACKS = new Set(['pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco', 'noodles', 'cotton', 'sushi', 'smoothie', 'popcornbox']);
+const SNACKS = new Set(['beer', 'whiskey', 'martini', 'pretzel', 'lolly', 'coffee', 'cone', 'can', 'gum', 'burger', 'hotdog', 'pizza', 'boba', 'cupcake', 'cocktail', 'lemonade', 'taco', 'noodles', 'cotton', 'sushi', 'smoothie', 'popcornbox']);
 // Claw machine prizes: a random plush, about one try in three.
 const PRIZES = [{ kind: 'bear', color: '#e0a96d' }, { kind: 'bunny', color: '#ffd6e0' }, { kind: 'duck', color: '#ffd23f' }, { kind: 'alien', color: '#7bd389' }, { kind: 'dino', color: '#5cc8bf' }, { kind: 'bear', color: '#ff8fab' }];
 const CLAW_WIN = 0.32;
@@ -114,7 +118,7 @@ export function startDay(opts = {}){
   const s = S.save;
   sim.t = 0; sim.phase = 'day'; sim.paused = false; sim.closeT = 0;
   sim.people = []; sim.trash = []; sim.fx = []; sim.events = []; sim.jobs = [];
-  sim.storeState.clear(); sim.rooms.clear();
+  sim.storeState.clear(); sim.rooms.clear(); sim.games.clear(); sim.juke.clear();
   sim.clockFrozen = !!opts.tutorial; sim.spawning = !opts.tutorial;
   sim.boost = null; sim.wishCoin = !!s.fountain;
   sim.stats = { casino: 0, troubleT: 0, scared: 0, shooed: 0, troubles: 0, visitors: 0, served: 0, walkouts: 0, revenue: 0, byStore: {}, wishes: {}, waitFrac: 0, waitN: 0, dirtSum: 0, dirtN: 0, moodSum: 0, moodN: 0, sampleT: 0, stockouts: {}, gusTrash: 0, machines: 0, restockDay: 0, roomDirtSum: 0, roomDirtN: 0 };
@@ -287,8 +291,8 @@ function spawnCustomer(forceType, forceWish){
   let type = forceType;
   if (!type){
     const browsers = 1 + 0.75 * clamp((S.save.level - C.WINDOW_SHOP[0]) / (C.WINDOW_SHOP[1] - C.WINDOW_SHOP[0]), 0, 1);
-    const casino = S.save.expansions && S.save.expansions.casino;
-    const entries = Object.entries(C.CUSTOMERS).map(([k, d]) => [k, (casino && d.casino ? d.casino : d.weight) * (h >= d.hours[0] && h < d.hours[1] ? 1 : 0.2) * (k === 'browser' ? browsers : 1)]);
+    const casino = S.save.expansions && S.save.expansions.casino, speak = S.save.expansions && S.save.expansions.speakeasy;
+    const entries = Object.entries(C.CUSTOMERS).map(([k, d]) => [k, (casino && d.casino ? d.casino : speak && d.speakeasy ? d.speakeasy : d.weight) * (h >= d.hours[0] && h < d.hours[1] ? 1 : 0.2) * (k === 'browser' ? browsers : 1)]);
     let r = rand() * entries.reduce((a, e) => a + e[1], 0);
     type = entries.find(e => (r -= e[1]) <= 0)[0];
   }
@@ -318,7 +322,7 @@ function chooseWishes(type){
 function setBubble(p, icon, kind, secs){ p.bubble = { icon, kind, until: sim.t + secs, real: secs }; }
 // Window shopping on the way: walking past a storefront, now and then someone slows to a stop and looks in for a
 // moment, and once in a while something in the window catches their eye and they go in after all.
-const STROLLING = new Set(['toStore', 'exit', 'toMachine', 'toSeat', 'toPlay', 'toRestroom', 'toCourt']);
+const STROLLING = new Set(['toStore', 'exit', 'toMachine', 'toSeat', 'toPlay', 'toRestroom', 'toCourt', 'toPerch', 'toGame']);
 function storefronts(){
   if (sim.frontsT > sim.t - 3 && sim.fronts) return sim.fronts;
   sim.frontsT = sim.t;
@@ -341,7 +345,7 @@ function glance(p, dt){
   p.flip = best.x < p.x; p.faceBack = best.u.face === 'down';
   // Drawn in: what they'd wished for comes first, but this is next.
   const def = C.CUSTOMERS[p.type], want = def.wants[best.u.store] || 0.3;
-  if (p.state !== 'toStore' && !p.wishes.includes(best.u.store) && rand() < 0.1 + want * 0.04) p.impulse = best.u.store;
+  if (p.state !== 'toStore' && !p.wishes.includes(best.u.store) && !(minor(p) && C.STORES[best.u.store].bar) && rand() < 0.1 + want * 0.04) p.impulse = best.u.store;
   return true;
 }
 
@@ -358,7 +362,7 @@ function updateCustomer(p, dt){
   }
   // Snacks and drinks get finished after a while (the wrapper is what ends up on the floor).
   // (Not while carrying it over to a table to sit down and eat.)
-  if (p.holding && SNACKS.has(p.holding) && p.state !== 'toCourt' && p.state !== 'courtIn' && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
+  if (p.holding && SNACKS.has(p.holding) && p.state !== 'toCourt' && p.state !== 'courtIn' && p.state !== 'toPerch' && p.state !== 'perchIn' && (p.holdT = (p.holdT || 0) + dt) > 14) p.holding = null;
   if (glance(p, dt)) return;
   switch (p.state){
     case 'arrive':
@@ -487,6 +491,49 @@ function updateCustomer(p, dt){
       break;
     case 'courtOut':
       if (runPath(p, dt)){ p.court = null; p.state = 'decide'; }
+      break;
+    // Sitting down somewhere in the speakeasy with a drink: walk to its front, step in, sit and sip, step back out.
+    case 'toPerch': {
+      dropLitter(p, def);
+      const d = p.perch && p.perch.d;
+      if (!d || !S.save.decor.includes(d)){ p.perch = null; p.state = 'decide'; break; }
+      const a = decorAccess(d);
+      if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)){ p.exit = [perchSeat(p)]; p.state = 'perchIn'; }
+      break;
+    }
+    case 'perchIn':
+      if (runPath(p, dt)){ const st = perchSeat(p); p.state = 'perch'; p.timer = 9 + rand() * 6; p.holdT = 0; if (st.flip !== undefined) p.flip = st.flip; p.faceBack = !!st.back; }
+      break;
+    case 'perch':
+      p.walking = false; p.holdT = 0;
+      if ((p.timer -= dt) <= 0 || !S.save.decor.includes(p.perch.d)){
+        p.holding = null; p.faceBack = false; p.mood = Math.min(1, p.mood + 0.12);
+        if (rand() < 0.4) sim.fx.push({ kind: 'heart', x: p.x, y: p.y - 1.2, t: 0, life: 1.0 });
+        perchOut(p);
+      }
+      break;
+    case 'perchOut':
+      if (runPath(p, dt)){ p.perch = null; p.state = 'decide'; }
+      break;
+    // A bar game: walk to its front, step in to their spot, wait for a partner (or not), play, then step back out.
+    case 'toGame': {
+      dropLitter(p, def);
+      const d = p.game && p.game.d, G = d && sim.games.get(d);
+      if (!d || !G || !S.save.decor.includes(d) || G.players[p.game.slot] !== p.id){ p.game = null; p.state = 'decide'; break; }
+      const a = decorAccess(d);
+      if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)){ p.exit = [gameSpots(d)[p.game.slot]]; p.state = 'gameIn'; }
+      break;
+    }
+    case 'gameIn':
+      if (runPath(p, dt)) p.state = 'game';
+      break;
+    case 'game':
+      // The game itself runs in stepGames.
+      p.walking = false;
+      if (!p.game || !S.save.decor.includes(p.game.d)){ p.game = null; p.state = 'decide'; }
+      break;
+    case 'gameOut':
+      if (runPath(p, dt)){ p.game = null; p.state = 'decide'; }
       break;
     case 'toSeat': {
       dropLitter(p, def);
@@ -675,6 +722,12 @@ function updateCustomer(p, dt){
 }
 function decide(p){
   if (sim.phase === 'closing' || p.spooked){ p.state = 'exit'; return; }
+  // A drink from the speakeasy bar: find a stool, table or booth and sit down to drink it.
+  if (p.holding && DRINKS.has(p.holding) && !p.perched){
+    p.perched = true;
+    const s = findPerch(p);
+    if (s){ p.perch = s; p.state = 'toPerch'; return; }
+  }
   // Carrying something to eat and there's a food court: most sit down to eat it there.
   if (p.holding && SNACKS.has(p.holding) && p.holding !== 'gum' && !p.ateAtCourt && rand() < 0.8){
     p.ateAtCourt = true;
@@ -690,8 +743,8 @@ function decide(p){
       p.mood = Math.max(0, p.mood - 0.03);
       emit('greyWish', { store: want });
       // Sometimes they settle for something else while they're here (most do while the mall is small).
-      const any = stores(S.save);
-      if (any.length && rand() < (any.length < C.SETTLE[0] ? C.SETTLE[1] : C.SETTLE[2])) p.wishes.push(pick(any).store);
+      const any = stores(S.save), ok = any.filter(u => !(minor(p) && C.STORES[u.store].bar));
+      if (ok.length && rand() < (any.length < C.SETTLE[0] ? C.SETTLE[1] : C.SETTLE[2])) p.wishes.push(pick(ok).store);
       p.state = 'pause'; p.timer = 1.0; return;
     }
     let best = options[0], bd = Infinity;
@@ -706,6 +759,15 @@ function decide(p){
       const t = findTable(p);
       if (t){ p.table = t.d; p.seat = t.seat; p.state = 'toTable'; return; }
     }
+  }
+  // Down in the speakeasy: a game of pool, darts, foosball, shuffleboard or pinball (regulars often play two).
+  if (S.save.expansions.speakeasy && !minor(p)){
+    if (p.gamesLeft === undefined) p.gamesLeft = p.type === 'regular' ? 2 : 1;
+    if (p.gamesLeft > 0 && rand() < (p.type === 'regular' ? 0.8 : 0.25)){
+      p.gamesLeft--;
+      const gm = findGame(p);
+      if (gm){ joinGame(p, gm.d, gm.slot); return; }
+    } else p.gamesLeft = 0;
   }
   if (!p.usedMachine){
     const m = findMachine(p);
@@ -733,6 +795,102 @@ function decide(p){
   }
   p.state = 'exit';
 }
+// Speakeasy drinks, and who's too young for the bar.
+const DRINKS = new Set(['beer', 'whiskey', 'martini']);
+const minor = p => p.type === 'teen' || p.type === 'family' || !!p.look.kid;
+// How far away something is, counting a ride between floors as a fair walk.
+function distTo(p, x, y){
+  const fe = floorOf(x), fp = floorOf(p.x);
+  return fe === fp ? Math.hypot(x - p.x, y - p.y) : 12 + Math.hypot(x - floorRange(fe).x0 - (p.x - floorRange(fp).x0), y - p.y);
+}
+const perchSeat = p => perchSpots(p.perch.d)[p.perch.seat];
+function perchOut(p){ const a = decorAccess(p.perch.d); p.faceBack = false; p.exit = [{ x: a.x + 0.5, y: a.y + 0.5 }]; p.state = 'perchOut'; }
+// A free stool, table seat or booth seat, nearest first.
+function findPerch(p){
+  let best = null, bd = Infinity;
+  for (const d of S.save.decor){
+    const n = C.DECOR[d.type].perch; if (!n) continue;
+    const a = decorAccess(d); if (!canReach(a.x, a.y)) continue;
+    const taken = new Set(sim.people.filter(q => q.perch && q.perch.d === d).map(q => q.perch.seat));
+    const free = [...Array(n).keys()].filter(i => !taken.has(i));
+    if (!free.length) continue;
+    const dist = distTo(p, a.x, a.y) + rand() * 3;
+    if (dist < bd){ bd = dist; best = { d, seat: pick(free) }; }
+  }
+  return best;
+}
+// A bar game to play: one where someone's already waiting for a partner beats an empty one.
+function findGame(p){
+  let best = null, bd = Infinity;
+  for (const d of S.save.decor){
+    const bg = C.DECOR[d.type].bargame; if (!bg) continue;
+    const G = sim.games.get(d);
+    if (G && (G.on || G.done)) continue;
+    const slot = G ? G.players.findIndex(id => !id) : 0;
+    if (slot < 0) continue;
+    const a = decorAccess(d); if (!canReach(a.x, a.y)) continue;
+    const dist = distTo(p, a.x, a.y) + rand() * 5 - (G ? 8 : 0);
+    if (dist < bd){ bd = dist; best = { d, slot }; }
+  }
+  return best;
+}
+function joinGame(p, d, slot){
+  let G = sim.games.get(d);
+  if (!G){ const bg = C.DECOR[d.type].bargame; G = { kind: bg.kind, players: Array(bg.players).fill(null), on: false, t: 0, len: 0, seed: 0, winner: null, solo: false, done: false, postT: 0, wait: 0 }; sim.games.set(d, G); }
+  G.players[slot] = p.id; p.game = { d, slot }; p.state = 'toGame';
+}
+function leaveGame(p){
+  if (!p.game) return;
+  const G = sim.games.get(p.game.d);
+  if (G && G.players[p.game.slot] === p.id && !G.on) G.players[p.game.slot] = null;
+}
+// Each bar game: once its players are there (or the first has waited long enough for a partner who isn't coming),
+// everyone pays and it plays out over G.len seconds; the winner is known from the start so the art can build to it.
+function stepGames(dt){
+  for (const [d, G] of sim.games){
+    const bg = C.DECOR[d.type] && C.DECOR[d.type].bargame;
+    const at = G.players.map(id => { const q = id && personById(id); return q && q.game && q.game.d === d ? q : null; });
+    G.players = at.map(q => q ? q.id : null);
+    if (!bg || !S.save.decor.includes(d) || at.every(q => !q)){ for (const q of at) if (q){ q.game = null; q.state = 'decide'; } sim.games.delete(d); continue; }
+    const here = at.filter(q => q && q.state === 'game');
+    if (!G.on){
+      if (!here.length) continue;
+      G.wait += dt;
+      const coming = at.some(q => q && q.state !== 'game');
+      if (here.length < bg.players && G.wait < (coming ? 5 : 2.5) && sim.phase === 'day') continue;
+      if (sim.phase !== 'day'){ for (const q of at) if (q){ if (q.state === 'game') gameOut(q, d); else { q.game = null; q.state = 'decide'; } } sim.games.delete(d); continue; }
+      // Anyone still on their way misses this one.
+      at.forEach((q, i) => { if (q && q.state !== 'game'){ q.game = null; q.state = 'decide'; G.players[i] = null; } });
+      G.on = true; G.t = 0; G.len = lerp(bg.secs[0], bg.secs[1], rand()); G.seed = Math.floor(rand() * 1e6); G.solo = here.length < 2;
+      const slots = G.players.map((id, i) => id ? i : -1).filter(i => i >= 0);
+      G.winner = pick(slots);
+      for (const q of here){
+        const price = Math.max(1, Math.round(lerp(bg.price[0], bg.price[1], rand()) * C.CUSTOMERS[q.type].spend));
+        S.save.money += price; sim.stats.revenue += price; sim.stats.machines += price;
+        sim.fx.push({ kind: 'coin', x: q.x, y: q.y - 1.4, t: 0, life: 1.1, text: `+$${price}` });
+        emit('sale', { amount: price, store: d.type });
+      }
+      continue;
+    }
+    if (!G.done){
+      G.t += dt;
+      if (G.t >= G.len || sim.phase !== 'day'){ G.done = true; G.postT = 0; G.t = Math.max(G.t, G.len); }
+      continue;
+    }
+    if ((G.postT += dt) < 1.8) continue;
+    at.forEach((q, i) => {
+      if (!q) return;
+      const won = i === G.winner;
+      q.mood = Math.min(1, q.mood + (won ? 0.16 : 0.08));
+      if (won && !G.solo) sim.fx.push({ kind: 'coin', x: q.x, y: q.y - 1.5, t: 0, life: 1.3, text: pick(['Winner!', 'Good game!', 'Rematch?']) });
+      if (rand() < 0.5) sim.fx.push({ kind: 'heart', x: q.x, y: q.y - 1.2, t: 0, life: 1.0 });
+      gameOut(q, d);
+    });
+    sim.games.delete(d);
+  }
+  for (const [d, left] of sim.juke){ if (left - dt <= 0 || !S.save.decor.includes(d)) sim.juke.delete(d); else sim.juke.set(d, left - dt); }
+}
+function gameOut(q, d){ const a = decorAccess(d); q.exit = [{ x: a.x + 0.5, y: a.y + 0.5 }]; q.state = 'gameOut'; }
 function findSeat(p){
   const opts = [];
   for (const d of S.save.decor){
@@ -838,6 +996,7 @@ function useMachine(p){
   if (d.type === 'gumball'){ p.holding = 'gum'; p.holdT = 0; }
   if (d.type === 'photobooth'){ p.holding = 'photos'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if (d.type === 'massage') p.mood = Math.min(1, p.mood + 0.1);
+  if (d.type === 'jukebox'){ sim.juke.set(d, 25); p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.5, t: 0, life: 1.3, text: pick(['♪ Swing!', '♪ A classic', '♪ Our song']) }); }
   if (d.type === 'popcorn'){ p.holding = 'popcornbox'; p.holdT = 0; p.boughtFood = true; p.trashKinds = ['popcorn']; }
   if (d.type === 'penny'){ p.holding = 'penny'; p.holdT = 0; p.mood = Math.min(1, p.mood + 0.06); sim.fx.push({ kind: 'coin', x: d.x + 0.5, y: d.y - 1.4, t: 0, life: 1.3, text: 'Souvenir!' }); sim.fx.push({ kind: 'sparkle', x: d.x + 0.5, y: d.y - 0.5, t: 0, life: 0.8 }); }
   if ((d.type === 'slots' || d.type === 'goldslots') && p.machineWin) p.machinePaid = -casinoTake(-price * 3, d.type);
@@ -943,7 +1102,8 @@ function completeSale(u, st, p){
   if (def.cat === 'Food') p.boughtFood = true;
   p.trashKinds = TRASH_FROM[u.store] || p.trashKinds;
   const hold = HOLD_FROM[u.store];
-  if (hold){ p.holding = Array.isArray(hold) ? 'bag' : hold; if (Array.isArray(hold)) p.bagColor = hold[1]; p.holdT = 0; }
+  if (u.store === 'bar'){ p.holding = pick(['beer', 'whiskey', 'martini']); p.holdT = 0; p.boughtFood = true; }
+  else if (hold){ p.holding = Array.isArray(hold) ? 'bag' : hold; if (Array.isArray(hold)) p.bagColor = hold[1]; p.holdT = 0; }
   // Some folks wear their new hat out of the store; new glasses always go straight on.
   if (u.store === 'hats' && rand() < 0.5){ p.look = { ...p.look, hat: p.triedHat || randomHat(rand) }; p.holding = null; }
   if (u.store === 'specs') p.look = { ...p.look, specs: p.triedSpecs || randomSpecs(rand) };
@@ -1176,7 +1336,7 @@ function updateStaff(p, dt){
     const crew = sim.people.filter(q => q.role === 'janitor'), i = crew.indexOf(p), n = crew.length;
     // Slices run across both floors, ground floor first.
     const cols = [];
-    for (const f of [0, 1, 2]){ const r = floorRange(f); for (let x = r.x0; x < r.x1; x++) cols.push(x); }
+    for (const f of FLOORS){ const r = floorRange(f); for (let x = r.x0; x < r.x1; x++) cols.push(x); }
     const c0 = Math.floor(cols.length * i / n), c1 = Math.max(c0 + 1, Math.floor(cols.length * (i + 1) / n));
     // Of a few spots in their slice, they drift toward the busiest: that's where the next mess will be.
     let bn = -1;
@@ -1381,8 +1541,10 @@ function updateTrouble(p, dt){
 function scareOff(q){
   const u = q.storeId && S.save.units.find(v => v.id === q.storeId);
   switch (q.state){
-    case 'arrive': case 'decide': case 'pause': case 'toStore': case 'toMachine': case 'toSeat': case 'toCourt': case 'toPlay': case 'toRestroom':
-      q.state = 'exit'; break;
+    case 'arrive': case 'decide': case 'pause': case 'toStore': case 'toMachine': case 'toSeat': case 'toCourt': case 'toPlay': case 'toRestroom': case 'toPerch':
+      q.perch = null; q.state = 'exit'; break;
+    case 'toGame': leaveGame(q); q.game = null; q.state = 'exit'; break;
+    case 'perch': perchOut(q); break;
     case 'browse': if (!u) return false; leaveStore(q, u); break;
     case 'queue': { if (!u) return false; const st = storeInfo(u), i = st.queue.indexOf(q.id); if (i >= 0) st.queue.splice(i, 1); q.served = false; leaveStore(q, u); break; }
     case 'line': { if (!u) return false; const st = storeInfo(u), i = st.queue.indexOf(q.id); if (i >= 0) st.queue.splice(i, 1); q.state = 'exit'; break; }
@@ -1558,7 +1720,7 @@ export function step(realDt){
     sim.closeT += dt;
     const left = sim.people.some(p => p.kind === 'customer');
     // Everyone heads out at closing; a bigger mall gets a little longer before the lights go off.
-    if (!left || sim.closeT > 12 + (C.MAP_W + map.f2w + map.fw[2] * 2.2) * 0.35) sim.phase = 'done';
+    if (!left || sim.closeT > 12 + (C.MAP_W + map.f2w + map.fw[2] * 2.2 + map.fw[3] * 1.4) * 0.35) sim.phase = 'done';
   }
   for (const p of sim.people){
     if (p.ride){ stepRide(p, dt); continue; }
@@ -1568,6 +1730,7 @@ export function step(realDt){
     else if (p.kind === 'gus') updateGus(p, dt);
     else if (p.kind === 'trouble') updateTrouble(p, dt);
   }
+  stepGames(dt);
   if (sim.phase === 'day') updateStores(dt);
   giveWay(dt);
   sim.people = sim.people.filter(p => !p.gone);
@@ -1578,7 +1741,7 @@ export function step(realDt){
 }
 // Personal space. Anyone walking the concourse keeps a little room from everyone near them, and when someone's coming
 // straight at them they both drift to their own right and pass, instead of walking through each other.
-const OUT_OF_WAY = new Set(['enter', 'leave', 'toDine', 'courtIn', 'courtOut', 'seatIn', 'toStall', 'toSink', 'toShow', 'queue', 'line', 'enterRestroom']);
+const OUT_OF_WAY = new Set(['perchIn', 'perchOut', 'gameIn', 'gameOut', 'enter', 'leave', 'toDine', 'courtIn', 'courtOut', 'seatIn', 'toStall', 'toSink', 'toShow', 'queue', 'line', 'enterRestroom']);
 const steerable = p => p.walking && !p.ride && !p.hidden && p.kind !== 'gus' && !(p.exit && p.exit.length) && !OUT_OF_WAY.has(p.state) && (p.y >= C.MAP_H - 0.6 || isWalk(Math.floor(p.x), Math.floor(p.y)));
 function giveWay(dt){
   const grid = new Map(), key = (x, y) => Math.floor(x) * 4096 + Math.floor(y);
@@ -1632,6 +1795,10 @@ function beginClosing(){
     if (p.state === 'line'){ p.state = 'exit'; continue; }
     if ((p.state === 'court' || p.state === 'courtIn') && p.court){ p.exit = courtOut(p); p.state = 'courtOut'; continue; }
     if (p.state === 'toCourt'){ p.court = null; p.state = 'exit'; continue; }
+    if ((p.state === 'perch' || p.state === 'perchIn') && p.perch){ perchOut(p); continue; }
+    if (p.state === 'toPerch'){ p.perch = null; p.state = 'exit'; continue; }
+    if (p.state === 'toGame'){ leaveGame(p); p.game = null; p.state = 'exit'; continue; }
+    if ((p.state === 'game' || p.state === 'gameIn') && p.game){ leaveGame(p); gameOut(p, p.game.d); continue; }
     if (p.state === 'dine' || p.state === 'toDine') stopDining(p, S.save.units.find(v => v.id === p.storeId));
     if (['enter', 'browse', 'queue', 'leave', 'enterRestroom', 'toStall', 'inStall', 'toSink', 'washing', 'dine', 'toDine'].includes(p.state)){
       const u = S.save.units.find(v => v.id === p.storeId);
