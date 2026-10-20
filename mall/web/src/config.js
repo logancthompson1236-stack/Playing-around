@@ -116,8 +116,7 @@ export const EXPANSIONS = [
   // gus: 'level' means Gus brings it up the night you reach its level, whether or not you can afford it yet.
   { id: 'speakeasy', name: 'The Velvet Rose', floor: 3, cost: 30000, level: 30, x: F4X, w: 16, xp: 800, theme: 'speakeasy', gus: 'level',
     sub: 'Grandma Rose’s secret speakeasy, down a hidden stairway: a long bar already stocked, room for pool, darts and shuffleboard, stools and tables for the regulars, and restrooms',
-    lots: [{ x: 122, y: 4, w: 5, h: 3, face: 'down', store: 'bar' }, { x: 119, y: 4, w: 3, h: 3, face: 'down' },
-           { x: 121, y: 11, w: 3, h: 3, face: 'up' }, { x: 125, y: 11, w: 3, h: 3, face: 'up' }],
+    lots: [{ x: 122, y: 4, w: 5, h: 3, face: 'down', store: 'bar' }],
     restroom: { x: 127, y: 4, face: 'down' },
     decor: [{ type: 'stool', x: 122, y: 7 }, { type: 'stool', x: 123, y: 7 }, { type: 'stool', x: 125, y: 7 }, { type: 'stool', x: 126, y: 7 },
             { type: 'bistro', x: 117, y: 13 }, { type: 'bistro', x: 129, y: 9 }] },

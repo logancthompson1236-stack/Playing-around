@@ -460,7 +460,14 @@ function updateCustomer(p, dt){
       if (runPath(p, dt)) p.state = 'decide';
       break;
     case 'toDine':
-      if (runPath(p, dt)){ const u = S.save.units.find(v => v.id === p.storeId); p.state = 'dine'; p.timer = 7 + rand() * 5; p.holdT = 0; if (u) p.flip = dineSpots(u).seats[p.dineSeat].flip; }
+      if (runPath(p, dt)){
+        const u = S.save.units.find(v => v.id === p.storeId), seat = u && dineSpots(u).seats[p.dineSeat];
+        p.state = 'dine'; p.timer = 7 + rand() * 5; p.holdT = 0;
+        // At the speakeasy's bar they take their time over it, sat with their back to us.
+        if (u && u.store === 'bar') p.timer = 11 + rand() * 7;
+        p.timerMax = p.timer;
+        if (seat){ p.flip = seat.flip; p.faceBack = !!seat.back; }
+      }
       break;
     case 'dine': {
       p.walking = false; p.holdT = 0;
@@ -498,11 +505,11 @@ function updateCustomer(p, dt){
       const d = p.perch && p.perch.d;
       if (!d || !S.save.decor.includes(d)){ p.perch = null; p.state = 'decide'; break; }
       const a = decorAccess(d);
-      if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)){ p.exit = [perchSeat(p)]; p.state = 'perchIn'; }
+      if (walkTo(p, a.x + 0.5, a.y + 0.5, dt)){ const st = perchSeat(p); p.exit = st.via ? [st.via, st] : [st]; p.state = 'perchIn'; }
       break;
     }
     case 'perchIn':
-      if (runPath(p, dt)){ const st = perchSeat(p); p.state = 'perch'; p.timer = 9 + rand() * 6; p.holdT = 0; if (st.flip !== undefined) p.flip = st.flip; p.faceBack = !!st.back; }
+      if (runPath(p, dt)){ const st = perchSeat(p); p.state = 'perch'; p.timer = p.timerMax = 9 + rand() * 6; p.holdT = 0; if (st.flip !== undefined) p.flip = st.flip; p.faceBack = !!st.back; }
       break;
     case 'perch':
       p.walking = false; p.holdT = 0;
@@ -804,7 +811,7 @@ function distTo(p, x, y){
   return fe === fp ? Math.hypot(x - p.x, y - p.y) : 12 + Math.hypot(x - floorRange(fe).x0 - (p.x - floorRange(fp).x0), y - p.y);
 }
 const perchSeat = p => perchSpots(p.perch.d)[p.perch.seat];
-function perchOut(p){ const a = decorAccess(p.perch.d); p.faceBack = false; p.exit = [{ x: a.x + 0.5, y: a.y + 0.5 }]; p.state = 'perchOut'; }
+function perchOut(p){ const a = decorAccess(p.perch.d), st = perchSeat(p) || {}; p.faceBack = false; p.exit = [...(st.via ? [st.via] : []), { x: a.x + 0.5, y: a.y + 0.5 }]; p.state = 'perchOut'; }
 // A free stool, table seat or booth seat, nearest first.
 function findPerch(p){
   let best = null, bd = Infinity;
@@ -1114,6 +1121,8 @@ function completeSale(u, st, p){
   emit('sale', { amount: price, store: u.store, tutorial: !!p.tutorial });
   // Dine-in places: most sit down inside, but with a food court in the mall some take it there instead.
   if (def.dine && !(rand() < 0.3 && courtBuilt()) && startDining(p, u)) return;
+  // At the speakeasy, most pull up a stool at the bar (if one's free) rather than finding a seat out in the room.
+  if (u.store === 'bar' && rand() < 0.65 && startDining(p, u)){ p.perched = true; return; }
   leaveStore(p, u);
 }
 // Dine-in stores: take a free stool and eat before heading out (a full place means takeout).
@@ -1130,7 +1139,7 @@ function startDining(p, u){
 function stopDining(p, u){
   const st = u && storeInfo(u);
   if (st && st.dine) st.dine = st.dine.map(id => id === p.id ? null : id);
-  p.dineSeat = undefined; p.kidSeat = undefined;
+  p.dineSeat = undefined; p.kidSeat = undefined; p.faceBack = false;
 }
 
 // What people leave behind after shopping at each store.

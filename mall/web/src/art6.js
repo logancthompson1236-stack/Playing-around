@@ -172,22 +172,26 @@ export function wallPiece(ic, wx, wy, t){
   text('Rose', cx, cy + 0.32, 0.08, BRASS, 700);
   return true;
 }
-// On the counter by the register: a shaker that gets a good shake every few seconds, bitters and a fresh coupe.
+// On the counter by the register: the shaker and strainer standing ready, bitters, and a coupe poured out.
 export function counter(ic, cx, top, t){
   if (ic !== 'bar') return false;
-  const c = t % 4.2, shaking = c < 1.4, jig = shaking ? Math.sin(t * 38) * 0.035 : 0, sx = cx + 0.14, sy = top + 0.12 - (shaking ? 0.08 : 0);
-  g.save(); g.translate(sx + jig, sy); g.rotate(shaking ? Math.sin(t * 38) * 0.25 : 0);
+  const sx = cx + 0.14, sy = top + 0.12;
+  shaker(sx, sy, 0);
+  // Little dropper bottles of bitters.
+  [['#8b2e3a', 0.28], ['#c97b2a', 0.36]].forEach(([col, dx]) => { rr(cx + dx - 0.03, top + 0.02, 0.06, 0.1, 0.02); fs(col, 0.012); rr(cx + dx - 0.012, top - 0.03, 0.024, 0.05, 0.008); fs('#2b2230', 0.008); });
+  const gx = cx + 0.47, gy = top + 0.13;
+  g.beginPath(); g.moveTo(gx - 0.06, gy - 0.1); g.quadraticCurveTo(gx, gy - 0.02, gx + 0.06, gy - 0.1); g.closePath(); fs('#e8b04a', 0.012);
+  g.strokeStyle = 'rgba(230,245,255,.9)'; g.lineWidth = 0.012; g.beginPath(); g.moveTo(gx, gy - 0.05); g.lineTo(gx, gy); g.stroke();
+  circ(gx + 0.04, gy - 0.11, 0.016); fs('#c1121f', 0.006);
+  return true;
+}
+// A cocktail shaker standing at (x, y), its base; a: tilt.
+function shaker(x, y, a){
+  g.save(); g.translate(x, y); g.rotate(a);
   g.beginPath(); g.moveTo(-0.06, 0); g.lineTo(0.06, 0); g.lineTo(0.05, -0.17); g.lineTo(-0.05, -0.17); g.closePath(); fs('#d9dde3', 0.015);
   rr(-0.045, -0.22, 0.09, 0.06, 0.02); fs('#c0c6cc', 0.012); rr(-0.018, -0.26, 0.036, 0.05, 0.012); fs('#c0c6cc', 0.01);
   g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(-0.04, -0.15, 0.015, 0.12);
   g.restore();
-  // Little dropper bottles of bitters.
-  [['#8b2e3a', 0.28], ['#c97b2a', 0.36]].forEach(([col, dx]) => { rr(cx + dx - 0.03, top + 0.02, 0.06, 0.1, 0.02); fs(col, 0.012); rr(cx + dx - 0.012, top - 0.03, 0.024, 0.05, 0.008); fs('#2b2230', 0.008); });
-  // A coupe being poured into after the shake.
-  const gx = cx + 0.47, gy = top + 0.13;
-  g.beginPath(); g.moveTo(gx - 0.06, gy - 0.1); g.quadraticCurveTo(gx, gy - 0.02, gx + 0.06, gy - 0.1); g.closePath(); fs(c > 1.6 && c < 3.8 ? '#e8b04a' : 'rgba(230,245,255,.7)', 0.012);
-  g.strokeStyle = 'rgba(230,245,255,.9)'; g.lineWidth = 0.012; g.beginPath(); g.moveTo(gx, gy - 0.05); g.lineTo(gx, gy); g.stroke();
-  return true;
 }
 // The back bar: a mirror behind three shelves of backlit bottles, a brass rail, and the name in brass up top.
 export function back(ic, x, y, sw, t, id){
@@ -221,6 +225,14 @@ export function back(ic, x, y, sw, t, id){
   g.restore();
   return true;
 }
+// The stools along the front of the long bar (only when it faces down, with its front to us): where each sits
+// (x, y: the stool's foot) and where their drink stands on the bar in front of them.
+export function barSeats(u){
+  if (u.face !== 'down') return [];
+  const [bx, by, bw, bd] = local(u, 0.1, 0.95, u.w - 1.15, 0.42), n = Math.floor((bw - 0.2) / 0.62), out = [];
+  for (let k = 0; k < n; k++){ const x = bx + 0.32 + k * 0.62, y = by + bd + 0.32; out.push({ x, y: y + 0.02, stool: { x, y }, drink: { x: x + 0.3, y: by + bd - 0.58 }, back: true }); }
+  return out;
+}
 // Nothing extra mid-room: the long bar and its stools have their own layers (storeLayers).
 export function mid(ic){ return ic === 'bar'; }
 // The long bar: a polished walnut counter running from the register to the far wall, a brass foot rail, a beer
@@ -231,12 +243,43 @@ export function storeLayers(u, def, t, add){
   const W = u.w, down = u.face === 'down';
   const [bx, by, bw, bd] = local(u, 0.1, 0.95, W - 1.15, 0.42);
   const H = 0.48;
-  // The bartender: behind the bar facing out.
-  const [px, py] = local(u, 0.95 + Math.sin(t * 0.25) * 0.5, down ? 0.62 : 0.6);
-  const c = t % 6, pour = c > 3.6 && c < 5.2;
+  // The bartender, behind the bar facing out, on a loop: polishing a glass, shaking a cocktail, then over to the
+  // taps to pull a pint (which stands on the bar a while), and back. His hands hold whatever he's working with.
+  const tx = bx + bw * 0.7, ty = by + bd * 0.5 - H, c = t % 16, home = u.x + 1.15, tap = tx - 0.2;
+  const walkK = c < 8 ? 0 : c < 9.2 ? (c - 8) / 1.2 : c < 12 ? 1 : c < 13.2 ? 1 - (c - 12) / 1.2 : 0;
+  const px = home + (tap - home) * ease(walkK), py = local(u, 0, down ? 0.62 : 0.6)[1];
+  const walking = (c > 8 && c < 9.2) || (c > 12 && c < 13.2), pour = c > 9.3 && c < 11.8, polish = c < 4.5, shake = c > 4.8 && c < 7.6;
   add(down ? py : py + 0.01, () => {
-    person(px, py, { t, skin: '#e0ac85', hair: '#2b2230', shirt: '#f4efe6', pants: '#2b2230', sleeve: '#f4efe6', vest: '#2b2230', bowtie: true, back: !down, reach: !pour && Math.sin(t * 6) > -0.2, mood: 'happy' });
-    if (down && !pour){ const gx = px + 0.24 + Math.sin(t * 6) * 0.03, gy = py - 0.82; g.beginPath(); g.moveTo(gx - 0.05, gy - 0.06); g.lineTo(gx + 0.05, gy - 0.06); g.lineTo(gx + 0.04, gy + 0.06); g.lineTo(gx - 0.04, gy + 0.06); g.closePath(); fs('rgba(230,245,255,.85)', 0.012); rr(gx - 0.09, gy - 0.02, 0.07, 0.12, 0.02); fs('#fff', 0.01); }
+    const o = { t, skin: '#e0ac85', hair: '#2b2230', hairStyle: 'short', shirt: '#f4efe6', pants: '#2b2230', sleeve: '#f4efe6', vest: '#2b2230', bowtie: true, back: !down, mood: 'happy', walk: walking, flip: c > 12, side: 1, stride: walking ? Math.abs(px - home) : undefined };
+    if (!down) return person(px, py, o);
+    if (polish){
+      // A glass held up in the left hand at his chest, the towel in his right going round inside it.
+      const r = Math.sin(t * 5) * 0.03, q = Math.cos(t * 5) * 0.015, gx = px - 0.02, gy = py - 0.4;
+      person(px, py, { ...o, handsAt: [[-0.08, -0.42], [0.04 + r, -0.58 + q]] });
+      g.beginPath(); g.moveTo(gx - 0.065, gy - 0.18); g.lineTo(gx + 0.065, gy - 0.18); g.lineTo(gx + 0.055, gy); g.lineTo(gx - 0.055, gy); g.closePath(); fs('rgba(225,240,250,.92)', 0.016);
+      g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(gx - 0.045, gy - 0.16, 0.014, 0.13);
+      circ(px - 0.08, py - 0.42, 0.055); fs(o.skin, 0.035);
+      // The towel, bunched in his hand and hanging down.
+      const tx0 = px + 0.04 + r, ty0 = py - 0.58 + q;
+      g.beginPath(); g.moveTo(tx0 - 0.06, ty0 - 0.03); g.quadraticCurveTo(tx0 + 0.02, ty0 - 0.08, tx0 + 0.08, ty0 - 0.02); g.lineTo(tx0 + 0.1, ty0 + 0.16); g.lineTo(tx0 + 0.02, ty0 + 0.18); g.lineTo(tx0 - 0.02, ty0 + 0.04); g.closePath(); fs('#f4efe6', 0.014);
+      g.strokeStyle = 'rgba(193,18,31,.7)'; g.lineWidth = 0.012; g.beginPath(); g.moveTo(tx0 + 0.03, ty0 + 0.13); g.lineTo(tx0 + 0.095, ty0 + 0.12); g.stroke();
+      return;
+    }
+    if (shake){
+      // Both hands on the shaker, up by his shoulder, rattling it.
+      const j = Math.sin(t * 30) * 0.035, hx = 0.3, hy = -0.68 + j;
+      person(px, py, { ...o, handsAt: [[hx - 0.03, hy - 0.02], [hx + 0.07, hy - 0.22]] });
+      shaker(px + hx, py + hy + 0.04, 0.3 + j * 2);
+      circ(px + hx - 0.03, py + hy - 0.02, 0.055); fs(o.skin, 0.035); circ(px + hx + 0.07, py + hy - 0.22, 0.055); fs(o.skin, 0.035);
+      return;
+    }
+    if (pour){
+      // At the taps: one hand pulling the handle, the other holding the glass under the spout.
+      const pull = Math.min(1, (c - 9.3) / 0.3) * (c > 11.4 ? 1 - (c - 11.4) / 0.4 : 1);
+      person(px, py, { ...o, handsAt: [[0.14, ty - py - 0.2], [0.2, ty - py - 0.44 + pull * 0.04]] });
+      return;
+    }
+    person(px, py, o);
   });
   add(by + bd, () => {
     box(bx, by, bw, bd, H, '#7a4a32', '#4e2c20');
@@ -246,38 +289,49 @@ export function storeLayers(u, def, t, add){
     g.fillStyle = 'rgba(255,230,190,.18)'; g.fillRect(bx + 0.05, by - H + 0.04, bw - 0.1, 0.05);
     if (down){ g.strokeStyle = BRASS; g.lineWidth = 0.035; g.beginPath(); g.moveTo(bx, by + bd - 0.06); g.lineTo(bx + bw, by + bd - 0.06); g.stroke(); }
     // The beer tower.
-    const tx = bx + bw * 0.7, ty = by + bd * 0.5 - H;
     rr(tx - 0.03, ty - 0.3, 0.06, 0.3, 0.02); fs('#c0c6cc', 0.015); rr(tx - 0.16, ty - 0.34, 0.32, 0.08, 0.03); fs('#c0c6cc', 0.015);
     for (let k = 0; k < 3; k++){ const hx = tx - 0.11 + k * 0.11; rr(hx - 0.018, ty - 0.48, 0.036, 0.14, 0.012); fs(['#c97b2a', '#2b2230', '#3f7d4e'][k], 0.012); }
     // Glasses and a dish of olives along the bar.
     for (let k = 0; k < 3; k++){ const gx = bx + 0.3 + k * 0.62; if (gx > tx - 0.3 && gx < tx + 0.3) continue; rr(gx - 0.04, by + 0.1 - H - 0.12, 0.08, 0.12, 0.02); fs(k % 2 ? 'rgba(232,176,74,.85)' : 'rgba(230,245,255,.75)', 0.012); }
-    if (pour && down){ const k = (c - 3.6) / 1.6; rr(tx + 0.02, ty - 0.24, 0.1, 0.14, 0.02); fs('rgba(230,245,255,.6)', 0.012); g.fillStyle = '#e0a53a'; g.fillRect(tx + 0.025, ty - 0.1 - k * 0.12, 0.09, k * 0.12); g.fillStyle = '#fff6e0'; g.fillRect(tx + 0.025, ty - 0.12 - k * 0.12, 0.09, 0.03); }
+  });
+  // The pint he's pulling, filling under the tap (drawn over his hand), then left on the bar for its drinker.
+  if (down && c > 9.3) add(by + bd + 0.001, () => {
+    const k = Math.min(1, (c - 9.5) / 1.9), gx = c < 11.8 ? tx - 0.06 : tx - 0.25, gy = ty - 0.06;
+    rr(gx - 0.05, gy - 0.15, 0.1, 0.15, 0.02); fs('rgba(230,245,255,.6)', 0.012);
+    if (k > 0){ g.fillStyle = '#e0a53a'; g.fillRect(gx - 0.042, gy - 0.008 - k * 0.11, 0.084, k * 0.11); g.fillStyle = '#fff6e0'; g.fillRect(gx - 0.042, gy - 0.02 - k * 0.12, 0.084, 0.03); }
+    if (c < 11.4 && k < 1){ g.fillStyle = 'rgba(224,165,58,.8)'; g.fillRect(gx - 0.008, ty - 0.3, 0.016, 0.3 - 0.06 - k * 0.11); }
   });
   // Stools along the front (face down) or behind it (face up, where the bar's back is to us).
-  if (down) for (let k = 0; k < Math.floor((bw - 0.2) / 0.62); k++){
-    const sx = bx + 0.32 + k * 0.62, sy = by + bd + 0.32;
+  for (const { stool: { x: sx, y: sy } } of barSeats(u)){
     add(sy, () => { shadow(sx, sy + 0.02, 0.13, 0.05); rr(sx - 0.02, sy - 0.32, 0.04, 0.32, 0.01); fs('#2b2230', 0.012); ell(sx, sy - 0.12, 0.09, 0.03); g.strokeStyle = BRASS; g.lineWidth = 0.025; g.stroke(); ell(sx, sy - 0.34, 0.13, 0.055); fs(LEATHER, 0.025); ell(sx, sy - 0.36, 0.1, 0.035); g.fillStyle = 'rgba(255,255,255,.15)'; g.fill(); });
   }
 }
 
 /* ---------- Drinks ---------- */
-export function held(kind, hx, hy){
+// lvl: how full it is (1 = just poured), going down a sip at a time.
+export function held(kind, hx, hy, lvl = 1){
   if (kind === 'beer'){
     rr(hx - 0.055, hy - 0.16, 0.11, 0.17, 0.02); fs('rgba(230,245,255,.75)', 0.02);
-    g.fillStyle = '#e0a53a'; g.fillRect(hx - 0.045, hy - 0.11, 0.09, 0.11);
-    for (const [dx, dy, r] of [[-0.03, -0.165, 0.035], [0.01, -0.175, 0.04], [0.04, -0.16, 0.03]]){ circ(hx + dx, hy + dy, r); g.fillStyle = '#fff8e6'; g.fill(); }
+    const f = 0.13 * lvl;
+    g.fillStyle = '#e0a53a'; g.fillRect(hx - 0.045, hy - 0.005 - f, 0.09, f);
+    g.fillStyle = 'rgba(255,255,255,.45)'; for (let k = 0; k < 3; k++){ const by = hy - 0.02 - (((k * 0.37 + hx * 7) % 1 + 1) % 1) * f; circ(hx - 0.02 + k * 0.02, by, 0.006); g.fill(); }
+    if (lvl > 0.25) for (const [dx, dy, r] of [[-0.03, -0.005, 0.03], [0.005, -0.015, 0.035], [0.035, -0.003, 0.026]]){ circ(hx + dx, hy - 0.005 - f + dy, r * Math.min(1, lvl + 0.3)); g.fillStyle = '#fff8e6'; g.fill(); }
     g.beginPath(); g.arc(hx + 0.07, hy - 0.08, 0.04, -Math.PI / 2, Math.PI / 2); g.strokeStyle = 'rgba(230,245,255,.9)'; g.lineWidth = 0.02; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.4)'; g.fillRect(hx - 0.04, hy - 0.14, 0.012, 0.12);
     return true;
   }
   if (kind === 'whiskey'){
     g.beginPath(); g.moveTo(hx - 0.055, hy - 0.11); g.lineTo(hx + 0.055, hy - 0.11); g.lineTo(hx + 0.05, hy); g.lineTo(hx - 0.05, hy); g.closePath(); fs('rgba(230,245,255,.65)', 0.018);
-    g.fillStyle = '#b8651f'; g.fillRect(hx - 0.048, hy - 0.06, 0.096, 0.055);
-    rr(hx - 0.025, hy - 0.085, 0.045, 0.04, 0.008); g.fillStyle = 'rgba(240,250,255,.85)'; g.fill();
+    const f = 0.06 * lvl + 0.01;
+    g.fillStyle = '#b8651f'; g.fillRect(hx - 0.048, hy - 0.006 - f, 0.096, f);
+    rr(hx - 0.025, hy - 0.006 - f - 0.02, 0.045, 0.04, 0.008); g.fillStyle = 'rgba(240,250,255,.85)'; g.fill();
+    g.fillStyle = 'rgba(255,255,255,.4)'; g.fillRect(hx - 0.042, hy - 0.1, 0.01, 0.08);
     return true;
   }
   if (kind === 'martini'){
     g.beginPath(); g.moveTo(hx - 0.08, hy - 0.2); g.lineTo(hx + 0.08, hy - 0.2); g.lineTo(hx, hy - 0.09); g.closePath(); fs('rgba(230,245,255,.75)', 0.016);
-    g.beginPath(); g.moveTo(hx - 0.065, hy - 0.185); g.lineTo(hx + 0.065, hy - 0.185); g.lineTo(hx, hy - 0.1); g.closePath(); g.fillStyle = 'rgba(240,235,200,.85)'; g.fill();
+    const k = 0.25 + 0.75 * lvl, ty = hy - 0.1 - 0.085 * k, tw = 0.065 * k;
+    g.beginPath(); g.moveTo(hx - tw, ty); g.lineTo(hx + tw, ty); g.lineTo(hx, hy - 0.1); g.closePath(); g.fillStyle = 'rgba(240,235,200,.85)'; g.fill();
     g.strokeStyle = 'rgba(230,245,255,.9)'; g.lineWidth = 0.014; g.beginPath(); g.moveTo(hx, hy - 0.09); g.lineTo(hx, hy); g.moveTo(hx - 0.035, hy); g.lineTo(hx + 0.035, hy); g.stroke();
     g.strokeStyle = '#8a5a44'; g.lineWidth = 0.01; g.beginPath(); g.moveTo(hx + 0.05, hy - 0.24); g.lineTo(hx - 0.01, hy - 0.15); g.stroke();
     circ(hx + 0.012, hy - 0.165, 0.02); fs('#7a9a3a', 0.008);
@@ -301,7 +355,13 @@ export function perchSpots(d){
   const x = d.x, y = d.y;
   if (d.type === 'stool') return [{ x: x + 0.34, y: y + 0.74, side: true, flip: false }];
   if (d.type === 'bistro') return [{ x: x + 0.58, y: y + 0.72, side: true, flip: false }, { x: x + 1.42, y: y + 0.72, side: true, flip: true }];
-  if (d.type === 'booth') return [{ x: x + 0.95, y: y + 0.92 }, { x: x + 2.05, y: y + 0.92 }, { x: x + 0.95, y: y + 1.86, back: true }, { x: x + 2.05, y: y + 1.86, back: true }];
+  if (d.type === 'booth'){
+    // Round the horseshoe: two facing us at the back of the curve, one on each arm facing in. via: the way in, round
+    // the table rather than through it.
+    const at = a => { const [px, py] = boothPt(d, a, BOOTH.seat); return { x: px, y: py - 0.11 }; };
+    return [{ ...at(Math.PI * 1.32), via: { x: x + 0.62, y: y + 1.62 } }, { ...at(Math.PI * 1.68), via: { x: x + 2.38, y: y + 1.62 } },
+      { ...at(Math.PI * 0.98), side: true, flip: false, via: { x: x + 0.6, y: y + 1.7 } }, { ...at(Math.PI * 2.02), side: true, flip: true, via: { x: x + 2.4, y: y + 1.7 } }];
+  }
   return [];
 }
 const stoolSeat = (sx, sy) => {
@@ -343,38 +403,81 @@ function perchLayers(d, t, add, live){
     return;
   }
   if (d.type === 'booth'){
-    // The back bench: a tall tufted back and its seat.
-    add(y + 0.5, () => {
-      shadow(x + 1.5, y + 2.0, 1.5, 0.14, 0.15);
-      box(x + 0.15, y + 0.2, 2.7, 0.2, 1.05, '#6e1f28', '#8c2a32');
-      const ft = y + 0.4 - 1.05;
-      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++){ circ(x + 0.38 + i * 0.45 + (j % 2) * 0.22, ft + 0.2 + j * 0.24, 0.02); g.fillStyle = '#4a1218'; g.fill(); }
-      rr(x + 0.1, y + 0.2 - 1.15, 2.8, 0.12, 0.05); fs(WALNUT, 0.03);
-      box(x + 0.15, y + 0.4, 2.7, 0.5, 0.28, '#a33340', '#6e1f28');
-      for (const ex of [x + 0.05, x + 2.85]) box(ex, y + 0.2, 0.12, 0.72, 0.5, WALNUT, '#3d2219');
-    });
-    add(y + 1.46, () => {
-      const tx = x + 0.45, ty = y + 1.1;
-      shadow(x + 1.5, ty + 0.36, 1.0, 0.1, 0.15);
-      rr(x + 1.45, ty, 0.1, 0.36, 0.02); fs('#2b2230', 0.015);
-      box(tx, ty - 0.36, 2.1, 0.36, 0.08, '#3d2219', '#2a1712', 0.36, 0.05);
-      rr(tx + 0.04, ty - 0.36 - 0.44 + 0.02, 2.02, 0.05, 0.02); g.fillStyle = 'rgba(255,230,190,.18)'; g.fill();
-      const top = ty - 0.36 - 0.44 + 0.18;
-      // A little lamp in the middle with a fringed shade.
-      rr(x + 1.48, top - 0.3, 0.04, 0.3, 0.01); fs(BRASS, 0.01);
-      g.beginPath(); g.moveTo(x + 1.38, top - 0.28); g.lineTo(x + 1.62, top - 0.28); g.lineTo(x + 1.56, top - 0.42); g.lineTo(x + 1.44, top - 0.42); g.closePath(); fs('#c1121f', 0.015);
-      g.save(); g.globalAlpha = 0.35; circ(x + 1.5, top - 0.25, 0.22); g.fillStyle = '#ffcf6a'; g.fill(); g.restore();
-      // Those with their backs to us have set their drinks down in front of them.
-      [[0.95, 0.1], [2.05, 0.1]].forEach(([dx, dy], i) => tableDrink(drinks[i + 2], x + dx, top + dy));
-    });
-    add(y + 1.8, () => box(x + 0.15, y + 1.55, 2.7, 0.45, 0.26, '#a33340', '#6e1f28'));
-    add(y + 2.0, () => {
-      box(x + 0.15, y + 1.9, 2.7, 0.1, 0.62, '#6e1f28', '#8c2a32');
-      for (let i = 0; i < 6; i++){ circ(x + 0.38 + i * 0.45, y + 2.0 - 0.36, 0.02); g.fillStyle = '#4a1218'; g.fill(); }
-      rr(x + 0.1, y + 2.0 - 0.7, 2.8, 0.1, 0.04); fs(WALNUT, 0.03);
-      for (const ex of [x + 0.05, x + 2.85]) box(ex, y + 1.5, 0.12, 0.5, 0.5, WALNUT, '#3d2219');
-    });
+    add(y + 0.2, () => boothShell(d, t));
+    add(y + 1.32, () => boothTable(d, t));
   }
+}
+// The velvet booth: a channel-tufted horseshoe in deep red velvet with a walnut cap, wrapped round a little round
+// table with a fringed lamp. Seen from the open end. Points round it: a, the angle (PI at the left end, 1.5 PI at the
+// back, 2 PI at the right); r, a fraction of the outer radius.
+const BOOTH = { rx: 1.38, ry: 0.8, a0: Math.PI * 0.86, a1: Math.PI * 2.14, back: 0.94, cush: 0.27, inner: 0.62, seat: 0.78 };
+function boothPt(d, a, r, h = 0){ return [d.x + 1.5 + Math.cos(a) * BOOTH.rx * r, d.y + 1.12 + Math.sin(a) * BOOTH.ry * r - h]; }
+function boothShell(d, t){
+  const B = BOOTH, N = 40, P = (a, r, h) => boothPt(d, a, r, h);
+  const arc = (a0, a1, r, h, first = true) => { for (let i = 0; i <= N; i++){ const a = a0 + (a1 - a0) * i / N, [px, py] = P(a, r, h); if (i === 0 && first) g.moveTo(px, py); else g.lineTo(px, py); } };
+  const band = (a0, a1, r0, h0, r1, h1, fill) => { g.beginPath(); arc(a0, a1, r0, h0); arc(a1, a0, r1, h1, false); g.closePath(); fs(fill, 0.03); };
+  const [sx, sy] = P(Math.PI * 1.5, 1, 0);
+  shadow(sx, d.y + 1.2, 1.45, 0.5, 0.16);
+  // The back of the curve: the backrest's tufted face, then the seat cushion and its front.
+  band(Math.PI, Math.PI * 2, 0.95, B.back, 0.92, B.cush, LEATHER);
+  g.save(); g.beginPath(); arc(Math.PI, Math.PI * 2, 0.95, B.back); arc(Math.PI * 2, Math.PI, 0.92, B.cush, false); g.closePath(); g.clip();
+  // Channels: soft vertical rolls with a shadowed seam between each.
+  for (let i = 0; i <= 18; i++){
+    const a = Math.PI + Math.PI * i / 18, [x0, y0] = P(a, 0.95, B.back), [x1, y1] = P(a, 0.92, B.cush);
+    g.strokeStyle = 'rgba(40,6,12,.45)'; g.lineWidth = 0.022; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    const am = a + Math.PI / 36, [m0x, m0y] = P(am, 0.95, B.back - 0.08), [m1x, m1y] = P(am, 0.92, B.cush + 0.08);
+    g.strokeStyle = 'rgba(255,170,180,.16)'; g.lineWidth = 0.03; g.beginPath(); g.moveTo(m0x, m0y); g.lineTo(m1x, m1y); g.stroke();
+  }
+  // The velvet's sheen, brightest where the light from the lamp catches the back.
+  const gl = g.createRadialGradient(sx, sy - 0.6, 0.1, sx, sy - 0.6, 1.4); gl.addColorStop(0, 'rgba(255,190,150,.22)'); gl.addColorStop(1, 'rgba(255,190,150,0)'); g.fillStyle = gl; g.fillRect(sx - 1.6, sy - 1.4, 3.2, 1.6);
+  g.restore();
+  band(B.a0, B.a1, 0.92, B.cush, B.inner, B.cush, '#a33340');
+  band(Math.PI, Math.PI * 2, B.inner, B.cush, B.inner, 0, '#6e1f28');
+  // Piping along the cushion's edge, and a seam between each seat.
+  g.strokeStyle = 'rgba(255,200,190,.25)'; g.lineWidth = 0.02; g.beginPath(); arc(B.a0, B.a1, B.inner + 0.02, B.cush + 0.005); g.stroke();
+  for (const a of [Math.PI * 1.15, Math.PI * 1.5, Math.PI * 1.85]){ const [x0, y0] = P(a, 0.92, B.cush), [x1, y1] = P(a, B.inner, B.cush); g.strokeStyle = 'rgba(60,10,16,.4)'; g.lineWidth = 0.016; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+  // The arms coming round toward us: we see their outside, with brass nailheads along the bottom.
+  for (const [a0, a1] of [[B.a0, Math.PI], [Math.PI * 2, B.a1]]){
+    band(a0, a1, 1, B.back, 1, 0, '#6e1f28');
+    g.save(); g.beginPath(); arc(a0, a1, 1, B.back); arc(a1, a0, 1, 0, false); g.closePath(); g.clip();
+    for (let i = 1; i < 6; i++){ const a = a0 + (a1 - a0) * i / 6, [x0, y0] = P(a, 1, B.back), [x1, y1] = P(a, 1, 0); g.strokeStyle = 'rgba(30,4,8,.35)'; g.lineWidth = 0.018; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+    g.restore();
+    for (let i = 0; i <= 6; i++){ const [nx, ny] = P(a0 + (a1 - a0) * i / 6, 1, 0.07); circ(nx, ny, 0.018); g.fillStyle = BRASS; g.fill(); }
+  }
+  // The walnut cap all the way round the top, and the arms' carved end posts.
+  g.lineCap = 'round';
+  g.beginPath(); arc(B.a0, B.a1, 0.975, B.back + 0.02); g.strokeStyle = '#3d2219'; g.lineWidth = 0.12; g.stroke();
+  g.beginPath(); arc(B.a0, B.a1, 0.975, B.back + 0.035); g.strokeStyle = WALNUT; g.lineWidth = 0.08; g.stroke();
+  g.beginPath(); arc(B.a0, B.a1, 0.975, B.back + 0.05); g.strokeStyle = 'rgba(255,220,170,.25)'; g.lineWidth = 0.02; g.stroke();
+  g.lineCap = 'butt';
+  for (const a of [B.a0, B.a1]){
+    const [ox, oy] = P(a, 1, 0), [ix, iy] = P(a, B.inner, 0), [tx, ty] = P(a, 0.975, B.back + 0.03);
+    // The end of the seat cushion, then the post.
+    g.beginPath(); g.moveTo(ix, iy); g.lineTo(ix, iy - B.cush); g.lineTo(ox, oy - B.cush); g.lineTo(ox, oy); g.closePath(); fs('#5a1820', 0.025);
+    rr(tx - 0.06, ty - 0.02, 0.12, oy - ty + 0.02, 0.04); fs(WALNUT, 0.03);
+    circ(tx, ty - 0.03, 0.07); fs('#6b4130', 0.025); circ(tx - 0.02, ty - 0.05, 0.025); g.fillStyle = 'rgba(255,230,190,.35)'; g.fill();
+  }
+}
+function boothTable(d, t){
+  const cx = d.x + 1.5, cy = d.y + 1.22, top = cy - 0.44;
+  shadow(cx, cy + 0.02, 0.42, 0.12);
+  // A pedestal on a round foot, and a round walnut top with a brass rim.
+  ell(cx, cy, 0.2, 0.07); fs('#2b2230', 0.02);
+  rr(cx - 0.045, top + 0.04, 0.09, cy - top - 0.04, 0.03); fs('#2b2230', 0.02);
+  ell(cx, top + 0.06, 0.56, 0.2); fs('#3d2219', 0.03); g.fillRect(cx - 0.56, top, 1.12, 0.06); ell(cx, top, 0.56, 0.2); fs(WALNUT, 0.03);
+  ell(cx, top, 0.56, 0.2); g.strokeStyle = BRASS; g.lineWidth = 0.022; g.stroke();
+  ell(cx - 0.12, top - 0.04, 0.26, 0.06); g.fillStyle = 'rgba(255,230,190,.14)'; g.fill();
+  // The lamp: brass stem, red fringed shade, a warm pool of light on the table top.
+  g.save(); g.globalAlpha = 0.32 + Math.sin(t * 2.3 + d.id) * 0.03; ell(cx, top, 0.46, 0.16); g.fillStyle = '#ffcf6a'; g.fill(); g.restore();
+  ell(cx, top + 0.005, 0.07, 0.025); fs(BRASS, 0.012);
+  rr(cx - 0.016, top - 0.32, 0.032, 0.32, 0.01); fs(BRASS, 0.01);
+  g.save(); g.globalAlpha = 0.4; circ(cx, top - 0.3, 0.2); g.fillStyle = '#ffcf6a'; g.fill(); g.restore();
+  g.beginPath(); g.moveTo(cx - 0.15, top - 0.27); g.lineTo(cx + 0.15, top - 0.27); g.lineTo(cx + 0.08, top - 0.44); g.lineTo(cx - 0.08, top - 0.44); g.closePath(); fs('#c1121f', 0.018);
+  g.strokeStyle = BRASS; g.lineWidth = 0.012; g.beginPath(); for (let k = 0; k <= 10; k++){ const fx = cx - 0.15 + k * 0.03; g.moveTo(fx, top - 0.27); g.lineTo(fx, top - 0.22 + (k % 2) * 0.015); } g.stroke();
+  // Coasters, and a little dish of nuts.
+  for (const [dx, dy] of [[-0.3, 0.02], [0.3, 0.02], [-0.16, -0.08], [0.16, -0.08]]){ ell(cx + dx, top + dy, 0.045, 0.017); g.fillStyle = '#c9a052'; g.fill(); }
+  ell(cx + 0.02, top + 0.09, 0.07, 0.025); fs('#e9dcc0', 0.012);
+  for (let k = 0; k < 5; k++){ circ(cx - 0.03 + k * 0.014, top + 0.08 - (k % 2) * 0.012, 0.012); g.fillStyle = '#b07a4a'; g.fill(); }
 }
 
 /* ---------- Jukebox and barrels ---------- */

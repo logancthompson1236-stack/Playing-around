@@ -257,9 +257,9 @@ export function render(t){
     const m = p.state === 'useMachine' && p.machine && p.machine.type === 'massage' ? p.machine : null;
     // Playing a bar game: sorted where the game has them standing this moment.
     const gp = p.state === 'game' && p.game ? A6.playerPose(p.game.d, p.game.slot, sim.games.get(p.game.d), p, t) : null;
-    add(m ? m.y + 0.9 : gp ? gp.y : p.y, () => drawPerson(p, t));
+    add(m ? m.y + 0.9 : gp ? gp.sortY ?? gp.y : p.y, () => drawPerson(p, t));
     // Eating at a table: the hand and the bite come up in front of the table top (it's drawn just after the diner).
-    if ((p.state === 'dine' || p.state === 'court') && p.holding) add(p.y + 0.06, () => drawEatArms(p));
+    if ((p.state === 'dine' && !p.faceBack || p.state === 'court') && p.holding) add(p.y + 0.06, () => drawEatArms(p));
     // At the play area the kid runs off to play: drawn there, among the slide and the balls.
     if (p.state === 'playing' && p.play && p.play.from && p.look.kid) add(playKidY(p), () => drawPlayKid(p));
   }
@@ -390,7 +390,7 @@ export function drawPersonAt(p, t){
   if (p.faceBack || (p.walking && p.away)) o.back = true;
   // Seated on a bench, sofa, the fountain's rim or a cinema seat. Side-facing seats show the legs in profile.
   if (p.state === 'sit' || (p.state === 'show' && !p.bouncing)){ o.sit = true; if (p.seat && p.seat.flip !== undefined) o.sitSide = true; }
-  if (p.state === 'dine'){ o.sit = true; o.sitSide = true; }
+  if (p.state === 'dine'){ o.sit = true; o.sitSide = !p.faceBack; }
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
   if (p.vr) o.vr = true;
@@ -399,6 +399,14 @@ export function drawPersonAt(p, t){
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
   if (p.tryTeddy) o.hold = 'teddy';
   // Sat at a table with their food: eating it, a bite at a time.
+  // How much of their drink is left, going down as they sit.
+  if (p.timerMax && (p.state === 'dine' || p.state === 'perch')){ o.drinkLeft = Math.max(0.12, Math.min(1, p.timer / p.timerMax)); o.seed = (p.id * 0.37) % 1; }
+  // Up at the speakeasy's bar on a stool, back to us: their drink stands on the bar beside them between sips.
+  if (p.state === 'dine' && p.faceBack){
+    const u = saveNow().units.find(v => v.id === p.storeId), seat = u && A.dineSpots(u).seats[p.dineSeat];
+    if (seat && p.holding && A.barSipK(p.t, o.seed).u < 0.05){ A.g.save(); A.g.translate(seat.drink.x, seat.drink.y); A.g.scale(0.85, 0.85); A6.held(p.holding, 0, 0, o.drinkLeft); A.g.restore(); }
+    return A.person(p.x, p.y - 0.17, { ...o, kid: undefined, walk: false, noShadow: true });
+  }
   if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; o.eatLater = true; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
@@ -435,10 +443,10 @@ export function drawPersonAt(p, t){
     }
     return A.person(p.x, (kind === 'blackjack' || kind === 'poker') ? p.y + 0.02 : p.y, so);
   }
-  // Sat in the speakeasy with a drink: side on at a stool or table, or with their back to us on a booth's front bench.
+  // Sat in the speakeasy with a drink: side on at a stool or table, or round a booth's horseshoe.
   if (p.state === 'perch' && p.perch){
     const st = A6.perchSpots(p.perch.d)[p.perch.seat] || {};
-    return A.person(p.x, p.y, { ...o, kid: undefined, walk: false, sit: true, sitSide: !!st.side, back: !!st.back, flip: st.flip !== undefined ? st.flip : o.flip });
+    return A.person(p.x, p.y, { ...o, kid: undefined, walk: false, sit: true, sitSide: !!st.side, back: !!st.back, flip: st.flip !== undefined ? st.flip : o.flip, noShadow: p.perch.d.type === 'booth' || o.noShadow });
   }
   // At a bar game: the game says where they stand and what they're doing this moment, and draws their cue or darts.
   if (p.state === 'game' && p.game){

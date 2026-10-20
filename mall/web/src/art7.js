@@ -629,7 +629,7 @@ export function layers(d, t, add, G){
       // Anyone shooting from behind the table has their cue drawn over the felt.
       add(P.Y1, () => {
         poolTable(d, t, G);
-        if (G && G.on && !G.done){ const k = clock(G, TURN.pool), s = shotsFor(G)[Math.min(k.n, shotsFor(G).length - 1)]; if (s){ const st = poolStance(d, s); if (st.y <= P.Y1 - 0.05) poolShooterCue(d, s, st, k.c); } }
+        if (G && G.on && !G.done){ const k = clock(G, TURN.pool), s = shotsFor(G)[Math.min(k.n, shotsFor(G).length - 1)]; if (s){ const st = poolStance(d, s); if (st.y <= P.Y1 - 0.05 && st.x >= P.X0 + 0.05 && st.x <= P.X1 - 0.05) poolShooterCue(d, s, st, k.c); } }
       });
       return;
     }
@@ -649,6 +649,9 @@ export function playerPose(d, slot, G, p, t){
     case 'pinball': r = pinPose(d, slot, G, t); break;
     default: { const sp = gameSpots(d)[slot] || { x: p.x, y: p.y }; r = { x: sp.x, y: sp.y, o: {} }; }
   }
+  // Off either end of the pool table, a player is drawn in front of it, never tucked behind the rail (their cue
+  // then goes over them too, rather than with the table).
+  if (d.type === 'pool'){ const P = poolGeom(d); if (r.x < P.X0 + 0.05 || r.x > P.X1 - 0.05){ r.sortY = Math.max(r.y, P.Y1 + 0.01); if (r.behind) r.after = r.behind; } }
   if (r.behind) delete r.behind;
   return r;
 }

@@ -790,3 +790,11 @@ v0.20.2 polish:
 - **Crafty Corner:** a proper artist's palette icon, a craft table with a drawing, paint pots, pom-poms and a turning pinwheel, a finished landscape on the easel, and bunting along the wall.
 - **Bake My Day:** a three-tier pastry case (croissants, sprinkle donuts, cupcakes, a layer cake), a bread rack, a brick oven with a live fire and steaming loaves, a chalkboard menu with a rolling pin and whisk, a cake under a glass dome on the counter, candy-stripe wallpaper with an awning, and pink harlequin tiles.
 
+
+v0.20.3 (the Velvet Rose):
+- **The basement opens with just the Velvet Rose bar and the restrooms.** The three empty storefronts are gone from the expansion; old saves lose them only if they're still empty (built stores stay), once, behind `flags.speakLots`.
+- **Patrons sit at the bar.** About two in three who buy a drink pull up one of the bar's stools (the dine-in seat system, with `barSeats` in art6.js as the bar's seats), sit with their back to us, and take 11–18 s over it; their glass stands on the bar between sips. Browse spots are all in front of the bar, so nobody wanders behind it.
+- **Drinking:** seated drinkers lift the glass to their lips, tip it back for a swallow (head tilting back, eyes closed), set it down and look pleased; the glass empties as they go (`barDrink` in art.js, `held(kind, x, y, lvl)` in art6.js). From behind, the glass comes up past the ear.
+- **Bartender:** works a loop with everything in his hands: polishing a glass with a towel, shaking a cocktail at his shoulder, walking to the taps to pull a pint that's left on the bar, and back. The shaker on the counter stands still.
+- **Velvet booth:** a channel-tufted horseshoe with a walnut cap, brass nailheads and end posts around a round pedestal table with a fringed lamp; two sit at the back facing out, one on each arm facing in, and they walk in round the table.
+- **Pool:** a player at either end of the table is drawn in front of it, with their cue, never tucked behind the rail.

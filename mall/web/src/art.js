@@ -679,7 +679,9 @@ export function person(x, y, o){
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
   const hand = [0.235, -0.31];   // the right hand, where a held item goes
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie' || o.hold === 'beer' || o.hold === 'whiskey' || o.hold === 'martini') && !o.back && !walking && sipK(t) > 0;
+  // Sat down with a drink from the speakeasy: a slower, proper sip (see barDrink), and the glass empties as they go.
+  const barSip = sit && BAR_DRINKS.has(o.hold), bk = barSip ? barSipK(t, o.seed || 0) : null;
+  const sipping = !barSip && (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie' || o.hold === 'beer' || o.hold === 'whiskey' || o.hold === 'martini') && !o.back && !walking && sipK(t) > 0;
   const sipU = sipping ? sipK(t) : 0;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
@@ -688,7 +690,7 @@ export function person(x, y, o){
     else if (o.reachTo){ const [hx, hy] = toBody(o.reachTo[0], o.reachTo[1]); raisedArm(o, 0.04, hx, hy, 0.46); if (o.reachHold) heldItem(o.reachHold, hx + 0.01, hy + 0.06, o.bagColor, o.prize); }
     else if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
     else if (o.eat){ /* drawn after the head */ }
-    else if (!sipping){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
+    else if (!sipping && !barSip){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
   }
   else for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
     // Climbing a ladder, hand over hand; arms up for the ride down a slide; flailing in the ball pit; a wave.
@@ -699,7 +701,9 @@ export function person(x, y, o){
     if (o.cheer){ raisedArm(o, ax, ax * 1.7, -0.96); continue; }
     if (o.splash){ raisedArm(o, ax, ax * 1.6 + Math.sin(t * 7 + ax * 9) * 0.06, -0.74 + Math.sin(t * 9 + ax * 12) * 0.12); continue; }
     if (ax > 0 && o.wave){ raisedArm(o, ax, 0.32 + Math.sin(t * 12) * 0.06, -0.92); continue; }
-    if (ax > 0 && sipping) continue;   // drawn after the head, so the drink is in front of the face
+    // Both hands placed (from the feet: [left, right]), like a bartender polishing a glass or shaking a cocktail.
+    if (o.handsAt){ const [hx, hy] = toBody(...o.handsAt[ax > 0 ? 1 : 0]); raisedArm(o, ax, hx, hy, 0.5); continue; }
+    if (ax > 0 && (sipping || barSip)) continue;   // drawn after the head, so the drink is in front of the face
     if (ax > 0 && o.reach){ if (o.reachSide) raisedArm(o, ax, 0.42, -0.6); else raisedArm(o, ax, 0.2, -0.82); continue; }
     if (sit && !o.play){
       // Hands resting in the lap.
@@ -727,7 +731,7 @@ export function person(x, y, o){
     if (ax > 0){ hand[0] = ax - Math.sin(a) * L + 0.02; hand[1] = -0.58 + dip + Math.cos(a) * L; }
   }
   if ((o.putter || o.bowlBall) && !o.cheer) A5.prop(o);
-  if (o.hold && !o.back && !sipping) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : hand[0], profile ? -0.35 : sit ? -0.33 : hand[1], o.bagColor, o.prize);
+  if (o.hold && !o.back && !sipping && !barSip) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : hand[0], profile ? -0.35 : sit ? -0.33 : hand[1], o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
@@ -738,12 +742,21 @@ export function person(x, y, o){
     g.beginPath(); g.moveTo(0.22, -0.32); g.quadraticCurveTo(0.35, -0.9, bx, -1.45); g.strokeStyle = OUT; g.lineWidth = 0.02; g.stroke();
     ell(bx, -1.66, 0.19, 0.23); fs(o.balloon, 0.04); ell(bx - 0.06, -1.74, 0.045, 0.07); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
   }
+  // From behind, the glass comes up in front of the face: drawn first, so the head hides most of it.
+  if (barSip && o.back) barDrink(o, bk, 'back');
+  // A good swallow tips the head back a little.
+  const tilt = bk ? bk.u * (0.06 + 0.1 * bk.gulp) : 0;
+  g.save();
+  if (tilt){ if (profile){ g.translate(0, -0.62); g.rotate(-tilt); g.translate(0, 0.62); } else g.translate(0, o.back ? tilt * 0.12 : -tilt * 0.15); }
+  if (bk && !o.back && bk.u > 0.8) o = { ...o, blink: true };
+  else if (bk && bk.after) o = { ...o, mood: 'happy' };
   circ(0, -0.88, 0.27); fs(o.skin);
   if (o.back){
     circ(0, -0.89, 0.28); fs(o.hood ? shade(o.shirt, -0.15) : o.hair);
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
     if (o.vr){ rr(-0.28, -0.95, 0.56, 0.07, 0.03); fs('#2b2d42', 0.03); }
     A5.headwear(o, true, false);
+    g.restore();
   } else {
     // Eating: chew after each bite (and look pleased about it).
     if (o.eat && profile){ const c = eatCycle(t, o.seed); if (c > 0.66 || c < 0.3) o = { ...o, chew: Math.sin(t * 16) > 0, mood: c > 0.84 && c < 0.97 ? 'happy' : o.mood }; }
@@ -752,6 +765,8 @@ export function person(x, y, o){
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
     if (o.eat && profile && !o.eatLater) eatArm(o, t);
+    g.restore();
+    if (barSip) barDrink(o, bk, profile ? 'side' : 'front');
     if (sipping){
       // The drink comes up from the hand to the mouth, tips, and goes back down.
       const u = sipU, rx = profile ? 0.19 : 0.235, ry = profile ? -0.35 : -0.31, hx = rx + ((profile ? 0.2 : 0.09) - rx) * u, hy = ry + (-0.66 - ry) * u;
@@ -762,6 +777,35 @@ export function person(x, y, o){
     if (o.fizz !== undefined && o.hold === 'can' && !sipping) fizz(hand[0], hand[1] - 0.14, o.fizz);
   }
   g.restore();
+}
+// The speakeasy's drinks, sipped properly when sat down: lift, tip it back for a swallow or two, lower it, ahh.
+// u: 0 at rest to 1 at the lips; gulp: 0 to 1 through the swallow; after: just set it down, looking pleased.
+const BAR_DRINKS = new Set(['beer', 'whiskey', 'martini']);
+export function barSipK(t, seed){
+  const c = (t + seed * 7.3) % 5.2;
+  const e = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+  const u = c < 0.55 ? e(c / 0.55) : c < 1.55 ? 1 : c < 2.0 ? 1 - e((c - 1.55) / 0.45) : 0;
+  return { u, gulp: c < 0.55 ? 0 : c < 1.55 ? (c - 0.55) : 1, after: c > 2.0 && c < 2.9 };
+}
+// The glass (sized per drink: gh is base to rim) goes from where it rests to the lips, tipping as they drink.
+// Front on, the right hand brings it to the middle of the mouth; side on, out in front of the face; from behind,
+// up past the right ear. lvl: how much is left.
+const GLASS = { beer: [0.17, 1.2], whiskey: [0.11, 1.05], martini: [0.2, 0.9] };
+function barDrink(o, k, view){
+  const GS = 1.4, [gh0, peak] = GLASS[o.hold], gh = gh0 * GS, lvl = o.drinkLeft ?? 1;
+  const rest = o.restAt || (view === 'side' ? [0.24, -0.36] : view === 'back' ? [0.2, -0.34] : [0.15, -0.33]);
+  const lip = view === 'side' ? [0.19, -0.83] : view === 'back' ? [0.17, -0.92] : [0.03, -0.8];
+  const u = k.u, th = u * peak * (0.7 + 0.3 * k.gulp);
+  // The rim's near edge: at rest straight above the hand; at the lips, touching them.
+  const rx = rest[0] + (lip[0] - rest[0]) * u, ry = rest[1] - gh + (lip[1] - rest[1] + gh) * u;
+  const c = Math.cos(-th), sn = Math.sin(-th), at = (x, y) => [rx + x * c - y * sn, ry + x * sn + y * c];
+  const [hx, hy] = at(0.02, gh * 0.55);
+  // At rest from behind, it's set on the bar (o.restAt) or out of sight in front of them.
+  if (view === 'back' && u < 0.05) return;
+  const sh = view === 'side' ? 0.04 : 0.215;
+  raisedArm(o, sh, hx, hy, 0.4);
+  // Held a little larger than a carried drink, so the glass reads in the hand; the hand shows through it.
+  g.save(); g.translate(rx, ry); g.rotate(-th); g.scale(GS, GS); A6.held(o.hold, 0, gh0, lvl); g.restore();
 }
 // A sip every few seconds: 0 at rest, easing up to 1 at the mouth and back down.
 function sipK(t){
@@ -1290,6 +1334,8 @@ export function storeSpots(u){
     if (u.store === 'bears' && H >= 3 && lx < 1.2 && ly > 1.6 && ly < 2.4) continue;
     if (u.store === 'skate' && H >= 3 && ly > 2.1) continue;
     if (u.store === 'specs' && H >= 3 && ly > 1.8 && ly < 2.2) continue;
+    // Out from behind the long bar: in front of it, by the stools.
+    if (u.store === 'bar' && ly < 1.95) continue;
     browse.push(at(lx, ly));
   }
   if (u.store === 'noodle') browse.splice(0, browse.length, at(1.12, 1.88));
@@ -1867,6 +1913,8 @@ export function storeFurniture(u, def, t, layer){
 // has just one little lacquered table for two, tucked by its kitchen.
 const NOODLE_SEAT = 0.25;
 export function dineSpots(u){
+  // The speakeasy's bar: no tables, just the stools along the bar.
+  if (u.store === 'bar') return { tables: [], seats: A6.barSeats(u) };
   const at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
   const noodle = u.store === 'noodle', off = noodle ? NOODLE_SEAT : 0.42;
   const tables = noodle ? [at(0.55, 1.5)] : [at(0.75, 1.55), at(0.75, 2.45)].slice(0, u.h >= 3 ? 2 : 1);

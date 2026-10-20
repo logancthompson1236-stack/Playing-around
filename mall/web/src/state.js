@@ -73,6 +73,9 @@ export function loadSave(){
 function upgradeSave(s){
   s.expansions = s.expansions || {};
   s.style = s.style || newStyle();
+  // v0.20.3: the speakeasy opens with just the Velvet Rose and its restrooms. Its three empty storefronts go (only
+  // ones still empty: anything built there stays).
+  if (s.flags && !s.flags.speakLots && (s.flags.speakLots = true)) for (const [x, y] of [[119, 4], [121, 11], [125, 11]]){ const i = (s.units || []).findIndex(u => u.x === x && u.y === y && u.state === 'vacant'); if (i >= 0) s.units.splice(i, 1); }
   if ((s.layout || 1) >= LAYOUT) return s;
   // Layout 3: the East Wing and Garden Court became the second floor. Everything out there keeps its spot, just
   // further along the grid (the escalator gets room made for it once the map is built: see clearEscalators).
