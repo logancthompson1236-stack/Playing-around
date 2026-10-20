@@ -849,8 +849,51 @@ function eatArm(o, t){
     raisedArm(o, 0.04, hx, hy);
     return;
   }
+  if (o.eat === 'pizza') return pizzaBites(o, t, c, u);
   raisedArm(o, 0.04, hx, hy);
   g.save(); g.translate(hx - 0.02, hy + 0.02); g.rotate(-0.5 * u); heldItem(o.eat, 0, 0.02, o.bagColor, o.prize); g.restore();
+}
+// A slice of pizza eaten crust-first in the hand, tip to the mouth: it lifts off the plate, the tip goes in, a bite
+// comes off (with a string of cheese as it pulls away), and it gets shorter bite by bite until a fresh slice comes up.
+// Drawn only from the shared arm rig, so it fits every shopper whatever their looks, and kids via the overlay's scale.
+const MOUTH = [0.205, -0.795], SLICE = 0.17, SLICE_W = 0.065;
+function pizzaBites(o, t, c, u){
+  const bites = Math.floor(t * 0.42 + (o.seed || 0)) % 4 + (c > 0.7 ? 1 : 0), left = 1 - bites * 0.24;
+  const len = 0.035 + (SLICE - 0.035) * left;
+  // Resting: crust in hand over the plate, tip out over the table. Eating: tip angled up into the mouth, with a small
+  // push in for the bite itself.
+  const a = 2.75 + (0.38 - 2.75) * u, chomp = c > 0.62 && c < 0.7 ? Math.sin((c - 0.62) / 0.08 * Math.PI) * 0.018 : 0;
+  const px = o.plateX ?? 0.24, rest = [px - 0.06, -0.58 + Math.sin(t * 8) * 0.006 * (1 - u)];
+  const reach = len * 0.75 - chomp, mouthHand = [MOUTH[0] + Math.cos(a) * reach, MOUTH[1] + Math.sin(a) * reach];
+  const hx = rest[0] + (mouthHand[0] - rest[0]) * u, hy = rest[1] + (mouthHand[1] - rest[1]) * u;
+  raisedArm(o, 0.04, hx, hy, 0.42);
+  g.save(); g.translate(hx, hy); g.rotate(a);
+  slice(len, left);
+  g.restore();
+  circ(hx + 0.004, hy - 0.006, 0.032); fs(o.skin, 0.02);   // fingers over the crust
+  // Pulling away from a bite: a string of cheese from the tip back to the mouth, thinning out until it snaps.
+  if (c > 0.8 && c < 0.94 && u > 0.2){
+    const k = (c - 0.8) / 0.14, tx = hx - Math.cos(a) * len, ty = hy - Math.sin(a) * len;
+    const sag = 0.03 + k * 0.04, mx = (tx + MOUTH[0]) / 2, my = Math.max(ty, MOUTH[1]) + sag;
+    g.lineCap = 'round';
+    for (const [w, col] of [[0.022 * (1 - k * 0.6), OUT], [0.012 * (1 - k * 0.6), '#ffd166']]){
+      g.beginPath(); g.moveTo(MOUTH[0] + 0.01, MOUTH[1] + 0.01); g.quadraticCurveTo(mx, my, tx, ty); g.lineWidth = w; g.strokeStyle = col; g.stroke();
+    }
+  }
+}
+// The slice in its own frame: crust at the origin, pointing along -x. left (0..1) is how much is still uneaten;
+// a bitten end shows two scallops.
+function slice(len, left){
+  const w = y => SLICE_W * (1 - y / SLICE), e = w(len);
+  g.beginPath(); g.moveTo(0, -SLICE_W);
+  if (left > 0.99) g.lineTo(-SLICE, 0);
+  else { g.lineTo(-len, -e); g.quadraticCurveTo(-len + 0.03, -e / 2, -len, 0); g.quadraticCurveTo(-len + 0.03, e / 2, -len, e); }
+  g.lineTo(0, SLICE_W); g.closePath();
+  g.save(); fs('#ffd166', 0.016); g.clip();
+  for (const [x, y, r] of [[-0.045, -0.022, 0.02], [-0.05, 0.03, 0.017], [-0.1, 0.004, 0.016]]){ circ(x, y, r); fs('#e63946', 0.008); }
+  circ(-0.08, -0.026, 0.007); fs('#2f9e6a', 0); circ(-0.025, 0.04, 0.007); fs('#2f9e6a', 0);
+  g.restore();
+  rr(-0.018, -SLICE_W - 0.01, 0.04, SLICE_W * 2 + 0.02, 0.02); fs('#d4883c', 0.016);
 }
 // The eating arm (and the bite in it) of someone sat side on at (x, y), on its own: drawn after the table, so the
 // hand and food come up in front of the table top instead of behind it. Pairs with person(x, y, { ...o, eatLater }).
