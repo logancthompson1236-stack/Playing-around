@@ -306,6 +306,24 @@ export function iosInstallTip(){
   root.append(el);
 }
 
+// Inside another site's page (itch.io's frame), Safari (and so every iPhone browser) and Firefox can throw the save
+// away when the browser closes. A card says so and offers the game in its own tab, where the save sticks (and on an
+// iPhone it can go on the home screen from there).
+export function frameSaveTip(){
+  let framed = false; try { framed = window.top !== window; } catch { framed = true; }
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const forgets = ios || /Firefox\//.test(ua) || (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/.test(ua));
+  if (!framed || !forgets || window.Capacitor) return;
+  const el = h('div', { class: 'ios-tip', role: 'dialog', 'aria-label': 'Keep your save' },
+    h('b', {}, 'Keep your mall saved'),
+    h('p', {}, 'This browser can forget games saved inside this page when it closes. Open the game in its own tab and your mall stays put' + (ios ? ' (you can add it to your Home Screen from there).' : '.')),
+    h('span', { style: 'grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;gap:5px' },
+      h('a', { class: 'btn small primary', href: location.href, target: '_blank', rel: 'noopener', style: 'text-decoration:none;text-align:center', onclick: () => sfx('tap') }, 'Open in a tab'),
+      h('button', { class: 'btn small', onclick: () => { sfx('tap'); el.remove(); } }, 'Not now')));
+  root.append(el);
+  return el;
+}
+
 /* ---------- Intro ---------- */
 function drawScene(ctx, w, scene, t, mallName){
   const ppt = w / 16;

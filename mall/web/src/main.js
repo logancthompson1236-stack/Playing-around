@@ -1,6 +1,6 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
-import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks } from './state.js';
+import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks, restoreStorage } from './state.js';
 import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor, openFloors, floorLevel } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
@@ -73,9 +73,11 @@ function boot(){
   // The title is the outside of the mall at dusk; starting walks in through its doors.
   titleScene = startTitleScene(document.getElementById('ui'), { mall: saved && saved.player && saved.player.mall });
   view.covered = true;
-  const enter = go => async () => { await titleScene.enter(); view.covered = false; go(); titleScene.fadeOut(); titleScene = null; };
+  let frameTip = null;
+  const enter = go => async () => { if (frameTip) frameTip.remove(); await titleScene.enter(); view.covered = false; go(); titleScene.fadeOut(); titleScene = null; };
   UI.showTitle({ hasSave: !!saved, onContinue: enter(continueGame), onNew: enter(newGame), onSettings: () => settings(false) });
   UI.iosInstallTip();
+  frameTip = UI.frameSaveTip();
 }
 async function newGame(){
   clearSave();
@@ -375,6 +377,8 @@ function frame(now){
   if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? openFloors() : [0], view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }
   requestAnimationFrame(frame);
 }
-document.fonts && document.fonts.ready ? document.fonts.ready.then(() => { invalidate(); boot(); requestAnimationFrame(frame); }) : (boot(), requestAnimationFrame(frame));
+// The save may need putting back from its second copy first (state.js, restoreStorage).
+const ready = Promise.all([document.fonts && document.fonts.ready, restoreStorage()]);
+ready.then(() => { loadSettings(); applySettings(); invalidate(); boot(); requestAnimationFrame(frame); }, () => { boot(); requestAnimationFrame(frame); });
 // Debug hooks for automated playtests.
 window.__mall = { S, sim, view, perf, ride: rideEscalatorAt, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };

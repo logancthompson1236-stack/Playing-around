@@ -807,3 +807,7 @@ v0.20.5:
 - **High Roller Suite carpet:** champagne gold with a soft pile, woven with a bronze art-deco lattice, a fan-petal medallion with a garnet in every diamond and cream stars where the lines cross. It's drawn clipped to each floor strip from world coordinates, so it runs seamlessly (`vipcarpet` in art.js).
 
 v0.20.6: **Reset volume.** Settings has a Reset volume button under the three sliders that puts Master, Sound effects and Music back to their starting levels (`VOLUME_DEFAULTS` in state.js: 80/80/70) and saves.
+
+v0.20.7: **Saves on itch.io.** Safari (so every iPhone browser) and Firefox don't keep storage for a game inside another site's frame, which is how itch.io runs HTML games, so an iPhone player's mall was gone after closing Safari.
+- Everything saved (each slot, the active slot, settings) is written to localStorage and copied to IndexedDB. On start, `restoreStorage` (state.js) puts back whatever one of them lost, or an older save (saves carry `savedAt`). If localStorage refuses outright, the session keeps working from memory.
+- Inside a frame on Safari, iOS or Firefox, the title shows "Keep your mall saved" with **Open in a tab**, which opens the game page on its own, where the save sticks and an iPhone can add it to the Home Screen.
