@@ -1,7 +1,7 @@
 // DOM overlay: HUD, panels, dialogs, tips, toasts and full-screen screens. Game rules live elsewhere.
 import * as A from './art.js';
 import * as C from './config.js';
-import { S, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot } from './state.js';
+import { S, VOLUME_DEFAULTS, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot } from './state.js';
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
@@ -485,14 +485,18 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
     const b = h('button', { class: 'toggle', 'aria-pressed': set[key] ? 'true' : 'false', 'aria-label': label, onclick: () => { set[key] = !set[key]; b.setAttribute('aria-pressed', set[key]); onChange(); } });
     return h('div', { class: 'row' }, h('span', {}, label, note ? h('small', {}, note) : null), b);
   };
+  const sliders = [];
   const slider = (key, label, preview) => {
     const val = h('span', { class: 'val' }, `${set[key]}%`);
     const r = h('input', { type: 'range', min: 0, max: 100, step: 5, value: set[key], 'aria-label': label });
-    r.addEventListener('input', () => { set[key] = +r.value; val.textContent = set[key] ? `${set[key]}%` : 'Off'; onChange(); });
+    const show = () => { r.value = set[key]; val.textContent = set[key] ? `${set[key]}%` : 'Off'; };
+    r.addEventListener('input', () => { set[key] = +r.value; show(); onChange(); });
     r.addEventListener('change', () => preview && preview());
-    if (!set[key]) val.textContent = 'Off';
+    show(); sliders.push(show);
     return h('div', { class: 'row slider' }, h('span', {}, label), r, val);
   };
+  // Puts all three volumes back where a new player starts.
+  const resetVolume = () => { Object.assign(set, VOLUME_DEFAULTS); sliders.forEach(f => f()); onChange(); sfx('coin'); };
   const close = () => { m.close(); onClose && onClose(); };
   const hasSave = !!exportSave();
   const m = modal(h('div', { class: 'settings' },
@@ -500,7 +504,9 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
     h('div', { class: 'set-cols' },
       h('section', {},
         h('div', { class: 'section-label' }, 'Sound'),
-        slider('volMaster', 'Master', () => sfx('coin')), slider('volSfx', 'Sound effects', () => sfx('coin')), slider('volMusic', 'Music')),
+        slider('volMaster', 'Master', () => sfx('coin')), slider('volSfx', 'Sound effects', () => sfx('coin')), slider('volMusic', 'Music'),
+        h('div', { class: 'row' }, h('span', {}, 'Default volume', h('small', {}, 'All three back to how they started')),
+          h('button', { class: 'btn small', onclick: resetVolume }, 'Reset volume'))),
       h('section', {},
         h('div', { class: 'section-label' }, 'Game'),
         tog('tips', 'Notebook tips', 'Helpful tips at night'),

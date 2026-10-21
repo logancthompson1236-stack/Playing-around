@@ -805,3 +805,5 @@ v0.20.5:
 - **Barrel tables** (beside the bar stools) are real whiskey barrels: bellied staves, four iron hoops, a lid with end-grain boards inside its rim, a bung and the rose brand (`barrelTable` in art6.js).
 - **Shuffleboard:** the table starts a little further in so the shooter stands behind its near end, side on and bent low with a hand on the puck; a couple of practice strokes, a draw back, a step into the push with the arm following through down the table, then they straighten up to watch it stop (`shufPose`/`shufHeld` in art7.js). The shooter is drawn over the table end.
 - **High Roller Suite carpet:** champagne gold with a soft pile, woven with a bronze art-deco lattice, a fan-petal medallion with a garnet in every diamond and cream stars where the lines cross. It's drawn clipped to each floor strip from world coordinates, so it runs seamlessly (`vipcarpet` in art.js).
+
+v0.20.6: **Reset volume.** Settings has a Reset volume button under the three sliders that puts Master, Sound effects and Music back to their starting levels (`VOLUME_DEFAULTS` in state.js: 80/80/70) and saves.

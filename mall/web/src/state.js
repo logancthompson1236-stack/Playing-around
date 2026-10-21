@@ -29,7 +29,9 @@ export function copySlot(from, to){
 const saveKey = () => slotKey(activeSlot());
 
 // Volumes are 0-100. `sound` and `music` follow them (on when above zero); older settings only had the switches.
-export const S = { save: null, settings: { sound: true, music: true, tips: true, volMaster: 80, volSfx: 80, volMusic: 70, saver: false } };
+// What the volume sliders start at (and go back to with Reset volume).
+export const VOLUME_DEFAULTS = { volMaster: 80, volSfx: 80, volMusic: 70 };
+export const S = { save: null, settings: { sound: true, music: true, tips: true, ...VOLUME_DEFAULTS, saver: false } };
 
 export function newSave(player){
   const save = {
