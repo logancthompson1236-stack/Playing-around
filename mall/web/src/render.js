@@ -2,11 +2,13 @@
 import * as A from './art.js';
 import * as A2 from './art2.js';
 import * as A4 from './art4.js';
+import * as A5 from './art5.js';
+import * as A6 from './art6.js';
 import * as C from './config.js';
 import { S } from './state.js';
 import { sim, spotsFor, storeInfo, clockHour, roomInfo, tableDealer } from './sim.js';
 import { playKid, PIT } from './play.js';
-import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize, floorRange, hasUpstairs, topFloor } from './map.js';
+import { map, GW, GH, idx, FLOOR_CLEAN, FLOOR_DUST, FOUNTAIN_ID, decorSize, floorRange, hasUpstairs, topFloor, openFloors } from './map.js';
 
 export const view = {
   W: 0, H: 0, dpr: 1,
@@ -24,7 +26,7 @@ const X0 = () => floorRange(view.floor).x0 - 1.5;
 const X1 = () => floorRange(view.floor).x1 + 1.5;
 // Switch floors, keeping the camera over the same part of the building.
 export function setFloor(f){
-  f = Math.max(0, Math.min(topFloor(), f));
+  if (!openFloors().includes(f)) return;
   if (f === view.floor) return;
   const a = floorRange(view.floor), b = floorRange(f);
   view.cam.x = b.x0 + Math.min(b.x1 - b.x0, Math.max(0, view.cam.x - a.x0));
@@ -50,7 +52,7 @@ export function clampCam(){
   const c = view.cam;
   c.s = Math.max(view.minS, Math.min(view.maxS, c.s));
   const hw = view.W / 2 / c.s, hh = view.H / 2 / c.s;
-  if (view.floor > topFloor()){ view.floor = topFloor(); view.cacheRev = -1; }
+  if (!openFloors().includes(view.floor)){ view.floor = 0; view.cacheRev = -1; }
   const x0 = X0(), x1 = X1();
   c.x = (x1 - x0) <= hw * 2 ? (x0 + x1) / 2 : Math.max(x0 + hw, Math.min(x1 - hw, c.x));
   c.y = (Y1 - Y0) <= hh * 2 ? (Y0 + Y1) / 2 : Math.max(Y0 + hh, Math.min(Y1 - hh, c.y));
@@ -78,7 +80,8 @@ function buildCache(){
   c.setTransform(ppt, 0, 0, ppt, -X0f * ppt, -Y0 * ppt);
   const s = S.save;
   // Outside: sidewalk and parking lot below the ground floor; sky and rooftops below the second floor's windows.
-  if (up) A.skyView(X0f, C.MAP_H, X1f - X0f, Y1 - C.MAP_H, view.floor === 2);
+  if (view.floor === 3) A6.basementView(X0f, C.MAP_H, X1f - X0f, Y1 - C.MAP_H);
+  else if (up) A.skyView(X0f, C.MAP_H, X1f - X0f, Y1 - C.MAP_H, view.floor === 2);
   else { A.floor('sidewalk', X0f, C.MAP_H, X1f - X0f, 1, 3); A.floor('asphalt', X0f, C.MAP_H + 1, X1f - X0f, Y1 - C.MAP_H - 1, 4); }
   // Inside floors, row runs at a time.
   for (let y = 0; y < C.MAP_H; y++){
@@ -86,7 +89,7 @@ function buildCache(){
     while (x < fr.x1){
       const f = map.floor[idx(x, y)], gd = map.garden[idx(x, y)];
       let x2 = x; while (x2 < fr.x1 && map.floor[idx(x2, y)] === f && map.garden[idx(x2, y)] === gd) x2++;
-      A.floor(gd === 1 ? 'grass' : gd === 2 ? 'casinocarpet' : gd === 3 ? 'vipcarpet' : f === FLOOR_DUST ? 'dust' : A.concourseFloor(), x, y, x2 - x, 1, 11 + y * 31 + x);
+      A.floor(gd === 1 ? 'grass' : gd === 2 ? 'casinocarpet' : gd === 3 ? 'vipcarpet' : gd === 4 ? 'speakeasy' : f === FLOOR_DUST ? 'dust' : A.concourseFloor(), x, y, x2 - x, 1, 11 + y * 31 + x);
       x = x2;
     }
   }
@@ -112,7 +115,7 @@ function buildCache(){
     if (map.floor[i] === FLOOR_DUST && !map.occ[i]){ c.fillStyle = 'rgba(30,22,48,.42)'; c.fillRect(x - 0.002, y - 0.002, 1.004, 1.004); }
     if (map.occ[i] > 0){ const u = s.units.find(v => v.id === map.occ[i]); if (u && u.state === 'derelict'){ c.fillStyle = 'rgba(30,22,48,.28)'; c.fillRect(x - 0.002, y - 0.002, 1.004, 1.004); } }
   }
-  A.mallBackWall(fr.x1 - fr.x0, undefined, fr.x0, up);
+  A.mallBackWall(fr.x1 - fr.x0, undefined, fr.x0, up && view.floor !== 3);
   view.cacheRev = map.rev; view.cachePPT = ppt; view.cacheFloor = view.floor;
 }
 
@@ -122,7 +125,7 @@ export function render(t){
   const { dpr, cam } = view;
   // The mall's style, or one being previewed from the Build panel.
   // The casino has its own look, whatever style the rest of the mall has.
-  const st0 = view.stylePreview || s.style, st = view.floor === 2 ? { ...st0, wall: 'casino', floor: 'casino' } : st0, key = st ? st.wall + '/' + st.floor : '';
+  const st0 = view.stylePreview || s.style, st = view.floor === 2 ? { ...st0, wall: 'casino', floor: 'casino' } : view.floor === 3 ? { ...st0, wall: 'speakeasy', floor: 'speakeasy' } : st0, key = st ? st.wall + '/' + st.floor : '';
   if (key !== view.styleKey){ view.styleKey = key; A.setStyle(st); view.cacheRev = -1; }
   const want = dpr * cam.s;
   if (view.cacheRev !== map.rev || view.cacheFloor !== view.floor || !view.cache || (view.cachePPT < 112 && want > view.cachePPT * 1.25) || want < view.cachePPT * 0.45) buildCache();
@@ -164,16 +167,23 @@ export function render(t){
   const tablePlates = (key, i) => { const pl = plates.get(key); return pl ? [pl[i * 2], pl[i * 2 + 1]] : null; };
   const addDine = u => A.dineSpots(u).tables.forEach((tb, i) => { add(tb.y + 0.0, () => A.dineTable(u, i, 'stools')); add(tb.y + 0.12, () => A.dineTable(u, i, 'table', tablePlates(u.id, i))); });
   const manned = view.mode === 'night' ? new Set(s.staff.map(m => m.storeId).filter(Boolean)) : null;
+  // Bowlers and golfers: how far into their visit each one is, so the lanes and greens can show their ball.
+  A5.live.clear();
+  for (const p of sim.people) if (p.state === 'show' && p.showKind){ let a = A5.live.get(p.storeId); if (!a) A5.live.set(p.storeId, a = []); a[p.seat] = { k: p.showT || 0, seed: p.id, ball: p.ballColor }; }
   for (const u of s.units){
     if (u.id === view.hideId || !seenRect(u.x, u.y - 2.6, u.w, u.h + 3)) continue;
     const def = unitDef(u);
     if (manned && u.state === 'store' && !def.attraction && !manned.has(u.id)) add(u.kiosk ? u.y + 1.05 : u.face === 'down' ? u.y + u.h + 0.32 : u.y - 0.12, () => A.helpWanted(u, t));
     if (u.kiosk){ add(u.y + 0.85, () => A.kiosk(u, def, t)); continue; }
+    // The speakeasy's bar: the bartender and the long bar with its stools are their own layers.
+    if (u.state === 'store' && def.icon === 'bar') A6.storeLayers(u, def, t, add);
     if (u.state === 'restroom') A.roomState.set(u, roomInfo(u));
     if (def && def.attraction){
       // Attractions: no counter. Cinema seat rows are sorted one by one so people sit in them, not on top.
-      add(u.face === 'down' ? u.y + 0.48 : u.y + u.h, () => A.unitBack(u, def, t));
-      if (def.attraction === 'jump' && u.face !== 'down') add(u.y, () => A.trampolines(u, def));
+      // Bowling lanes and golf greens lie on the floor, so with doors facing up they go under the players too.
+      if (u.face !== 'down' && def.attraction === 'golf') A5.HOLES.forEach((h, i) => add(A5.holeY(u, i), () => A5.backLayer(u, def, t, A5.live.get(u.id), i)));
+      else add(u.face === 'down' ? u.y + 0.48 : A5.ATTR.includes(def.attraction) ? u.y + 0.1 : u.y + u.h, () => A.unitBack(u, def, t));
+      if (u.face !== 'down') add(u.y, () => A.attractionFloor(u, def));
       if (def.attraction === 'theater') for (const row of [0, 1]){
         const s0 = A.attractionSpots(u, def).seats.find(q => q.row === row);
         add(u.face === 'down' ? s0.at.y + 0.2 : s0.at.y - 0.3, () => A.theaterRow(u, def, row));
@@ -196,18 +206,24 @@ export function render(t){
       add(u.y + 0.05, () => A.unitFront(u, def, t));
     }
   }
-  // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are.
+  // Machines in use (claw, kiddie ride) animate; tell the art who's playing and how far along they are. Machines
+  // with a step-by-step routine (soda, gumballs) run it over exactly the shopper's turn.
   const users = new Map();
   for (const p of sim.people) if (p.state === 'useMachine' && p.machine) users.set(p.machine, p);
   // Casino tables: who's in which seat and how far along their round is, and whether the dealer's there.
   const players = new Map();
   for (const p of sim.people) if (p.state === 'atTable' && p.table){ let a = players.get(p.table); if (!a) players.set(p.table, a = [null, null, null]); a[p.seat] = { k: Math.min(1, Math.max(0, 1 - p.timer / p.tableMax)), win: p.tableWin, done: p.tableWin !== null && p.tableWin !== undefined }; }
   A4.setHour(sim.phase === 'idle' ? 21 : clockHour());
+  // Speakeasy seats: what each sitter's drinking, by seat, for the drinks set down on the table.
+  const drinks = new Map();
+  for (const p of sim.people) if (p.state === 'perch' && p.perch && p.holding){ let a = drinks.get(p.perch.d); if (!a) drinks.set(p.perch.d, a = []); a[p.perch.seat] = p.holding; }
   for (const d of s.decor){
     if (d.id === view.hideId || !seenRect(d.x - 1, d.y - 2.8, 4, 5)) continue;
     const u = users.get(d), def = C.DECOR[d.type], c = def.coin;
     if (def.game) A.decorState.set(d, { seats: players.get(d) || [null, null, null], dealer: view.mode === 'night' || !!tableDealer(d) });
-    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: (d.type === 'ride' || d.type === 'carousel') && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
+    else if (u) A.decorState.set(d, { k: Math.min(1, Math.max(0, 1 - u.timer / (STEPS.has(d.type) ? u.machineT || c.secs : c.secs * 1.1))), win: u.machineWin, seed: (u.id * 0.618) % 1, rider: (d.type === 'ride' || d.type === 'carousel') && u.look.kid ? u.look.kid : null }); else A.decorState.delete(d);
+    // Speakeasy seats and bar games come in layers, so sitters and players sort among the pieces.
+    if (A6.TYPES.has(d.type)){ A6.layers(d, t, add, { G: sim.games.get(d), drinks: drinks.get(d), playing: (sim.juke.get(d) || 0) > 0 || !!u, using: !!u }); continue; }
     if (d.type === 'foodcourt'){
       // The food court in layers, so people sit on the stools and behind the tables properly.
       add(d.y + 0.05, () => A4.foodCourt(d, 'base', 0, t));
@@ -226,7 +242,8 @@ export function render(t){
     add(e.y + e.h + 0.02, () => A.escalator(e, t, 'front'));
   }
   add(C.MAP_H, () => { A.sideWall(fr.x0, 0, C.MAP_H); A.sideWall(fr.x1, 0, C.MAP_H); });
-  if (up) add(C.MAP_H + 0.1, () => A.upperFrontWall(fr.x0 - 0.12, fr.x1 + 0.12, C.MAP_H));
+  if (view.floor === 3) add(C.MAP_H + 0.1, () => A6.basementFrontWall(fr.x0 - 0.12, fr.x1 + 0.12, C.MAP_H));
+  else if (up) add(C.MAP_H + 0.1, () => A.upperFrontWall(fr.x0 - 0.12, fr.x1 + 0.12, C.MAP_H));
   else add(C.MAP_H + 0.1, () => {
     A.frontWall(-0.12, C.ENTRANCE.x - 0.1, C.MAP_H); A.frontWall(C.ENTRANCE.x + C.ENTRANCE.w + 0.1, fr.x1 + 0.12, C.MAP_H);
     const near = sim.people.some(p => Math.abs(p.y - C.MAP_H) < 1.2 && Math.abs(p.x - (C.ENTRANCE.x + 1)) < 1.6);
@@ -238,7 +255,11 @@ export function render(t){
     if (p.hidden || !seen(p.x, p.y - 0.8, 1.6)) continue;
     // In the massage chair: sorted with the chair, not where they stepped up to it.
     const m = p.state === 'useMachine' && p.machine && p.machine.type === 'massage' ? p.machine : null;
-    add(m ? m.y + 0.9 : p.y, () => drawPerson(p, t));
+    // Playing a bar game: sorted where the game has them standing this moment.
+    const gp = p.state === 'game' && p.game ? A6.playerPose(p.game.d, p.game.slot, sim.games.get(p.game.d), p, t) : null;
+    add(m ? m.y + 0.9 : gp ? gp.sortY ?? gp.y : p.y, () => drawPerson(p, t));
+    // Eating at a table: the hand and the bite come up in front of the table top (it's drawn just after the diner).
+    if ((p.state === 'dine' && !p.faceBack || p.state === 'court') && p.holding) add(p.y + 0.06, () => drawEatArms(p));
     // At the play area the kid runs off to play: drawn there, among the slide and the balls.
     if (p.state === 'playing' && p.play && p.play.from && p.look.kid) add(playKidY(p), () => drawPlayKid(p));
   }
@@ -285,26 +306,78 @@ function drawPerson(p, t){
   drawPersonAt(p, t);
 }
 // The kid at a play area: walks in from the grown-up, climbs the ladder and slides (or dives into the ball pit), then walks back.
-function playKidY(p){ return playKid(p, p.playEl || 0).y; }
-function drawPlayKid(p){
-  const q = playKid(p, p.playEl || 0), k = p.look.kid, pose = q.pose;
-  A.person(q.x, q.y - q.z, { ...k, t: p.t + 0.3, s: 0.68, mood: 'happy', flip: q.flip,
-    walk: pose === 'walk' || pose === 'climb', back: pose === 'climb' || (pose === 'walk' && q.up),
-    sit: pose === 'sit' || pose === 'slide', sitSide: pose === 'slide', play: pose === 'slide' || pose === 'hop' || pose === 'pit',
+export function playKidY(p){ return playKid(p, p.playEl || 0).y; }
+export function drawPlayKid(p){
+  const q = playKid(p, p.playEl || 0), k = p.look.kid, pose = q.pose, t = p.t;
+  A.person(q.x, q.y - q.z, { ...k, t: t + 0.3, s: 0.68, mood: 'happy', flip: q.flip,
+    walk: pose === 'walk' || pose === 'climb', stride: (p.playEl || 0) * (pose === 'climb' ? 0.5 : 1.7), side: pose === 'climb' ? 0 : 0.6,
+    back: pose === 'climb' || (pose === 'walk' && q.up),
+    sit: pose === 'sit' || pose === 'slide', sitSide: pose === 'slide', climb: pose === 'climb', cheer: pose === 'slide', splash: pose === 'pit', play: pose === 'hop',
     noShadow: q.z > 0.1 || pose === 'pit' || pose === 'hop' });
+  // In the ball pit, balls go flying.
+  if (pose === 'pit') for (let i = 0; i < 3; i++){
+    const f = (t * 1.1 + i * 0.37 + p.id * 0.13) % 1, dir = i === 1 ? 0.5 : i ? 1 : -1;
+    A.circ(q.x + dir * f * 0.32, q.y - q.z - 0.3 - Math.sin(f * Math.PI) * 0.38 + f * 0.15, 0.045); A.fs(BALL_COLS[(i + p.id) % BALL_COLS.length], 0.012);
+  }
 }
+const BALL_COLS = ['#ef476f', '#ffd23f', '#06d6a0', '#5a8dee', '#ff9f43'];
 const saveNow = () => S.save;
-function drawPersonAt(p, t){
+const STEPS = new Set(['vending', 'gumball']);
+// How far someone has walked (their stride, so their steps keep pace) and which way they're heading, smoothed so
+// a zigzag along the path doesn't flip them about. Heading mostly away from us, we see their back.
+function gait(p){
+  const dx = p.x - (p.gx ?? p.x), dy = p.y - (p.gy ?? p.y), d = Math.hypot(dx, dy);
+  p.gx = p.x; p.gy = p.y;
+  if (d < 1e-4 || d > 0.6) return;
+  p.stride = (p.stride || 0) + d;
+  const k = p.hx === undefined ? 1 : Math.min(1, d * 5);
+  p.hx = (p.hx ?? 0) + (dx / d - (p.hx ?? 0)) * k; p.hy = (p.hy ?? 0) + (dy / d - (p.hy ?? 0)) * k;
+  const n = Math.hypot(p.hx, p.hy) || 1; p.hx /= n; p.hy /= n;
+  if (p.hy < -0.62) p.away = true; else if (p.hy > -0.3) p.away = false;
+}
+// The eating arms of a diner (and the kid across from them), to go over the table: see A.eatOverlay.
+export function drawEatArms(p){
+  const L = p.look, eat = p.holding, seed = (p.id * 0.37) % 1;
+  if (L.costume) return;
+  let flip = p.flip, kidSeat = null;
+  if (p.state === 'court' && p.court){
+    const sp = A4.courtSpots(p.court.d); flip = sp.seats[p.court.seat].flip;
+    if (L.kid && p.court.kidSeat !== undefined) kidSeat = sp.seats[p.court.kidSeat];
+  } else if (L.kid && p.kidSeat !== undefined){
+    const u = saveNow().units.find(v => v.id === p.storeId); kidSeat = u && A.dineSpots(u).seats[p.kidSeat];
+  }
+  // How far in front of them their plate sits: Noodle Nook's little table is closer.
+  const plateX = p.state === 'dine' && saveNow().units.some(v => v.id === p.storeId && v.store === 'noodle') ? 0.14 : 0.24;
+  A.eatOverlay(p.x, p.y, { ...L, kid: undefined, t: p.t, flip, eat, seed, plateX });
+  if (kidSeat) A.eatOverlay(kidSeat.x, kidSeat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, flip: kidSeat.flip, eat, seed: seed + 0.5, plateX });
+}
+export function drawPersonAt(p, t){
   const L = p.look;
-  const o = { ...L, t: p.t, walk: p.walking, flip: p.flip };
+  gait(p);
+  const o = { ...L, t: p.t, walk: p.walking, flip: p.flip, stride: p.stride, side: Math.abs(p.hx ?? 1), run: p.walking && p.speed >= 2.5 };
   if (p.kind === 'customer'){
     if (p.state === 'queue' && p.patience / p.patienceMax < 0.3) o.mood = 'wait';
     else if (p.mood > 0.8) o.mood = 'happy';
     if (p.type === 'teen' && L.hood) o.hood = false;
   }
   if (p.kind === 'gus') o.mood = 'happy';
+  // Knocking on the end wall in the speakeasy scene: side on, rapping on it.
+  if (p.kind === 'gus' && p.knock){ o.flip = false; o.reachSide = true; o.reachTo = [0.4 + Math.max(0, Math.sin(p.t * 16)) * 0.07, -0.66]; }
   if (p.kind === 'trouble') o.mood = 'mad';
   if (L.costume) return A.mascot(p.x, p.y, o);
+  // Bowling a frame or putting a hole: they step up, swing, watch, and walk back, all from their spot.
+  if (p.state === 'show' && p.showKind){
+    const k = p.showT || 0, q = A5.playerPose(p.showKind, k, { seed: p.id, hole: p.seat }, { face: p.showFace });
+    Object.assign(o, { walk: q.walk, stride: k * 1.2, side: p.showKind === 'golf' ? 1 : 0, back: !!q.back, crouch: q.crouch || 0, cheer: q.cheer, flip: !!q.flip, swing: q.swing });
+    if (q.cheer) o.mood = 'happy';
+    if (q.putter){ o.putter = true; o.walkProp = q.walk || q.crouch > 0.05; }
+    if (q.holdBall) o.bowlBall = p.ballColor;
+    o.hold = undefined;
+    const x = p.x + (q.dx || 0), y = p.y + (q.dy || 0);
+    return L.kid ? A.family(x, y, o) : A.person(x, y, o);
+  }
+  if (p.tryHat) o.tryHat = p.tryHat;
+  if (p.trySpecs) o.specs = p.trySpecs;
   // Bouncing on a trampoline: up and down, arms out.
   if (p.bouncing){
     const b = Math.abs(Math.sin(t * 5 + p.id)) * 0.45; o.play = true;
@@ -314,22 +387,32 @@ function drawPersonAt(p, t){
     if (L.kid){ o.kidBob = b - Math.abs(Math.sin(t * 6.5 + p.id + 1.7)) * 0.6; return A.family(p.x, p.y - b, o); }
     return A.person(p.x, p.y - b, o);
   }
-  if (p.faceBack) o.back = true;
+  if (p.faceBack || (p.walking && p.away)) o.back = true;
   // Seated on a bench, sofa, the fountain's rim or a cinema seat. Side-facing seats show the legs in profile.
   if (p.state === 'sit' || (p.state === 'show' && !p.bouncing)){ o.sit = true; if (p.seat && p.seat.flip !== undefined) o.sitSide = true; }
-  if (p.state === 'dine'){ o.sit = true; o.sitSide = true; }
+  if (p.state === 'dine'){ o.sit = true; o.sitSide = !p.faceBack; }
   if (p.carry) o.carry = true;
   if (p.playing) o.play = true;
   if (p.vr) o.vr = true;
   if (p.slacking) o.phone = true;
   if (p.mopT > 0) o.mop = p.t * 6;
   if (p.holding){ o.hold = p.holding; if (p.holding === 'bag') o.bagColor = p.bagColor; if (p.prize) o.prize = p.prize; }
+  if (p.tryTeddy) o.hold = 'teddy';
   // Sat at a table with their food: eating it, a bite at a time.
-  if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; }
+  // How much of their drink is left, going down as they sit.
+  if (p.timerMax && (p.state === 'dine' || p.state === 'perch')){ o.drinkLeft = Math.max(0.12, Math.min(1, p.timer / p.timerMax)); o.seed = (p.id * 0.37) % 1; }
+  // Up at the speakeasy's bar on a stool, back to us: their drink stands on the bar beside them between sips.
+  if (p.state === 'dine' && p.faceBack){
+    const u = saveNow().units.find(v => v.id === p.storeId), seat = u && A.dineSpots(u).seats[p.dineSeat];
+    if (seat && p.holding && A.barSipK(p.t, o.seed).u < 0.05){ A.g.save(); A.g.translate(seat.drink.x, seat.drink.y); A.g.scale(0.85, 0.85); A6.held(p.holding, 0, 0, o.drinkLeft); A.g.restore(); }
+    return A.person(p.x, p.y - 0.17, { ...o, kid: undefined, walk: false, noShadow: true });
+  }
+  if ((p.state === 'dine' || p.state === 'court') && p.holding){ o.eat = p.holding; o.hold = undefined; o.seed = (p.id * 0.37) % 1; o.eatLater = true; }
   // Playing a machine: hands on the controls (a kid along for the trip joins in).
   const machine = p.state === 'useMachine' && p.machine ? p.machine.type : null;
   // At the soda machine: face it and press a button, until the can drops.
-  if (machine === 'vending'){ const live = A.decorState.get(p.machine), r = p.machine.rot || 0; if (!r) o.back = true; o.reach = !live || live.k < 0.55; o.reachSide = r % 2 === 1; }
+  if (machine === 'vending') return drawVending(p, o, t);
+  if (machine === 'gumball') return drawGumball(p, o, t);
   if (machine && machine !== 'ride' && machine !== 'vending' && machine !== 'massage' && machine !== 'photobooth'){
     o.play = true;
     // Standing in front of a machine that faces down: we see their back, hands on the controls.
@@ -360,6 +443,20 @@ function drawPersonAt(p, t){
     }
     return A.person(p.x, (kind === 'blackjack' || kind === 'poker') ? p.y + 0.02 : p.y, so);
   }
+  // Sat in the speakeasy with a drink: side on at a stool or table, or round a booth's horseshoe.
+  if (p.state === 'perch' && p.perch){
+    const st = A6.perchSpots(p.perch.d)[p.perch.seat] || {};
+    return A.person(p.x, p.y, { ...o, kid: undefined, walk: false, sit: true, sitSide: !!st.side, back: !!st.back, flip: st.flip !== undefined ? st.flip : o.flip, noShadow: p.perch.d.type === 'booth' || o.noShadow });
+  }
+  // At a bar game: the game says where they stand and what they're doing this moment, and draws their cue or darts.
+  if (p.state === 'game' && p.game){
+    const q = A6.playerPose(p.game.d, p.game.slot, sim.games.get(p.game.d), p, t);
+    const so = { ...o, kid: undefined, hold: undefined, walk: false, back: false, flip: false, ...q.o };
+    if (so.walk && so.stride === undefined) so.stride = p.stride;
+    A.person(q.x, q.y, so);
+    if (q.after) q.after();
+    return;
+  }
   // Dealers face the players, hands busy dealing while anyone's playing.
   if (p.role === 'dealer' && p.state === 'deal'){ o.reach = p.dealing && Math.sin(t * 5) > 0.2; o.play = p.dealing && !o.reach; }
   if (p.role === 'host' && p.waveT > 0) o.reach = true;
@@ -372,17 +469,17 @@ function drawPersonAt(p, t){
   // A family at a diner table: the grown-up on one stool, the kid on the stool across from them.
   if (p.state === 'dine' && L.kid && p.kidSeat !== undefined){
     const u = saveNow().units.find(v => v.id === p.storeId), seat = u && A.dineSpots(u).seats[p.kidSeat];
-    if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, eat: o.eat, seed: (o.seed || 0) + 0.5 });
+    if (seat) A.person(seat.x, seat.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: seat.flip, eat: o.eat, seed: (o.seed || 0) + 0.5, eatLater: true });
     return A.person(p.x, p.y, { ...o, kid: undefined });
   }
   // Eating at the food court: on a stool, side on; a kid sits on the stool across.
   if (p.state === 'court' && p.court){
     const sp = A4.courtSpots(p.court.d);
-    if (L.kid && p.court.kidSeat !== undefined){ const ks = sp.seats[p.court.kidSeat]; A.person(ks.x, ks.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: ks.flip, mood: 'happy', eat: o.eat, seed: (o.seed || 0) + 0.5 }); }
+    if (L.kid && p.court.kidSeat !== undefined){ const ks = sp.seats[p.court.kidSeat]; A.person(ks.x, ks.y, { ...L.kid, t: p.t + 0.3, s: 0.68, sit: true, sitSide: true, flip: ks.flip, mood: 'happy', eat: o.eat, seed: (o.seed || 0) + 0.5, eatLater: true }); }
     return A.person(p.x, p.y, { ...o, kid: undefined, sit: true, sitSide: true, flip: sp.seats[p.court.seat].flip });
   }
   // A grown-up waiting at the play area, watching their kid.
-  if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true });
+  if (p.state === 'playing') return A.person(p.x, p.y, { ...o, kid: undefined, back: true, wave: (p.t + p.id) % 5.5 < 1.1 });
   if (L.kid){
     if (machine !== 'ride' && machine !== 'carousel') return A.family(p.x, p.y, o);
     // On the kiddie ride the grown-up watches. The kid hops up into the rocket's cockpit at the start and back
@@ -397,8 +494,64 @@ function drawPersonAt(p, t){
     }
     return;
   }
+  // A soda just out of the machine fizzes as it's cracked open.
+  if (p.holding === 'can' && p.holdT < 0.9 && p.boughtCan) o.fizz = p.holdT / 0.9;
   if ((p.kind === 'owner' || p.kind === 'staff') && p.broomT > 0) o.broom = p.t * 18;
   A.person(p.x, p.y, o);
+}
+
+// At the soda machine, side on to it: coin in, punch a button, wait for the thunk, crouch to fish the can out of
+// the tray, stand up with it. At a machine facing us they step up beside it first (so the window and tray stay in
+// view) and back to where they were at the end; a kid along for it waits by the grown-up's spot.
+const ease = u => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+function drawVending(p, o, t){
+  const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0, r = m.rot || 0, V = A.VEND, seg = (a, b) => ease((k - a) / (b - a));
+  if (p.look.kid) A.person(p.x - 0.38, p.y + 0.12, { ...p.look.kid, t: p.t + 0.3, s: 0.68, back: !r, flip: p.flip, mood: k > V.grab ? 'happy' : undefined });
+  const lerp2 = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+  let x = p.x, y = p.y;
+  const so = { ...o, kid: undefined, back: false, reachSide: true, flip: r === 0 ? true : p.flip };
+  if (r === 0){
+    const u = seg(0, 0.07) * (1 - seg(0.88, 1));
+    x += (m.x + 1.1 - x) * u; y += (m.y + 1.0 - y) * u;
+    // Stepping up to it (seen from behind) or back off it (can in hand).
+    if (k < 0.07 || k > 0.88) return A.person(x, y, { ...o, kid: undefined, walk: true, stride: k * 3, side: 0.4, back: k < 0.07, flip: k > 0.88 ? m.x + 0.5 < p.x : false, hold: k > 0.88 ? 'can' : undefined, mood: k > 0.88 ? 'happy' : o.mood });
+  }
+  // Hand targets, from the feet, toward the machine: the coin slot, the button, the tray (crouched); and at rest.
+  const coin = r === 0 ? [0.35, -0.64] : [0.36, -0.62], btn = r === 0 ? [0.35, -0.835] : [0.37, -0.86], tray = r === 0 ? [0.52, -0.37] : [0.42, -0.3], rest = [0.18, -0.36], chest = [0.2, -0.42];
+  let h;
+  if (k < V.press) h = lerp2(rest, coin, seg(0.06, V.coin));
+  else if (k < V.drop) { h = lerp2(coin, btn, seg(V.press - 0.02, V.press + 0.03)); h[0] -= Math.max(0, Math.sin((k - V.press - 0.03) / 0.07 * Math.PI)) * 0.04; }
+  else if (k < 0.56) h = lerp2(btn, rest, seg(V.drop, V.drop + 0.06));
+  else if (k < V.grab + 0.02) h = lerp2(rest, tray, seg(0.56, 0.65));
+  else h = lerp2(tray, chest, seg(V.grab + 0.02, 0.82));
+  so.reachTo = h; so.crouch = seg(0.55, 0.64) * (1 - seg(V.grab + 0.02, 0.82));
+  if (k >= V.grab) so.reachHold = 'can';
+  if (k >= V.grab) so.mood = 'happy';
+  return A.person(x, y, so);
+}
+
+// At the gumball machine (a kid does the honours when there is one): step up beside it, turn the crank a full turn,
+// crouch for the gumball in the little door, pop it in, and step back.
+function drawGumball(p, o, t){
+  const m = p.machine, live = A.decorState.get(m), k = live ? live.k : 0, G = A.GUM, seg = (a, b) => ease((k - a) / (b - a));
+  const kid = p.look.kid, look = kid || p.look, s = kid ? 0.68 : 1, gx = m.x + 0.5, gy = m.y + 0.8;
+  const fx = kid ? p.x - 0.38 : p.x, fy = kid ? p.y + 0.12 : p.y, sx = gx + (kid ? 0.22 : 0.38), sy = gy + (kid ? 0.2 : 0.3);
+  const u = seg(0, 0.08) * (1 - seg(0.88, 1)), x = fx + (sx - fx) * u, y = fy + (sy - fy) * u;
+  // The grown-up steps aside to watch, so the machine stays in view.
+  if (kid) A.person(p.x - 0.5 * u, p.y, { ...o, kid: undefined, back: true, walk: u > 0 && u < 1, stride: k * 2.2, side: 1 });
+  const base = { ...look, t: p.t + (kid ? 0.3 : 0), s, mood: k > G.grab ? 'happy' : undefined };
+  if (k < 0.08 || k > 0.88) return A.person(x, y, { ...base, walk: true, stride: k * 2.2, side: 0.5, back: k < 0.08, flip: k > 0.88 ? sx > fx : false });
+  // Hand targets in the operator's own frame (facing the machine), from spots on it.
+  const at = (wx, wy) => [(sx - wx) / s, (wy - sy) / s], lerp2 = (a, b, v) => [a[0] + (b[0] - a[0]) * v, a[1] + (b[1] - a[1]) * v];
+  const turn = k > G.crank && k < G.turned ? (k - G.crank) / (G.turned - G.crank) : 0, a = -Math.PI / 2 + turn * Math.PI * 2;
+  const crank = at(gx + Math.cos(a) * 0.045, gy - 0.34 + Math.sin(a) * 0.035), door = at(gx, gy - 0.19), rest = [0.18, -0.36], mouth = [0.2, -0.78];
+  let h;
+  if (k < G.turned) h = lerp2(rest, crank, seg(0.08, G.crank));
+  else if (k < 0.6) h = lerp2(crank, rest, seg(G.turned, G.turned + 0.06));
+  else if (k < G.grab) h = lerp2(rest, door, seg(0.6, 0.69));
+  else if (k < 0.8) h = lerp2(door, mouth, seg(G.grab, 0.8));
+  else h = lerp2(mouth, rest, seg(0.82, 0.88));
+  return A.person(x, y, { ...base, flip: true, reachSide: true, reachTo: h, crouch: seg(0.59, 0.67) * (1 - seg(G.grab, 0.8)) * (kid ? 0.6 : 1) });
 }
 
 // Show how far a trash can reaches while placing or selecting one.

@@ -1,6 +1,6 @@
 // The Mall Market (the Build menu): which shelf each store and decor piece sits on, and its little sales pitch.
-// Five categories keep it easy to browse: Food, Retail, Fun, Scenery (decor that's just for looks and comfort) and
-// Casino. The Shop tab also splits by type: stores and stands, or decor.
+// Six categories keep it easy to browse: Food, Retail, Fun, Scenery (decor that's just for looks and comfort),
+// Casino and Speakeasy. The Shop tab also splits by type: stores and stands, or decor.
 
 export const SHELVES = [
   { id: 'food', name: 'Food', color: '#ff9f43' },
@@ -8,6 +8,7 @@ export const SHELVES = [
   { id: 'fun', name: 'Fun', color: '#5a8dee' },
   { id: 'scenery', name: 'Scenery', color: '#4cc38a' },
   { id: 'casino', name: 'Casino', color: '#9b5de5' },
+  { id: 'speakeasy', name: 'Speakeasy', color: '#b5523b' },
 ];
 export const shelfColor = id => (SHELVES.find(s => s.id === id) || {}).color || '#3fb8af';
 
@@ -20,6 +21,14 @@ export const STORE_INFO = {
   tacos:    ['food', 'Sizzling tortillas, fresh salsa and a little fiesta in every bite.'],
   sports:   ['retail', 'Balls, bikes and jerseys. Game day starts here, and there’s a hoop to shoot at.'],
   beauty:   ['retail', 'A wall of lipsticks, a light-up mirror and a chair for makeovers. Everyone leaves glowing.'],
+  hats:     ['retail', 'Fedoras, beanies and big floppy sun hats. Everybody tries one on in the mirror.'],
+  candles:  ['retail', 'Shelves of jar candles, every one of them lit. The whole store smells like cookies.'],
+  bears:    ['fun', 'Pick a bear, press the heart and watch it fill with fluff. Kids walk out hugging.'],
+  skate:    ['retail', 'Decks, wheels and a little ramp to try them on. Teens hang out for hours.'],
+  specs:    ['retail', 'A wall of frames and a mirror to try them on. Folks walk out seeing clearly, and looking sharp.'],
+  smoothie: ['food', 'Fresh fruit whizzed up while you wait. Berry, mango or green, with a fat straw.'],
+  bowling:  ['fun', 'Four glowing lanes and the crash of pins all day. STRIKE!'],
+  minigolf: ['fun', 'Four holes past a windmill, a lighthouse, a creek and a frog pond. Families can’t resist.'],
   pretzel:  ['food', 'Warm, twisty and salted just right. The smell alone pulls shoppers off the escalator.'],
   scoops:   ['food', 'Thirty-one flavors, one tiny cart. Brain freeze sold separately.'],
   hotdog:   ['food', 'Snap, sizzle, mustard. A classic mall lunch that fits in one hand.'],
@@ -49,6 +58,7 @@ export const STORE_INFO = {
   chips:    ['casino', 'Cash in, chips out. Every high roller’s first stop on the casino floor.'],
   lounge:   ['casino', 'Glowing cocktails, velvet booths and smooth music under the neon.'],
   giftshop: ['casino', 'Lucky charms, dice keychains and “I hit the jackpot” tees.'],
+  bar:      ['speakeasy', 'Grandma Rose’s old bar: bottles glowing on the back shelf and a bartender who knows your usual.'],
 };
 
 export const DECOR_INFO = {
@@ -69,6 +79,10 @@ export const DECOR_INFO = {
   arch:       ['scenery', 'Climbing roses over an archway. Made for selfies.'],
   statue:     ['scenery', 'Toss a coin, make a wish. It sparkles day and night.'],
   bubbles:    ['scenery', 'Floats bubbles over the crowd. Impossible not to smile.'],
+  popcorn:    ['food', 'Kernels popping away under glass. Kids and teens grab a striped box.'],
+  hotair:     ['scenery', 'A giant model balloon in rainbow stripes, bobbing on its tethers.'],
+  iceswan:    ['scenery', 'A swan carved from ice, sparkling under the lights. Somehow it never melts.'],
+  penny:      ['fun', 'Pop in a coin, turn the crank, keep the squashed penny. A souvenir for a few bucks.'],
   koi:        ['scenery', 'Calm orange koi drifting under lily pads.'],
   vending:    ['fun', 'Ice-cold sodas, one button away. Clink, fizz, cha-ching.'],
   claw:       ['fun', 'So close... so close... GOT IT! Plush prizes for the lucky few.'],
@@ -91,4 +105,14 @@ export const DECOR_INFO = {
   jackpot:    ['casino', 'A glowing counter that never stops climbing. Somebody’s gotta win it.'],
   dicestatue: ['casino', 'A pair of giant golden dice. Rub them for luck.'],
   champagne:  ['casino', 'A tower of glasses bubbling over. Pure celebration.'],
+  stool:      ['speakeasy', 'A padded stool with a brass footrest. Regulars sit and nurse their drink.'],
+  bistro:     ['speakeasy', 'A little round table for two. Clink glasses, swap stories.'],
+  booth:      ['speakeasy', 'Tufted red velvet around a table for four. The best seat in the house.'],
+  darts:      ['speakeasy', 'Three darts each, aim for the bullseye. Bragging rights included.'],
+  pool:       ['speakeasy', 'Rack ’em up! Players circle the felt, chalk their cues and call their shots.'],
+  foosball:   ['speakeasy', 'Spin the rods, slam the ball, shout GOAL. Pure bar chaos.'],
+  shuffle:    ['speakeasy', 'Slide the pucks down the long sanded table. Closest to the edge wins.'],
+  pinball:    ['speakeasy', 'Flippers, bumpers, bells and a high score to beat.'],
+  jukebox:    ['speakeasy', 'Drop a coin, pick a record, and the whole bar starts swaying.'],
+  barrels:    ['speakeasy', 'Oak barrels stacked high and stamped with the Velvet Rose.'],
 };

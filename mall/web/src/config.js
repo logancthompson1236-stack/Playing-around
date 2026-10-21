@@ -33,7 +33,8 @@ export const LAYOUT = 3;
 export const MAP_W = 30;              // the ground floor
 export const F2X = 40;                // where the second floor starts on the grid
 export const F3X = 80;                // where the third floor (the casino) starts
-export const MAP_W_MAX = 108;         // F3X + the whole third floor (Casino 18 + High Roller Suite 10)
+export const F4X = 116;               // v0.20: where the basement (the speakeasy) starts, past the casino's far wall
+export const MAP_W_MAX = 132;         // F4X + the whole basement (16)
 export const MAP_H = 17;
 export const OUTSIDE_H = 2;
 export const CONCOURSE = { y: 7, h: 4 };
@@ -91,7 +92,7 @@ export const EXPANSIONS = [
     lots: [],
     restroom: { x: 52, y: 4, face: 'down' },
     decor: [] },
-  { id: 'garden', name: 'Sky Garden', floor: 1, requires: 'east', cost: 45000, level: 13, x: 56, w: 12, xp: 500,
+  { id: 'garden', name: 'Sky Garden', floor: 1, requires: 'east', cost: 25000, level: 13, x: 56, w: 12, xp: 500,
     sub: 'A sunny garden under a glass roof at the end of the second floor: grass, shade trees, one more big plot, 3 storefronts and plenty of room',
     lots: [{ x: 57, y: 4, w: 3, h: 3, face: 'down' }, { x: 61, y: 3, w: 5, h: 4, face: 'down' },
            { x: 57, y: 11, w: 3, h: 3, face: 'up' }, { x: 61, y: 11, w: 2, h: 3, face: 'up' }],
@@ -110,6 +111,15 @@ export const EXPANSIONS = [
     sub: 'A gold-carpeted high-limit room at the end of the casino: two big plots, golden slots and a champagne tower',
     lots: [{ x: 99, y: 4, w: 3, h: 3, face: 'down' }, { x: 102, y: 4, w: 3, h: 3, face: 'down' }, { x: 99, y: 11, w: 3, h: 3, face: 'up' }],
     decor: [{ type: 'goldslots', x: 105, y: 4, rot: 0 }, { type: 'goldslots', x: 106, y: 4, rot: 0 }, { type: 'champagne', x: 104, y: 13 }, { type: 'plant', x: 98, y: 15 }] },
+  // v0.20: the basement is Grandma Rose's old speakeasy, down a stairway at the east end of the concourse. It's
+  // floor 3 on the grid but sits below the ground floor. Its bar, games and decor only go down here (bar: true).
+  // gus: 'level' means Gus brings it up the night you reach its level, whether or not you can afford it yet.
+  { id: 'speakeasy', name: 'The Velvet Rose', floor: 3, cost: 30000, level: 30, x: F4X, w: 16, xp: 800, theme: 'speakeasy', gus: 'level',
+    sub: 'Grandma Rose’s secret speakeasy, down a hidden stairway: a long bar already stocked, room for pool, darts and shuffleboard, stools and tables for the regulars, and restrooms',
+    lots: [{ x: 122, y: 4, w: 5, h: 3, face: 'down', store: 'bar' }],
+    restroom: { x: 127, y: 4, face: 'down' },
+    decor: [{ type: 'stool', x: 122, y: 7 }, { type: 'stool', x: 123, y: 7 }, { type: 'stool', x: 125, y: 7 }, { type: 'stool', x: 126, y: 7 },
+            { type: 'bistro', x: 117, y: 13 }, { type: 'bistro', x: 129, y: 9 }] },
 ];
 // The escalators come in pairs, one at each end of a ride. rise: the belt climbs (the bottom end of the ride, with a
 // bulkhead it disappears into); otherwise it's the top end, an open stairwell the belt sinks into. land: the tile you
@@ -119,6 +129,9 @@ export const ESCALATORS = [
   { id: 'a1', floor: 1, x: 40, y: 7, w: 3, h: 2, land: { x: 43, y: 8 }, dir: -1, label: '▼ 1F', to: 'a0', needs: 'east' },
   { id: 'b1', floor: 1, x: 53, y: 9, w: 3, h: 2, land: { x: 52, y: 10 }, dir: 1, rise: true, label: '▲ 3F', to: 'b2', needs: 'casino' },
   { id: 'b2', floor: 2, x: 80, y: 7, w: 3, h: 2, land: { x: 83, y: 8 }, dir: -1, label: '▼ 2F', to: 'b1', needs: 'casino' },
+  // Down to the speakeasy: an open stairwell at the east end of the concourse, rising out at the basement's west wall.
+  { id: 'c0', floor: 0, x: 27, y: 9, w: 3, h: 2, land: { x: 26, y: 10 }, dir: 1, label: '▼ B1', to: 'c1', needs: 'speakeasy' },
+  { id: 'c1', floor: 3, x: 116, y: 7, w: 3, h: 2, land: { x: 119, y: 8 }, dir: -1, rise: true, label: '▲ 1F', to: 'c0', needs: 'speakeasy' },
 ];
 export const ESCALATOR_RIDE = 1.5;    // seconds on each belt (up one, then off the other)
 export const EXPANSION_UTILITIES = 120;   // a bigger building costs more to light and heat, per wing
@@ -156,7 +169,7 @@ export const STORES = {
   jewelry:  { name: 'Sparkle Jewelers', w: 2, h: 3, cat: 'Fashion', level: 16, cost: 3800, price: [90, 180], stock: 25, icon: 'ring',   litter: 0.02, color: '#1d3557', trim: '#f2d68a', floor: 'royal' },
   boba:     { name: 'Boba Bliss',       w: 2, h: 1, kiosk: true, cat: 'Food', level: 20, cost: 3600, price: [12, 19], stock: 70, icon: 'boba', litter: 0.3, color: '#b388eb', trim: '#6d4c41' },
   vr:       { name: 'Virtual Voyage',   w: 3, h: 3, cat: 'Fun',     level: 25, cost: 7500, price: [38, 62], stock: 60, icon: 'vr',      litter: 0.08, color: '#240046', trim: '#00f5d4', floor: 'neon', play: true },
-  bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'cafe' },
+  bakery:   { name: 'Bake My Day',      w: 2, h: 2, cat: 'Food',    level: 28, cost: 5200, price: [15, 27], stock: 70, icon: 'cupcake', litter: 0.25, color: '#f4a261', trim: '#fff1e6', floor: 'bakery' },
   comics:   { name: 'Comic Vault',      w: 2, h: 3, cat: 'Fun',     level: 31, cost: 6800, price: [32, 66], stock: 40, icon: 'comic',   litter: 0.04, color: '#e63946', trim: '#ffd23f', floor: 'carpet' },
   // v0.15: casino stores. casino: only on the casino floor.
   chips:    { name: 'Chip Cage',        w: 2, h: 2, cat: 'Casino',  level: 30, cost: 4000, price: [40, 110], stock: 80, icon: 'chip',    litter: 0.02, color: '#1b4332', trim: '#f2c14e', floor: 'royal', casino: true },
@@ -171,6 +184,18 @@ export const STORES = {
   cotton:   { name: 'Cotton Cloud',   w: 2, h: 1, kiosk: true, cat: 'Food', level: 24, cost: 4200, price: [10, 16], stock: 70, icon: 'cotton', litter: 0.25, color: '#ffafcc', trim: '#a2d2ff' },
   crafty:   { name: 'Crafty Corner',  w: 2, h: 3, cat: 'Home', level: 26, cost: 5600, price: [26, 58], stock: 40, icon: 'brush', litter: 0.05, color: '#9b5de5', trim: '#fee440', floor: 'play' },
   sushi:    { name: 'Sushi Spin',     w: 3, h: 3, cat: 'Food', level: 27, cost: 7800, price: [22, 38], stock: 70, icon: 'sushi', litter: 0.25, color: '#264653', trim: '#e76f51', floor: 'bamboo', dine: true },
+  // v0.18: six more for the quiet stretch from level 21 on. tryOn: shoppers try one on while they browse.
+  hats:     { name: 'Hat Trick',       w: 2, h: 2, cat: 'Fashion', level: 21, cost: 4200, price: [36, 72], stock: 35, icon: 'hat', litter: 0.03, color: '#6a4c93', trim: '#ffca3a', floor: 'wood', tryOn: 'hat' },
+  candles:  { name: 'Wick & Wax',      w: 2, h: 2, cat: 'Home',    level: 33, cost: 7200, price: [28, 60], stock: 40, icon: 'candle', litter: 0.03, color: '#c8553d', trim: '#fff1d0', floor: 'wood2' },
+  bears:    { name: 'Bear Hugs Workshop', w: 3, h: 3, cat: 'Fun', level: 35, cost: 9500, price: [30, 64], stock: 45, icon: 'bear', litter: 0.06, color: '#e07a5f', trim: '#f9dcc4', floor: 'play', tryOn: 'teddy' },
+  skate:    { name: 'Board Room',      w: 2, h: 3, cat: 'Sports',  level: 39, cost: 10500, price: [40, 90], stock: 35, icon: 'skate', litter: 0.05, color: '#2b2d42', trim: '#80ffdb', floor: 'concrete' },
+  specs:    { name: 'Spec-tacular',    w: 2, h: 3, cat: 'Fashion', level: 41, cost: 11500, price: [60, 140], stock: 30, icon: 'glasses', litter: 0.02, color: '#00798c', trim: '#edae49', floor: 'mint', tryOn: 'specs' },
+  smoothie: { name: 'Blend Bar',       w: 2, h: 1, kiosk: true, cat: 'Food', level: 44, cost: 7000, price: [12, 20], stock: 70, icon: 'smoothie', litter: 0.28, color: '#06d6a0', trim: '#ff70a6' },
+  // Two more attractions. seatWord: what the card calls each place to play.
+  bowling:  { name: 'Strike Zone',   w: 5, h: 4, attraction: 'bowl', cat: 'Fun', level: 29, cost: 18000, price: [24, 38], seats: 4, seatWord: 'lanes', show: [14, 22], upkeep: 170, stock: 0, icon: 'bowling', litter: 0.15, color: '#1b263b', trim: '#ff4d6d', floor: 'carpet' },
+  minigolf: { name: 'Putt Paradise', w: 5, h: 4, attraction: 'golf', cat: 'Fun', level: 37, cost: 22000, price: [22, 36], seats: 4, seatWord: 'holes', show: [16, 24], upkeep: 180, stock: 0, icon: 'golf', litter: 0.12, color: '#2d6a4f', trim: '#ffd23f', floor: 'turf' },
+  // v0.20: the speakeasy's bar (basement only, bar: true). Patrons buy a drink, then sit at a stool, table or booth to drink it.
+  bar:      { name: 'The Velvet Rose Bar', w: 5, h: 3, cat: 'Bar',  level: 30, cost: 6000, price: [17, 34], stock: 90, icon: 'bar',     litter: 0.12, color: '#5a1e2e', trim: '#d4a24c', floor: 'speakbar', bar: true },
   giftshop: { name: 'Lucky Charms',     w: 2, h: 3, cat: 'Casino',  level: 46, cost: 14000, price: [36, 80], stock: 50, icon: 'clover',  litter: 0.04, color: '#2d6a4f', trim: '#f2c14e', floor: 'royal', casino: true },
 };
 // Prices went up 5% in v0.10 (the ranges above are the old ones).
@@ -187,13 +212,15 @@ export const WALLPAPERS = {
   garden:  { name: 'Greenhouse',      level: 13, cost: 2600, ambience: 4, sub: 'Sage leaves over oak paneling' },
   deco:    { name: 'Art Deco',        level: 15, cost: 3600, ambience: 4, sub: 'Deep teal with golden fans' },
   luxe:    { name: 'Modern Luxe',     level: 17, cost: 5000, ambience: 5, sub: 'White marble with a thin gold line' },
+  brick:   { name: 'Pastel Brick',    level: 22, cost: 8800, ambience: 6, sub: 'Painted brick in soft pinks, lilacs and blues' },
   candy:   { name: 'Candy Stripe',    level: 19, cost: 6500, ambience: 5, sub: 'Pink and cream stripes with little sweets dotted along' },
   starry:  { name: 'Starry Night',    level: 21, cost: 8000, ambience: 6, sub: 'Midnight blue with twinkling gold stars and a crescent moon' },
   tropic:  { name: 'Tropical Leaves', level: 24, cost: 10000, ambience: 6, sub: 'Big banana leaves on a sunny cream wall' },
   gala:    { name: 'Golden Gala',     level: 27, cost: 12500, ambience: 7, sub: 'Plum velvet panels framed in gold' },
-  sakura:  { name: 'Cherry Blossom',  level: 30, cost: 15000, ambience: 7, sub: 'Pink blossom branches on soft cream' },
+  sakura:  { name: 'Cherry Blossom',  level: 32, cost: 15000, ambience: 7, sub: 'Pink blossom branches on soft cream' },
   waves:   { name: 'Ocean Waves',     level: 33, cost: 17500, ambience: 8, sub: 'Rolling blue waves and little sailboats' },
   crystal: { name: 'Crystal Palace',  level: 35, cost: 20000, ambience: 8, sub: 'Pale lilac with sparkling crystal facets' },
+  maple:   { name: 'Autumn Maple',    level: 38, cost: 21000, ambience: 8, sub: 'Red and gold maple leaves over oak wainscoting' },
   neonights:{ name: 'Neon Nights',    level: 48, cost: 26000, ambience: 9, sub: 'Midnight purple with glowing neon stripes' },
 };
 export const FLOORS = {
@@ -205,11 +232,13 @@ export const FLOORS = {
   marble:     { name: 'Marble Hall',      level: 18, cost: 6000, ambience: 5, sub: 'Big marble slabs with gold seams' },
   mosaic:     { name: 'Rainbow Mosaic',   level: 20, cost: 7000, ambience: 5, sub: 'Tiny glossy tiles in every color' },
   starlight:  { name: 'Starlight Carpet', level: 23, cost: 9000, ambience: 6, sub: 'Soft navy carpet sprinkled with stars' },
+  neoncheck:  { name: 'Neon Checker',     level: 25, cost: 10200, ambience: 6, sub: 'Black and white checks with glowing pink and teal piping' },
   bamboo:     { name: 'Bamboo Deck',      level: 26, cost: 11000, ambience: 6, sub: 'Pale bamboo planks, calm and bright' },
   gold:       { name: 'Gold Terrazzo',    level: 28, cost: 14000, ambience: 7, sub: 'White terrazzo flecked with real gold' },
   ocean:      { name: 'Seaside Tile',     level: 31, cost: 16000, ambience: 7, sub: 'Sea-glass blue tiles with sandy grout' },
   velvet:     { name: 'Royal Carpet',     level: 34, cost: 18500, ambience: 8, sub: 'Deep red carpet with a gold border pattern' },
   crystal:    { name: 'Crystal Marble',   level: 35, cost: 22000, ambience: 8, sub: 'Pearly marble with a soft rainbow shimmer' },
+  patchwork:  { name: 'Patchwork Tile',   level: 47, cost: 25000, ambience: 9, sub: 'Hand-painted tiles, every one a different pattern' },
   starburst:  { name: 'Starburst Tile',   level: 49, cost: 28000, ambience: 9, sub: 'Black and white tile with gold starbursts' },
 };
 export const STYLE_XP = 30;
@@ -218,7 +247,10 @@ export const STYLE_XP = 30;
 // Tap one to shoo them out, or hire a security guard. Count per day ramps from min to max over these levels.
 // The most the casino can end up losing in a day before the house stops paying out (big winners happen, within reason).
 export const CASINO_MAX_LOSS = 2500;
-export const TROUBLE = { level: 10, perDay: [1, 4], ramp: [10, 18], radius: 3.2, moodHit: 0.18, scareChance: 0.2, stay: [25, 45], guardRadius: [0, 4, 5, 6] };
+// Unchecked, a troublemaker gets louder: over `escalate` seconds of acting up the noise carries 60% further and the
+// chance a shopper nearby gives up (rolled every few seconds) climbs by scareGrow. Guards notice anyone acting up
+// within guardRadius at once, and hear about it from anywhere on their floor after guardHear seconds.
+export const TROUBLE = { level: 10, perDay: [1, 4], ramp: [10, 18], radius: 3.2, moodHit: 0.18, scareChance: 0.12, scareGrow: 0.3, escalate: 30, stay: [25, 45], guardRadius: [0, 4, 5, 6], guardHear: [0, 9, 6, 3] };
 
 // rot: can be turned to face four ways. seat: shoppers sit on it. coin: a coin-op machine shoppers pay to use.
 export const DECOR = {
@@ -227,13 +259,13 @@ export const DECOR = {
   bench:     { name: 'Bench',           w: 2, h: 1, cost: 70,  ambience: 2, level: 1, seat: true, rot: true, sub: 'Somewhere to sit · +ambience' },
   planter:   { name: 'Flower planter',  w: 2, h: 1, cost: 90,  ambience: 3, level: 9, rot: true, sub: '+ambience' },
   lamp:      { name: 'Lamp post',       w: 1, h: 1, cost: 60,  ambience: 2, level: 9, sub: 'Glows in the evening · +ambience' },
-  vending:   { name: 'Soda machine',    w: 1, h: 1, cost: 250, ambience: 0, level: 10, rot: true, coin: { price: [3, 5], who: null, chance: 0.12, secs: 1.4 }, sub: 'Thirsty shoppers buy a soda' },
+  vending:   { name: 'Soda machine',    w: 1, h: 1, cost: 250, ambience: 0, level: 7, rot: true, coin: { price: [3, 5], who: null, chance: 0.12, secs: 2.6 }, sub: 'Thirsty shoppers buy a soda' },
   sofa:      { name: 'Comfy sofa',      w: 2, h: 1, cost: 160, ambience: 3, level: 11, seat: true, comfy: true, rot: true, sub: 'A long, happy sit · +ambience' },
-  ride:      { name: 'Kiddie ride',     w: 1, h: 1, cost: 400, ambience: 1, level: 12, rot: true, coin: { price: [4, 7], who: ['family'], chance: 0.35, secs: 5 }, sub: 'Families pay for a ride' },
-  gumball:   { name: 'Gumball machine', w: 1, h: 1, cost: 120, ambience: 1, level: 13, coin: { price: [1, 2], who: ['family', 'teen'], chance: 0.2, secs: 1.0 }, sub: 'Kids and teens love it' },
+  ride:      { name: 'Kiddie ride',     w: 1, h: 1, cost: 400, ambience: 1, level: 16, rot: true, coin: { price: [4, 7], who: ['family'], chance: 0.35, secs: 5 }, sub: 'Families pay for a ride' },
+  gumball:   { name: 'Gumball machine', w: 1, h: 1, cost: 120, ambience: 1, level: 14, coin: { price: [1, 2], who: ['family', 'teen'], chance: 0.2, secs: 2.2 }, sub: 'Kids and teens love it' },
   claw:      { name: 'Claw machine',    w: 1, h: 1, cost: 350, ambience: 1, level: 6, rot: true, coin: { price: [2, 3], who: ['family', 'teen', 'browser'], chance: 0.22, secs: 3.4 }, sub: 'Shoppers try to grab a plush prize' },
-  directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 13, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
-  tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 13, sub: 'A real tree, right indoors · +ambience' },
+  directory: { name: 'Mall directory',  w: 1, h: 1, cost: 150, ambience: 1, level: 8, rot: true, directory: true, sub: 'Shoppers find more stores to visit' },
+  tree:      { name: 'Shade tree',      w: 1, h: 1, cost: 300, ambience: 4, level: 18, sub: 'A real tree, right indoors · +ambience' },
   // play: families stop so the kid can play a while (free), the grown-up waiting at its front.
   playarea:  { name: 'Kids play area',  w: 3, h: 2, cost: 1800, ambience: 4, level: 15, play: { kids: 3, secs: [8, 12] }, sub: 'A slide and a ball pit. Families stop so the kids can play' },
   // v0.17.4. court: shoppers carrying food sit at its tables to eat.
@@ -241,15 +273,20 @@ export const DECOR = {
   foodcourt: { name: 'Food court',      w: 4, h: 3, cost: 5200, ambience: 4, level: 24, court: { seats: 8 }, sub: 'Tables and stools where shoppers sit down to eat what they bought' },
   carousel:  { name: 'Carousel',        w: 3, h: 3, cost: 7000, ambience: 5, level: 26, coin: { price: [6, 10], who: ['family'], chance: 0.5, secs: 8 }, sub: 'Kids ride painted horses round and round' },
   topiary:   { name: 'Topiary bunny',   w: 1, h: 1, cost: 450, ambience: 4, level: 19, sub: 'A hedge clipped into a bunny · +ambience' },
-  photobooth:{ name: 'Photo booth',     w: 1, h: 1, cost: 900, ambience: 2, level: 20, rot: true, coin: { price: [6, 9], who: ['teen', 'fashion', 'family'], chance: 0.2, secs: 2.6 }, sub: 'Strike a pose: teens and fashionistas love it' },
+  photobooth:{ name: 'Photo booth',     w: 1, h: 1, cost: 900, ambience: 2, level: 17, rot: true, coin: { price: [6, 9], who: ['teen', 'fashion', 'family'], chance: 0.2, secs: 2.6 }, sub: 'Strike a pose: teens and fashionistas love it' },
   aquarium:  { name: 'Aquarium',        w: 2, h: 1, cost: 1500, ambience: 6, level: 21, sub: 'Tropical fish in a big glowing tank · +ambience' },
   massage:   { name: 'Massage chair',   w: 1, h: 1, cost: 1100, ambience: 2, level: 23, rot: true, coin: { price: [5, 8], who: ['walker', 'fashion', 'browser'], chance: 0.2, secs: 4.0 }, sub: 'Tired feet pay for a few minutes of bliss' },
   piano:     { name: 'Grand piano',     w: 2, h: 2, cost: 2600, ambience: 8, level: 25, sub: 'It plays itself, softly, all day · +ambience' },
   arch:      { name: 'Flower arch',     w: 2, h: 1, cost: 1400, ambience: 6, level: 27, sub: 'A climbing-rose arch, perfect for photos · +ambience' },
   balloons:  { name: 'Balloon cart',    w: 1, h: 1, cost: 1600, ambience: 3, level: 29, coin: { price: [4, 6], who: ['family'], chance: 0.4, secs: 1.2 }, sub: 'Kids get a balloon to carry around' },
-  statue:    { name: 'Wishing fountain', w: 1, h: 1, cost: 2200, ambience: 6, level: 30, sub: 'A little stone fountain that sparkles · +ambience' },
+  statue:    { name: 'Wishing fountain', w: 1, h: 1, cost: 2200, ambience: 6, level: 29, sub: 'A little stone fountain that sparkles · +ambience' },
   arcadecab: { name: 'Arcade cabinet',  w: 1, h: 1, cost: 1900, ambience: 2, level: 32, rot: true, coin: { price: [3, 5], who: ['teen', 'browser', 'family'], chance: 0.25, secs: 3.4 }, sub: 'A classic stand-up game: teens line up for it' },
   bubbles:   { name: 'Bubble machine',  w: 1, h: 1, cost: 2000, ambience: 6, level: 33, sub: 'Floats bubbles over the crowd · +ambience' },
+  // v0.18: four more for the later levels.
+  popcorn:   { name: 'Popcorn cart',    w: 1, h: 1, cost: 2400, ambience: 3, level: 36, coin: { price: [4, 7], who: ['family', 'teen', 'browser'], chance: 0.3, secs: 2.4 }, sub: 'Fresh popcorn in a striped box' },
+  hotair:    { name: 'Hot-air balloon', w: 2, h: 2, cost: 4500, ambience: 7, level: 40, sub: 'A big model balloon bobbing on its tethers · +ambience' },
+  iceswan:   { name: 'Ice swan',        w: 1, h: 1, cost: 3900, ambience: 7, level: 43, sub: 'A swan carved from ice that sparkles all day · +ambience' },
+  penny:     { name: 'Penny press',     w: 1, h: 1, cost: 2800, ambience: 2, level: 45, coin: { price: [3, 5], who: ['walker', 'family', 'browser', 'fashion'], chance: 0.25, secs: 3.2 }, sub: 'Turn the crank for a squashed souvenir penny' },
   koi:       { name: 'Koi pond',        w: 2, h: 2, cost: 3800, ambience: 9, level: 34, sub: 'Orange and white koi under lily pads · +ambience' },
   // Casino floor only (casino: true). game: a table game run by a dealer, with three seats along its front.
   slots:     { name: 'Slot machine',    w: 1, h: 1, cost: 2500, ambience: 2, level: 30, casino: true, rot: true, coin: { price: [6, 14], who: ['walker', 'fashion', 'browser', 'highroller'], chance: 0.4, secs: 3.4 }, sub: 'Pull the lever, watch the reels' },
@@ -264,18 +301,32 @@ export const DECOR = {
   wheel:     { name: 'Prize wheel',     w: 2, h: 1, cost: 6500, ambience: 3, level: 44, casino: true, coin: { price: [5, 10], who: ['walker', 'fashion', 'browser', 'highroller', 'family', 'teen'], chance: 0.3, secs: 4.2 }, sub: 'A giant wheel anyone can spin for a prize' },
   champagne: { name: 'Champagne tower', w: 1, h: 1, cost: 4800, ambience: 7, level: 45, casino: true, sub: 'Glasses stacked high, bubbling over · +ambience' },
   goldslots: { name: 'Golden slots',    w: 1, h: 1, cost: 6000, ambience: 3, level: 47, casino: true, rot: true, coin: { price: [16, 32], who: ['fashion', 'highroller'], chance: 0.45, secs: 3.6 }, sub: 'High-limit slots in solid gold' },
+  // v0.20: the speakeasy (basement only, bar: true). perch: seats where someone with a drink sits to finish it.
+  // bargame: a game people pay to play, one or two at a time, standing in its own footprint (entered from the front).
+  stool:     { name: 'Bar stool',       w: 1, h: 1, cost: 300,  ambience: 1, level: 30, bar: true, perch: 1, sub: 'A padded stool where a regular sits with a drink' },
+  darts:     { name: 'Dartboard',       w: 2, h: 3, cost: 2400, ambience: 2, level: 30, bar: true, bargame: { kind: 'darts', price: [6, 11], secs: [11, 15], players: 2 }, sub: 'Two players take turns throwing for the bullseye' },
+  bistro:    { name: 'Bistro table',    w: 2, h: 1, cost: 900,  ambience: 2, level: 31, bar: true, perch: 2, sub: 'A little round table with two stools for sharing a drink' },
+  pool:      { name: 'Pool table',      w: 3, h: 3, cost: 5200, ambience: 3, level: 32, bar: true, bargame: { kind: 'pool', price: [10, 18], secs: [16, 22], players: 2 }, sub: 'Rack ’em up: two players circle the table taking shots' },
+  jukebox:   { name: 'Jukebox',         w: 1, h: 1, cost: 2600, ambience: 4, level: 33, bar: true, coin: { price: [2, 4], who: ['walker', 'fashion', 'browser', 'highroller', 'regular'], chance: 0.3, secs: 3.2 }, sub: 'Drop a coin, pick a record, and the whole bar sways' },
+  foosball:  { name: 'Foosball table',  w: 2, h: 2, cost: 3400, ambience: 2, level: 33, bar: true, bargame: { kind: 'foos', price: [5, 9], secs: [10, 14], players: 2 }, sub: 'Spin the rods! Two players go head to head' },
+  booth:     { name: 'Velvet booth',    w: 3, h: 2, cost: 2800, ambience: 4, level: 34, bar: true, perch: 4, sub: 'A tufted booth around a table, room for four · +ambience' },
+  shuffle:   { name: 'Shuffleboard',    w: 4, h: 2, cost: 4600, ambience: 3, level: 35, bar: true, bargame: { kind: 'shuffle', price: [7, 13], secs: [13, 17], players: 2 }, sub: 'Slide the pucks down the long table, closest to the end wins' },
+  pinball:   { name: 'Pinball machine', w: 1, h: 2, cost: 3800, ambience: 2, level: 36, bar: true, bargame: { kind: 'pinball', price: [3, 6], secs: [9, 13], players: 1 }, sub: 'Flippers, bumpers and a whole lot of lights' },
+  barrels:   { name: 'Whiskey barrels', w: 1, h: 1, cost: 1800, ambience: 5, level: 36, bar: true, sub: 'Oak barrels stacked high, stamped with the Velvet Rose · +ambience' },
 };
 export const BIN_RADIUS = 4;
 
 // Who shops here. `wants` weights which stores they wish for; hours are when they mostly show up.
 export const CUSTOMERS = {
-  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2, plants: 3, bakery: 3, jewelry: 1, lemonade: 2, sports: 1, tacos: 2, noodle: 2, crafty: 2, sushi: 2 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
-  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4, boba: 5, vr: 5, comics: 4, lemonade: 2, sports: 3, beauty: 2, tacos: 4, noodle: 3, cotton: 3, crafty: 1, sushi: 2 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
-  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1, lemonade: 4, sports: 3, tacos: 3, noodle: 2, cotton: 5, crafty: 3, sushi: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
-  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2, beauty: 5, lemonade: 1, tacos: 1, noodle: 1, crafty: 2, sushi: 3 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
-  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1, lemonade: 1, sports: 1, beauty: 1, tacos: 1, noodle: 1, cotton: 1, crafty: 1, sushi: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
+  walker:  { label: 'Mall walker',    wants: { coffee: 3, books: 3, dollar: 3, pretzel: 1, candy: 1, scoops: 1, gadgets: 1, theater: 1, burger: 2, shoes: 2, hotdog: 1, pizza: 2, plants: 3, bakery: 3, jewelry: 1, lemonade: 2, sports: 1, tacos: 2, noodle: 2, crafty: 2, sushi: 2, hats: 1, candles: 3, minigolf: 2, bowling: 1, specs: 2, smoothie: 1, bar: 1 },                     buy: 0.75, spend: 0.9, patience: 1.25, litter: 0.04, speed: 1.2, hours: [9, 12],  weight: 1.0 },
+  teen:    { label: 'Teen',           wants: { arcade: 4, pretzel: 3, candy: 3, boutique: 1, coffee: 1, music: 4, scoops: 2, gadgets: 2, theater: 3, jumppark: 3, gaming: 5, burger: 3, shoes: 2, perfume: 1, hotdog: 3, pizza: 4, boba: 5, vr: 5, comics: 4, lemonade: 2, sports: 3, beauty: 2, tacos: 4, noodle: 3, cotton: 3, crafty: 1, sushi: 2, hats: 1, skate: 5, bowling: 4, minigolf: 2, smoothie: 3, bears: 1 },                   buy: 0.7,  spend: 0.75, patience: 0.8, litter: 0.32, speed: 1.6, hours: [14, 21], weight: 1.0 },
+  family:  { label: 'Family',         wants: { pets: 4, candy: 2, arcade: 2, pretzel: 2, dollar: 2, books: 1, scoops: 4, gadgets: 1, theater: 3, jumppark: 5, toys: 5, burger: 3, shoes: 1, hotdog: 3, pizza: 4, boba: 2, vr: 2, bakery: 4, plants: 1, lemonade: 4, sports: 3, tacos: 3, noodle: 2, cotton: 5, crafty: 3, sushi: 1, bears: 5, bowling: 4, minigolf: 5, smoothie: 2, candles: 1 },             buy: 0.8,  spend: 1.1, patience: 1.0,  litter: 0.22, speed: 1.1, hours: [10, 20], weight: 0.9 },
+  fashion: { label: 'Fashionista',    wants: { boutique: 5, coffee: 2, candy: 1, books: 1, pets: 1, music: 1, scoops: 1, theater: 2, perfume: 5, shoes: 4, pizza: 1, jewelry: 5, boba: 2, plants: 2, beauty: 5, lemonade: 1, tacos: 1, noodle: 1, crafty: 2, sushi: 3, hats: 4, candles: 2, specs: 4, smoothie: 2, bar: 2 },                       buy: 0.8,  spend: 1.35, patience: 0.9, litter: 0.05, speed: 1.4, hours: [10, 21], weight: 0.6 },
+  browser: { label: 'Window shopper', wants: { pretzel: 1, dollar: 1, candy: 1, arcade: 1, boutique: 1, pets: 1, coffee: 1, books: 1, scoops: 1, music: 1, gadgets: 1, theater: 1, jumppark: 1, toys: 1, perfume: 1, gaming: 1, shoes: 1, burger: 1, hotdog: 1, pizza: 1, plants: 1, jewelry: 1, boba: 1, vr: 1, bakery: 1, comics: 1, lemonade: 1, sports: 1, beauty: 1, tacos: 1, noodle: 1, cotton: 1, crafty: 1, sushi: 1, hats: 1, candles: 1, bears: 1, skate: 1, specs: 1, smoothie: 1, bowling: 1, minigolf: 1, bar: 1 }, buy: 0.4, spend: 0.8, patience: 1.0, litter: 0.1, speed: 1.3, hours: [9, 21], weight: 0.8 },
   // Only once the casino is open (see spawnCustomer).
-  highroller: { label: 'High roller', wants: { chips: 6, lounge: 4, giftshop: 3, jewelry: 3, perfume: 1, beauty: 1, sushi: 2, boutique: 1, pizza: 1 }, buy: 0.85, spend: 1.6, patience: 1.0, litter: 0.04, speed: 1.3, hours: [14, 21], weight: 0, casino: 0.7 },
+  highroller: { label: 'High roller', wants: { chips: 6, lounge: 4, giftshop: 3, jewelry: 3, specs: 2, hats: 1, perfume: 1, beauty: 1, sushi: 2, boutique: 1, pizza: 1, bar: 2 }, buy: 0.85, spend: 1.6, patience: 1.0, litter: 0.04, speed: 1.3, hours: [14, 21], weight: 0, casino: 0.7 },
+  // v0.20: only once the speakeasy is open. They come for a drink and a game, mostly in the evening.
+  regular: { label: 'Speakeasy regular', wants: { bar: 8, burger: 1, pizza: 1, tacos: 1, music: 1, sushi: 1 }, buy: 0.85, spend: 1.25, patience: 1.15, litter: 0.08, speed: 1.15, hours: [15, 21], weight: 0, speakeasy: 0.6 },
 };
 
 // Relative arrivals per hour, 9:00 through 20:00.
@@ -331,47 +382,47 @@ export const LEVEL_UNLOCKS = {
   4: [{ store: 'boutique' }, { store: 'lemonade' }, { zone: 'sw' }, { staffSlots: true }],
   5: [{ store: 'pets' }, { hire: 'supervisor' }, { zone: 'se' }, { staffSlots: true }],
   6: [{ store: 'books' }, { store: 'toys' }, { decor: 'claw' }, { staffSlots: true }],
-  7: [{ store: 'perfume' }, { staffSlots: true }],
-  8: [{ store: 'gaming' }, { staffSlots: true }],
+  7: [{ store: 'perfume' }, { decor: 'vending' }, { staffSlots: true }],
+  8: [{ store: 'gaming' }, { expand: 'east' }, { decor: 'directory' }, { staffSlots: true }],
   9: [{ store: 'scoops' }, { store: 'shoes' }, { decor: 'planter' }, { decor: 'lamp' }, { staffSlots: true }],
-  10: [{ store: 'burger' }, { hire: 'guard' }, { decor: 'vending' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
+  10: [{ store: 'burger' }, { hire: 'guard' }, { style: 'wall:retro' }, { style: 'floor:diner' }],
   11: [{ store: 'music' }, { decor: 'sofa' }, { style: 'wall:sunset' }, { staffSlots: true }],
-  12: [{ hire: 'greeter' }, { store: 'sports' }, { store: 'theater' }, { decor: 'ride' }, { style: 'floor:terracotta' }],
-  13: [{ store: 'plants' }, { decor: 'gumball' }, { decor: 'directory' }, { style: 'wall:garden' }, { staffSlots: true }],
-  14: [{ store: 'gadgets' }, { style: 'floor:flagstone' }, { staffSlots: true }],
+  12: [{ hire: 'greeter' }, { store: 'sports' }, { store: 'theater' }, { style: 'floor:terracotta' }],
+  13: [{ store: 'plants' }, { expand: 'garden' }, { style: 'wall:garden' }, { staffSlots: true }],
+  14: [{ store: 'gadgets' }, { decor: 'gumball' }, { style: 'floor:flagstone' }, { staffSlots: true }],
   15: [{ hire: 'mascot' }, { store: 'jumppark' }, { decor: 'playarea' }, { style: 'wall:deco' }, { staffSlots: true }],
-  16: [{ store: 'jewelry' }, { style: 'floor:herring' }, { staffSlots: true }],
-  17: [{ store: 'beauty' }, { style: 'wall:luxe' }, { staffSlots: true }],
-  18: [{ store: 'hotdog' }, { style: 'floor:marble' }, { staffSlots: true }],
+  16: [{ store: 'jewelry' }, { decor: 'ride' }, { style: 'floor:herring' }, { staffSlots: true }],
+  17: [{ store: 'beauty' }, { decor: 'photobooth' }, { style: 'wall:luxe' }, { staffSlots: true }],
+  18: [{ store: 'hotdog' }, { decor: 'tree' }, { style: 'floor:marble' }, { staffSlots: true }],
   19: [{ store: 'tacos' }, { decor: 'topiary' }, { style: 'wall:candy' }, { staffSlots: true }],
-  20: [{ store: 'boba' }, { decor: 'photobooth' }, { style: 'floor:mosaic' }, { staffSlots: true }],
-  21: [{ decor: 'aquarium' }, { style: 'wall:starry' }, { staffSlots: true }],
-  22: [{ store: 'pizza' }, { staffSlots: true }],
+  20: [{ store: 'boba' }, { style: 'floor:mosaic' }, { staffSlots: true }],
+  21: [{ store: 'hats' }, { decor: 'aquarium' }, { style: 'wall:starry' }, { staffSlots: true }],
+  22: [{ store: 'pizza' }, { style: 'wall:brick' }, { staffSlots: true }],
   23: [{ store: 'noodle' }, { decor: 'clock' }, { decor: 'massage' }, { style: 'floor:starlight' }, { staffSlots: true }],
   24: [{ store: 'cotton' }, { decor: 'foodcourt' }, { style: 'wall:tropic' }, { staffSlots: true }],
-  25: [{ store: 'vr' }, { decor: 'piano' }, { staffSlots: true }],
+  25: [{ store: 'vr' }, { decor: 'piano' }, { style: 'floor:neoncheck' }, { staffSlots: true }],
   26: [{ store: 'crafty' }, { decor: 'carousel' }, { style: 'floor:bamboo' }, { staffSlots: true }],
   27: [{ store: 'sushi' }, { decor: 'arch' }, { style: 'wall:gala' }, { staffSlots: true }],
   28: [{ store: 'bakery' }, { style: 'floor:gold' }, { staffSlots: true }],
-  29: [{ decor: 'balloons' }, { staffSlots: true }],
-  30: [{ expand: 'casino' }, { store: 'chips' }, { decor: 'slots' }, { hire: 'dealer' }, { decor: 'statue' }, { style: 'wall:sakura' }, { staffSlots: true }],
-  31: [{ store: 'comics' }, { style: 'floor:ocean' }, { staffSlots: true }],
-  32: [{ decor: 'blackjack' }, { decor: 'arcadecab' }, { staffSlots: true }],
-  33: [{ decor: 'bubbles' }, { style: 'wall:waves' }, { staffSlots: true }],
-  34: [{ decor: 'neon' }, { decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],
-  35: [{ style: 'wall:crystal' }, { style: 'floor:crystal' }, { staffSlots: true }],
-  36: [{ decor: 'roulette' }, { staffSlots: true }],
-  37: [{ decor: 'rope' }, { staffSlots: true }],
-  38: [{ decor: 'poker' }, { staffSlots: true }],
-  39: [{ store: 'lounge' }, { staffSlots: true }],
-  40: [{ decor: 'jackpot' }, { hire: 'host' }, { staffSlots: true }],
-  41: [{ decor: 'craps' }, { staffSlots: true }],
+  29: [{ store: 'bowling' }, { decor: 'balloons' }, { decor: 'statue' }, { staffSlots: true }],
+  30: [{ expand: 'speakeasy' }, { store: 'bar' }, { decor: 'stool' }, { decor: 'darts' }, { expand: 'casino' }, { store: 'chips' }, { decor: 'slots' }, { hire: 'dealer' }, { staffSlots: true }],
+  31: [{ decor: 'bistro' }, { store: 'comics' }, { style: 'floor:ocean' }, { staffSlots: true }],
+  32: [{ decor: 'pool' }, { decor: 'blackjack' }, { decor: 'arcadecab' }, { style: 'wall:sakura' }, { staffSlots: true }],
+  33: [{ decor: 'jukebox' }, { decor: 'foosball' }, { store: 'candles' }, { decor: 'bubbles' }, { style: 'wall:waves' }, { staffSlots: true }],
+  34: [{ decor: 'booth' }, { decor: 'neon' }, { decor: 'koi' }, { style: 'floor:velvet' }, { staffSlots: true }],
+  35: [{ decor: 'shuffle' }, { store: 'bears' }, { style: 'wall:crystal' }, { style: 'floor:crystal' }, { staffSlots: true }],
+  36: [{ decor: 'pinball' }, { decor: 'barrels' }, { decor: 'roulette' }, { decor: 'popcorn' }, { staffSlots: true }],
+  37: [{ store: 'minigolf' }, { decor: 'rope' }, { staffSlots: true }],
+  38: [{ decor: 'poker' }, { style: 'wall:maple' }, { staffSlots: true }],
+  39: [{ store: 'lounge' }, { store: 'skate' }, { staffSlots: true }],
+  40: [{ decor: 'jackpot' }, { decor: 'hotair' }, { hire: 'host' }, { staffSlots: true }],
+  41: [{ decor: 'craps' }, { store: 'specs' }, { staffSlots: true }],
   42: [{ expand: 'vip' }, { staffSlots: true }],
-  43: [{ decor: 'dicestatue' }, { staffSlots: true }],
-  44: [{ decor: 'wheel' }, { staffSlots: true }],
-  45: [{ decor: 'champagne' }, { staffSlots: true }],
+  43: [{ decor: 'dicestatue' }, { decor: 'iceswan' }, { staffSlots: true }],
+  44: [{ decor: 'wheel' }, { store: 'smoothie' }, { staffSlots: true }],
+  45: [{ decor: 'champagne' }, { decor: 'penny' }, { staffSlots: true }],
   46: [{ store: 'giftshop' }, { staffSlots: true }],
-  47: [{ decor: 'goldslots' }, { staffSlots: true }],
+  47: [{ decor: 'goldslots' }, { style: 'floor:patchwork' }, { staffSlots: true }],
   48: [{ style: 'wall:neonights' }, { staffSlots: true }],
   49: [{ style: 'floor:starburst' }, { staffSlots: true }],
   50: [{ staffSlots: true }, { done: true }],

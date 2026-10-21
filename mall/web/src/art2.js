@@ -412,6 +412,19 @@ export function vrIcon(c){
   g.beginPath(); g.moveTo(-0.08, 0.22); g.quadraticCurveTo(0, 0.1, 0.08, 0.22); g.strokeStyle = OUT; g.lineWidth = 0.05; g.stroke();
   rr(-0.5, -0.06, 0.08, 0.14, 0.03); fs(c('#2b2d42'), 0.04); rr(0.42, -0.06, 0.08, 0.14, 0.03); fs(c('#2b2d42'), 0.04);
 }
+// Bakery treats for the shelves and the menu board.
+export function croissant(x, y, k){
+  g.save(); g.translate(x, y); g.scale(k, k);
+  g.beginPath(); g.moveTo(-0.12, 0.02); g.quadraticCurveTo(-0.13, -0.08, -0.05, -0.1); g.quadraticCurveTo(0, -0.12, 0.05, -0.1); g.quadraticCurveTo(0.13, -0.08, 0.12, 0.02); g.quadraticCurveTo(0.06, 0.0, 0, 0.0); g.quadraticCurveTo(-0.06, 0.0, -0.12, 0.02); g.closePath(); fs('#e0a04a', 0.025);
+  g.strokeStyle = 'rgba(140,80,20,.5)'; g.lineWidth = 0.015; g.beginPath(); for (const sx of [-0.06, 0, 0.06]){ g.moveTo(sx - 0.015, -0.1); g.quadraticCurveTo(sx + 0.01, -0.05, sx - 0.005, 0.0); } g.stroke();
+  g.restore();
+}
+export function donut(x, y, r, icing){
+  ell(x, y, r, r * 0.6); fs('#e2b07a', 0.012);
+  ell(x, y - r * 0.08, r * 0.85, r * 0.48); fs(icing, 0);
+  ell(x, y - r * 0.05, r * 0.28, r * 0.16); fs('#c98b55', 0.008);
+  for (let k = 0; k < 5; k++){ const a = k * 1.3; g.fillStyle = ['#ffd166', '#06d6a0', '#118ab2', '#fffaf3', '#9b5de5'][k]; g.fillRect(x + Math.cos(a) * r * 0.55 - 0.006, y - r * 0.05 + Math.sin(a) * r * 0.3, 0.014, 0.006); }
+}
 export function cupcakeIcon(c){
   g.beginPath(); g.moveTo(-0.3, 0.02); g.lineTo(0.3, 0.02); g.lineTo(0.22, 0.42); g.lineTo(-0.22, 0.42); g.closePath(); fs(c('#ff8fab'), 0.07);
   g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 0.03; g.beginPath(); for (const x of [-0.14, 0, 0.14]){ g.moveTo(x * 1.2, 0.05); g.lineTo(x, 0.4); } g.stroke();
@@ -452,10 +465,11 @@ export function newWallpaper(ic, x0, y0, w, H){
     g.stroke();
     g.fillStyle = 'rgba(247,37,133,.6)'; circ(x0 + w * 0.7, y0 + H * 0.25, 0.12); g.fill();
   } else if (ic === 'cupcake'){
-    g.fillStyle = '#fff1e6'; g.fillRect(x0, y0, w, H);
-    g.fillStyle = 'rgba(255,143,171,.25)';
-    for (let x = x0; x < x0 + w; x += 0.3) g.fillRect(x, y0, 0.15, H);
-    for (let y = y0; y < y0 + H; y += 0.3) g.fillRect(x0, y, w, 0.15);
+    // Mint and cream candy stripes, with a pink-and-white scalloped awning along the top.
+    g.fillStyle = '#fff7ec'; g.fillRect(x0, y0, w, H);
+    g.fillStyle = 'rgba(152,222,200,.45)'; for (let x = x0; x < x0 + w; x += 0.24) g.fillRect(x, y0, 0.12, H);
+    for (let x = x0; x < x0 + w; x += 0.24){ circ(x + 0.18, y0 + 0.5 + ((x * 13) % 3) * 0.1, 0.018); g.fillStyle = 'rgba(255,143,171,.5)'; g.fill(); }
+    for (let x = x0, k = 0; x < x0 + w; x += 0.16, k++){ g.fillStyle = k % 2 ? '#fffaf3' : '#ff8fab'; g.fillRect(x, y0, 0.16, 0.12); g.beginPath(); g.arc(x + 0.08, y0 + 0.12, 0.08, 0, Math.PI); g.fill(); }
   } else if (ic === 'comic'){
     g.fillStyle = '#fff3c4'; g.fillRect(x0, y0, w, H);
     for (let x = x0; x < x0 + w; x += 0.12) for (let y = y0; y < y0 + H; y += 0.12){ circ(x + ((y - y0) / 0.12 % 2) * 0.06, y, 0.022); g.fillStyle = 'rgba(230,57,70,.3)'; g.fill(); }
@@ -474,9 +488,18 @@ export function newWallPiece(ic, wx, wy, t){
     rr(wx + 0.08, wy - 0.24, 0.74, 0.42, 0.04); fs('#3a0ca3', 0.035);
     text('VR', wx + 0.45, wy - 0.06, 0.2, `hsl(${(t * 80) % 360},90%,70%)`, 700);
   } else if (ic === 'cupcake'){
-    rr(wx + 0.08, wy - 0.24, 0.74, 0.42, 0.04); fs('#6d4c41', 0.035);
-    text('FRESH', wx + 0.45, wy - 0.12, 0.1, '#fff1e6', 700);
-    for (let i = 0; i < 3; i++){ g.save(); g.translate(wx + 0.22 + i * 0.23, wy + 0.04); g.scale(0.09, 0.09); storeIcon('cupcake', 0, 0, 1); g.restore(); }
+    // A chalkboard of today's bakes in a wooden frame, with a rolling pin and a whisk hung beside it.
+    rr(wx + 0.06, wy - 0.27, 0.56, 0.44, 0.03); fs('#a77d55', 0.03);
+    rr(wx + 0.1, wy - 0.23, 0.48, 0.36, 0.02); fs('#2f3a36', 0.015);
+    text("TODAY'S BAKE", wx + 0.34, wy - 0.16, 0.055, '#fff1e6', 700);
+    g.save(); g.translate(wx + 0.2, wy - 0.02); g.scale(0.07, 0.07); storeIcon('cupcake', 0, 0, 1); g.restore();
+    croissant(wx + 0.34, wy - 0.02, 0.5);
+    donut(wx + 0.48, wy - 0.03, 0.05, '#ff8fab');
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 0.01; g.beginPath(); for (let i = 0; i < 3; i++){ g.moveTo(wx + 0.15 + i * 0.14, wy + 0.08); g.lineTo(wx + 0.25 + i * 0.14, wy + 0.08); } g.stroke();
+    // Rolling pin and whisk on hooks.
+    g.save(); g.translate(wx + 0.74, wy - 0.12); g.rotate(1.35); rr(-0.14, -0.035, 0.28, 0.07, 0.035); fs('#e2b07a', 0.015); rr(-0.21, -0.015, 0.07, 0.03, 0.015); fs('#c98b55', 0.01); rr(0.14, -0.015, 0.07, 0.03, 0.015); fs('#c98b55', 0.01); g.restore();
+    g.strokeStyle = '#a0a8b0'; g.lineWidth = 0.01; for (const k of [-0.03, 0, 0.03]){ g.beginPath(); g.ellipse(wx + 0.86, wy - 0.02, 0.035 + k * 0.4, 0.09, 0, 0, Math.PI * 2); g.stroke(); }
+    rr(wx + 0.85, wy - 0.24, 0.02, 0.14, 0.008); fs('#8a5a44', 0.008);
   } else if (ic === 'comic'){
     for (let i = 0; i < 3; i++){ rr(wx + 0.12 + i * 0.24, wy - 0.24, 0.2, 0.28, 0.02); fs(['#5a8dee', '#e63946', '#06d6a0'][i], 0.02); rr(wx + 0.14 + i * 0.24, wy - 0.22, 0.16, 0.06, 0.01); fs('#ffd23f', 0); }
   } else return false;
@@ -487,7 +510,19 @@ export function newCounter(ic, cx, top){
   if (ic === 'leaf'){ g.save(); g.translate(cx + 0.22, top + 0.02); g.scale(0.16, 0.16); storeIcon('leaf', 0, 0, 1); g.restore(); }
   else if (ic === 'ring'){ rr(cx + 0.04, top - 0.04, 0.42, 0.18, 0.03); fs('rgba(220,245,255,.85)', 0.02); for (let i = 0; i < 3; i++){ circ(cx + 0.12 + i * 0.13, top + 0.06, 0.035); fs('#f2d68a', 0.012); circ(cx + 0.12 + i * 0.13, top + 0.02, 0.02); fs('#a8e6ff', 0); } }
   else if (ic === 'vr'){ rr(cx + 0.18, top - 0.02, 0.05, 0.14, 0.02); fs('#8d869c', 0.012); g.save(); g.translate(cx + 0.2, top - 0.04); g.scale(0.14, 0.14); storeIcon('vr', 0, 0, 1); g.restore(); }
-  else if (ic === 'cupcake'){ ell(cx + 0.24, top + 0.1, 0.18, 0.05); fs('#fff', 0.015); rr(cx + 0.22, top - 0.04, 0.04, 0.14, 0.01); fs('#fff', 0.01); circ(cx + 0.24, top - 0.08, 0.1); fs('#ff8fab', 0.02); circ(cx + 0.24, top - 0.17, 0.03); fs('#e63946', 0); }
+  else if (ic === 'cupcake'){
+    // A cake stand under a glass dome holding a strawberry layer cake, and a little tray of cookie samples.
+    ell(cx + 0.22, top + 0.1, 0.17, 0.045); fs('#fffaf3', 0.015); rr(cx + 0.2, top - 0.0, 0.04, 0.1, 0.01); fs('#fffaf3', 0.01);
+    ell(cx + 0.22, top - 0.0, 0.15, 0.04); fs('#fffaf3', 0.015);
+    rr(cx + 0.11, top - 0.13, 0.22, 0.12, 0.03); fs('#ffe0e9', 0.015);
+    g.fillStyle = '#e76f8a'; g.fillRect(cx + 0.115, top - 0.08, 0.21, 0.025);
+    for (let k = 0; k < 4; k++){ circ(cx + 0.14 + k * 0.055, top - 0.14, 0.022); fs('#e63946', 0.008); }
+    g.beginPath(); g.arc(cx + 0.22, top - 0.0, 0.17, Math.PI, 0); g.fillStyle = 'rgba(220,245,255,.35)'; g.fill(); g.strokeStyle = 'rgba(61,43,53,.5)'; g.lineWidth = 0.012; g.stroke();
+    circ(cx + 0.22, top - 0.18, 0.02); fs('#c9a227', 0.008);
+    g.beginPath(); g.moveTo(cx + 0.12, top - 0.09); g.quadraticCurveTo(cx + 0.13, top - 0.14, cx + 0.16, top - 0.15); g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 0.012; g.stroke();
+    rr(cx + 0.37, top + 0.06, 0.14, 0.05, 0.015); fs('#c98b55', 0.01);
+    for (let k = 0; k < 3; k++){ circ(cx + 0.4 + k * 0.04, top + 0.06, 0.02); fs('#e2b07a', 0.006); circ(cx + 0.4 + k * 0.04, top + 0.06, 0.006); fs('#5a3a2e', 0); }
+  }
   else if (ic === 'comic'){ for (let i = 0; i < 4; i++){ rr(cx + 0.06, top + 0.08 - i * 0.04, 0.34, 0.05, 0.01); fs(['#5a8dee', '#e63946', '#ffd23f', '#06d6a0'][i], 0.012); } }
   else return false;
   return true;
@@ -525,14 +560,57 @@ export function newBack(ic, x, y, sw, t, id){
     g.restore();
     for (let i = 0; i < Math.floor(sw / 0.4); i++){ g.save(); g.translate(x + 0.25 + i * 0.4, top + 0.7); g.scale(0.13, 0.13); storeIcon('vr', 0, 0, 1); g.restore(); }
   } else if (ic === 'cupcake'){
-    // A bakery case of cakes and cupcakes, and an oven.
-    box(x, y, sw, 0.36, 0.5, '#f2e8d8', '#c98b55');
-    const top = y + 0.36 - 0.5;
-    rr(x + 0.06, top - 0.3, sw * 0.62, 0.32, 0.04); fs('rgba(220,245,255,.8)', 0.03);
-    for (let i = 0; i < Math.floor(sw * 0.62 / 0.22); i++){ g.save(); g.translate(x + 0.17 + i * 0.22, top - 0.12); g.scale(0.1, 0.1); storeIcon(i % 2 ? 'cupcake' : 'pizza', 0, 0, 1, i % 2 ? null : '#f4a261'); g.restore(); }
-    box(x + sw * 0.7, y + 0.05, sw * 0.28, 0.3, 0.75, '#d9d4de', '#a9b0ba');
-    rr(x + sw * 0.72, y + 0.35 - 0.6, sw * 0.24, 0.25, 0.03); fs('#2b1d1d', 0.02);
-    g.fillStyle = `rgba(255,159,67,${0.5 + Math.sin(t * 4) * 0.2})`; g.fillRect(x + sw * 0.74, y + 0.35 - 0.45, sw * 0.2, 0.08);
+    // A three-tier glass pastry case (croissants, sprinkle donuts, cupcakes, a layer cake on top), a rack of bread
+    // loaves and baguettes, and a domed brick oven with a fire glowing and fresh loaves steaming on its sill.
+    // Narrow back walls (a storefront facing up) skip the bread rack and give the room to the case and the oven.
+    const rack = sw >= 1.3, cw = sw * (rack ? 0.56 : 0.6);
+    box(x, y, cw, 0.36, 0.42, '#f6eadb', '#c98b55');
+    const top = y + 0.36 - 0.42;
+    rr(x + 0.04, top - 0.56, cw - 0.08, 0.58, 0.05); fs('rgba(225,246,255,.75)', 0.03);
+    for (let r = 0; r < 3; r++){ g.fillStyle = '#e9d8c4'; g.fillRect(x + 0.07, top - 0.02 - r * 0.18, cw - 0.14, 0.025); }
+    const per = Math.max(2, Math.floor((cw - 0.16) / 0.15));
+    for (let i = 0; i < per; i++){
+      const px = x + 0.13 + i * (cw - 0.2) / (per - 0.5);
+      g.save(); g.translate(px, top - 0.07); g.scale(0.085, 0.085); storeIcon('cupcake', 0, 0, 1); g.restore();
+      donut(px, top - 0.235, 0.05, ['#ff8fab', '#8a5a44', '#fff1e6', '#b5e48c'][(i + id) % 4]);
+      if (i < per - 1) croissant(px + 0.03, top - 0.41, 0.55);
+    }
+    // A strawberry layer cake on a stand, up top.
+    const kx = x + cw - 0.2, ky = top - 0.52;
+    rr(kx - 0.01, ky + 0.0, 0.02, 0.06, 0.005); fs('#fffaf3', 0.008); ell(kx, ky, 0.09, 0.02); fs('#fffaf3', 0.008);
+    rr(kx - 0.08, ky - 0.11, 0.16, 0.11, 0.025); fs('#ffe0e9', 0.012); g.fillStyle = '#e76f8a'; g.fillRect(kx - 0.075, ky - 0.06, 0.15, 0.02);
+    for (let k = 0; k < 3; k++){ circ(kx - 0.05 + k * 0.05, ky - 0.12, 0.018); fs('#e63946', 0.006); }
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x + 0.09, top - 0.53, 0.04, 0.48);
+    // Bread rack.
+    const bx = x + cw + 0.02, bw = rack ? sw * 0.16 : -0.02;
+    if (rack){
+    box(bx, y, bw, 0.32, 0.72, '#c98b55', '#8a5a44');
+    const btop = y + 0.32 - 0.72;
+    for (let r = 0; r < 3; r++){
+      g.fillStyle = '#8a5a44'; g.fillRect(bx + 0.03, btop + 0.2 + r * 0.2, bw - 0.06, 0.02);
+      ell(bx + bw / 2, btop + 0.15 + r * 0.2, bw * 0.36, 0.05); fs(['#d9984a', '#c27b36', '#e2b07a'][(r + id) % 3], 0.012);
+      g.strokeStyle = 'rgba(255,240,210,.7)'; g.lineWidth = 0.008; g.beginPath(); for (let k = -1; k <= 1; k++){ g.moveTo(bx + bw / 2 + k * 0.05 - 0.02, btop + 0.13 + r * 0.2); g.lineTo(bx + bw / 2 + k * 0.05 + 0.02, btop + 0.17 + r * 0.2); } g.stroke();
+    }
+    for (const k of [0, 1]){ g.save(); g.translate(bx + bw * 0.3 + k * 0.06, btop + 0.02); g.rotate(-0.15 + k * 0.3); rr(-0.025, -0.22, 0.05, 0.26, 0.025); fs('#d9984a', 0.012); g.restore(); }
+    }
+    // The brick oven.
+    const ox = x + cw + bw + 0.04, ow = sw - cw - bw - 0.06, oy = y + 0.36;
+    box(ox, y + 0.02, ow, 0.34, 0.72, '#c0583a', '#9a3f27');
+    const otop = y + 0.36 - 0.72;
+    g.strokeStyle = 'rgba(255,220,200,.35)'; g.lineWidth = 0.01; g.beginPath();
+    for (let r = 0; r < 6; r++){ const yy = otop + 0.06 + r * 0.1; g.moveTo(ox + 0.02, yy); g.lineTo(ox + ow - 0.02, yy); for (let c = (r % 2) * 0.07; c < ow; c += 0.14){ g.moveTo(ox + c, yy); g.lineTo(ox + c, yy + 0.1); } }
+    g.stroke();
+    // The oven's mouth sits up high (a raised hearth), so it shows over the shop front either way the store faces.
+    const mb = otop + 0.29, mr = Math.min(0.12, ow / 2 - 0.04);
+    g.beginPath(); g.moveTo(ox + ow / 2 - mr, mb); g.lineTo(ox + ow / 2 - mr, mb - 0.06); g.arc(ox + ow / 2, mb - 0.06, mr, Math.PI, 0); g.lineTo(ox + ow / 2 + mr, mb); g.closePath(); fs('#2b1d1d', 0.02);
+    const fl = 0.55 + Math.sin(t * 5) * 0.15 + Math.sin(t * 13) * 0.08;
+    ell(ox + ow / 2, mb - 0.05, mr * 0.75, 0.06); g.fillStyle = `rgba(255,140,40,${fl})`; g.fill();
+    for (let k = 0; k < 3; k++){ const fx = ox + ow / 2 + (k - 1) * mr * 0.4, fh = 0.04 + Math.abs(Math.sin(t * 7 + k * 2)) * 0.05; g.beginPath(); g.moveTo(fx - 0.022, mb - 0.03); g.quadraticCurveTo(fx, mb - 0.03 - fh * 2, fx + 0.022, mb - 0.03); g.fillStyle = k === 1 ? '#ffd166' : '#ff9f1c'; g.fill(); }
+    rr(ox + 0.02, mb, ow - 0.04, 0.05, 0.015); fs('#e9d8c4', 0.015);
+    // Two fresh loaves on the sill, steaming.
+    for (const k of [0, 1]){ ell(ox + ow * (0.3 + k * 0.4), mb + 0.005, Math.min(0.07, ow * 0.17), 0.035); fs('#d9984a', 0.01); }
+    g.save(); g.globalAlpha = 0.5; for (let k = 0; k < 2; k++){ const q = (t * 0.5 + k * 0.5) % 1; circ(ox + ow * (0.3 + k * 0.4), mb - 0.07 - q * 0.3, 0.03 + q * 0.03); g.fillStyle = '#fff'; g.fill(); } g.restore();
+    rr(ox + ow / 2 - 0.05, otop - 0.12, 0.1, 0.14, 0.01); fs('#7a6a6a', 0.015);
   } else if (ic === 'comic'){
     // Long racks of comics, covers facing out.
     box(x, y, sw, 0.36, 0.8, '#5a4a6b', '#3d2b56');

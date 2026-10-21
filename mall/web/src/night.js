@@ -76,7 +76,7 @@ function unitCard(u){
   const refund = Math.round(def.cost * 0.5);
   showCard({
     title: def.name,
-    text: def.attraction ? `Attraction · ${def.seats} ${def.attraction === 'theater' ? 'seats' : 'trampolines'} · tickets $${def.price[0]}–${def.price[1]} from the machine at the door · upkeep ${money(def.upkeep)}/day`
+    text: def.attraction ? `Attraction · ${def.seats} ${def.seatWord || (def.attraction === 'theater' ? 'seats' : 'trampolines')} · tickets $${def.price[0]}–${def.price[1]} from the machine at the door · upkeep ${money(def.upkeep)}/day`
       : `${def.cat} · Stock ${u.stock}/${def.stock}${clerk ? ` · ${clerk.name} runs the register` : ' · You run the register'}`,
     actions: [
       { label: 'Move', onClick: () => startPlacement({ kind: u.kiosk ? 'kiosk' : 'unit', store: u.store, w: u.w, h: u.h, face: u.face, cost: 0, moveId: u.id, x: u.x, y: u.y }) },
@@ -91,10 +91,12 @@ function unitCard(u){
 }
 // A store opens in an empty or boarded-up storefront of exactly its size, cheapest first.
 const fits = (def, u) => def.w === u.w && def.h === u.h;
+// Casino stores only go on the casino floor, and the speakeasy's bar only in the basement.
+const floorOk = (def, x) => (!def.casino || floorOf(x) === 2) && (!def.bar || floorOf(x) === 3);
 function roomFor(key){
   const def = C.STORES[key];
   if (def.kiosk) return [];
-  return S.save.units.filter(u => !u.kiosk && (u.state === 'vacant' || u.state === 'derelict') && fits(def, u) && (!def.casino || floorOf(u.x) === 2))
+  return S.save.units.filter(u => !u.kiosk && (u.state === 'vacant' || u.state === 'derelict') && fits(def, u) && floorOk(def, u.x))
     .map(u => ({ u, cost: def.cost + fixCost(u) })).sort((a, b) => a.cost - b.cost);
 }
 function openStore(u, key){
@@ -115,7 +117,7 @@ function openInUnit(u){
   hideCard();
   const fix = fixCost(u), s = S.save;
   const items = Object.entries(C.STORES)
-    .filter(([, def]) => !def.kiosk && fits(def, u) && (!def.casino || floorOf(u.x) === 2))
+    .filter(([, def]) => !def.kiosk && fits(def, u) && floorOk(def, u.x))
     .map(([key, def]) => storeEntry(key, def, def.cost + fix, () => { if (openStore(u, key)){ closePanel(); view.selected = null; } }))
     .sort(byRank);
   fresh = new Set(); noticeNew(items);
@@ -212,12 +214,12 @@ export function openBuild(startTab = 0, startKind = null){
 }
 // A store's Mall Market card.
 function storeEntry(key, def, cost, pick){
-  const s = S.save, [sh, blurb] = STORE_INFO[key] || ['retail', ''], noCasino = def.casino && !s.expansions.casino;
+  const s = S.save, [sh, blurb] = STORE_INFO[key] || ['retail', ''], noCasino = def.casino && !s.expansions.casino, noBar = def.bar && !s.expansions.speakeasy;
   return { key: 's:' + key, shelf: sh, name: def.name, blurb, level: def.level, cost, decor: false, pick,
     icon: () => A.storeIcon(def.icon, 0.5, 0.5, 0.62),
     kind: def.kiosk ? 'Stand' : def.attraction ? `Attraction ${def.w}×${def.h}` : `Store ${def.w}×${def.h}`,
-    stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}`,
-    locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
+    stats: def.attraction ? `Tickets $${def.price[0]}–${def.price[1]} · upkeep ${money(def.upkeep)}/day` : `Sells $${def.price[0]}–${def.price[1]}${def.dine ? ' · dine-in' : ''}${def.casino ? ' · casino floor' : ''}${def.bar ? ' · speakeasy only' : ''}`,
+    locked: s.level < def.level || noCasino || noBar, lockText: s.level < def.level ? `Level ${def.level}` : noBar ? 'Needs the speakeasy' : 'Needs the casino',
     have: stores(s).filter(u => u.store === key).length };
 }
 function shopItems(){
@@ -228,12 +230,12 @@ function shopItems(){
   }
   for (const [key, def] of Object.entries(C.DECOR)){
     const [sh, blurb] = DECOR_INFO[key] || ['scenery', ''];
-    const noCasino = def.casino && !s.expansions.casino;
+    const noCasino = def.casino && !s.expansions.casino, noBar = def.bar && !s.expansions.speakeasy;
     out.push({ key: 'd:' + key, shelf: sh, name: def.name, blurb, level: def.level, cost: def.cost, decor: true,
       icon: () => A.decorThumb(key, def.w),
-      kind: `${def.game ? 'Game table' : def.coin ? 'Machine' : def.play ? 'Play area' : 'Decor'} ${def.w}×${def.h}`,
-      stats: def.sub.replace(/^\+ambience$/, 'Makes the mall nicer (+ambience)') + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : ''),
-      locked: s.level < def.level || noCasino, lockText: s.level < def.level ? `Level ${def.level}` : 'Needs the casino',
+      kind: `${def.game ? 'Game table' : def.bargame ? 'Bar game' : def.perch ? 'Seating' : def.coin ? 'Machine' : def.play ? 'Play area' : 'Decor'} ${def.w}×${def.h}`,
+      stats: def.sub.replace(/^\+ambience$/, 'Makes the mall nicer (+ambience)') + (def.bargame ? ` · $${def.bargame.price[0]}–${def.bargame.price[1]} a game` : '') + (def.rot ? ' · can rotate' : '') + (def.casino ? ' · casino floor' : '') + (def.bar ? ' · speakeasy only' : ''),
+      locked: s.level < def.level || noCasino || noBar, lockText: s.level < def.level ? `Level ${def.level}` : noBar ? 'Needs the speakeasy' : 'Needs the casino',
       have: s.decor.filter(d => d.type === key).length,
       pick: () => { closePanel(); startPlacement({ kind: key, decor: key, w: def.w, h: def.h, face: 0, cost: def.cost }); } });
   }
@@ -281,7 +283,7 @@ function fixTab(body){
   }
   for (const e of C.EXPANSIONS){
     const done = !!s.expansions[e.id], prev = e.requires && C.EXPANSIONS.find(q => q.id === e.requires), blocked = prev && !s.expansions[prev.id];
-    items.push({ shelf: e.id === 'casino' || e.id === 'vip' ? 'casino' : 'fun', name: e.name, kind: 'Expansion', icon: () => A.storeIcon('sun', 0.5, 0.5, 0.62), cost: e.cost,
+    items.push({ shelf: e.id === 'casino' || e.id === 'vip' ? 'casino' : 'fun', name: e.name, kind: 'Expansion', icon: () => A.storeIcon(e.id === 'speakeasy' ? 'bar' : 'sun', 0.5, 0.5, 0.62), cost: e.cost,
       blurb: e.sub + '.', done, doneText: 'Open', locked: s.level < e.level || blocked, lockText: s.level < e.level ? `Level ${e.level}` : prev ? `After ${prev.name}` : '',
       pick: () => buyExpansion(e) });
   }
@@ -301,7 +303,15 @@ function mkCard(it){
   const state = it.locked ? 'locked' : it.done ? 'owned' : it.priceText ? 'can' : afford ? 'can' : 'short';
   const price = it.locked ? it.lockText : it.done ? it.doneText : it.priceText || money(it.cost);
   return h('button', { class: `mk-card ${state}`, disabled: it.locked || (it.done && !it.openDone), style: `--c:${it.color || shelfColor(it.shelf)}`,
-    onclick: () => { sfx('tap'); it.pick(); } },
+    onclick: e => {
+      // Can't afford it: say so right on the card instead of heading off to place it.
+      if (state === 'short'){
+        sfx('error'); toast(`Not enough money: ${it.name} is ${money(it.cost)}`, 2600);
+        const c = e.currentTarget; c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+        return;
+      }
+      sfx('tap'); it.pick();
+    } },
     h('span', { class: 'mk-art' }, iconCanvas(it.icon, 78),
       h('span', { class: 'mk-kind' }, it.kind),
       isNew ? h('span', { class: 'mk-new' }, 'New') : it.have > 0 ? h('span', { class: 'mk-have' }, `Own ${it.have}`) : null),
@@ -392,7 +402,9 @@ async function buyExpansion(e){
   changed(e.xp);
   view.camTarget = { x: e.x + e.w / 2 - 2, y: 7.5, s: view.minS * 1.4 };
   toast(e.id === 'east' ? 'The Second Floor is open: a blank slate to build on! Tap the escalator to go up.'
-    : e.id === 'casino' ? 'The Lucky Star Casino is open on the third floor! Hire dealers under Staff to run the tables.' : `The ${e.name} is open! New storefronts are waiting.`, 4500);
+    : e.id === 'casino' ? 'The Lucky Star Casino is open on the third floor! Hire dealers under Staff to run the tables.'
+    : e.id === 'speakeasy' ? 'The Velvet Rose is open in the basement! Put a clerk behind the bar, and look for bar games under Build.' : `The ${e.name} is open! New storefronts are waiting.`, 4500);
+  if (e.floor === 3){ setFloor(3); view.cam.x = e.x + e.w / 2; }
 }
 
 /* ---------- Picking a storefront for a store ---------- */
@@ -454,6 +466,9 @@ function startPlacement(p){
   // Casino things go on the casino floor: head up there.
   const cas = (p.decor && C.DECOR[p.decor].casino) || (p.store && C.STORES[p.store].casino);
   if (cas && view.floor !== 2 && S.save.expansions.casino && p.x === undefined){ setFloor(2); view.cam.x = C.F3X + 6; }
+  // Speakeasy things go in the basement: head down there.
+  const bar = (p.decor && C.DECOR[p.decor].bar) || (p.store && C.STORES[p.store].bar);
+  if (bar && view.floor !== 3 && S.save.expansions.speakeasy && p.x === undefined){ setFloor(3); view.cam.x = C.F4X + 8; }
   place = { ...p };
   // While it's being moved, the piece leaves its old spot (shown empty) and follows the drag.
   if (p.moveId){ view.hideId = p.moveId; invalidate(); }
@@ -501,6 +516,7 @@ function validate(x, y, face){
     const locked = zones.find(z => S.save.level < z.level);
     if (locked) return { ok: false, reason: `${locked.name} opens at level ${locked.level}`, zones: [] };
     if (place.store && C.STORES[place.store].casino && floorOf(x) !== 2) return { ok: false, reason: 'This goes on the casino floor', zones: [] };
+    if (place.store && C.STORES[place.store].bar && floorOf(x) !== 3) return { ok: false, reason: 'This goes down in the speakeasy', zones: [] };
   }
   const v = validatePlacement(S.save, place.kind, x, y, place.w, place.h, face, place.moveId || 0, zones.map(z => z.id));
   return { ...v, zones };
@@ -523,7 +539,7 @@ function refreshGhost(){
       const def = place.restroom ? C.RESTROOM : C.STORES[place.store];
       // The whole store comes along when it's moved: its floor, furniture and all.
       if (place.moveId){ A.floor(def.floor || 'plain', temp.x, temp.y, temp.w, temp.h, place.moveId * 17); temp.id = place.moveId; }
-      A.unitBack(temp, def, t); if (def.attraction === 'jump' && temp.face !== 'down') A.trampolines(temp, def);
+      A.unitBack(temp, def, t); if (def.attraction && temp.face !== 'down') A.attractionFloor(temp, def);
       if (!place.restroom && !def.attraction) A.storeFurniture(temp, def, t, 'counter');
       if (place.moveId && !def.attraction){ A.storeFurniture(temp, def, t, 'mid'); if (def.icon === 'shirt') A.storeFurniture(temp, def, t, 'teeTable'); }
       if (place.moveId && def.dine) A.dineSpots(temp).tables.forEach((tb, i) => { A.dineTable(temp, i, 'stools'); A.dineTable(temp, i, 'table'); });
@@ -621,7 +637,7 @@ const ROLE_ORDER = ['clerk', 'janitor', 'supervisor', 'guard', 'greeter', 'masco
 const ROLE_WHY = { janitor: 'trash piles up and ratings slip', supervisor: 'staff slack off on their phones', guard: 'troublemakers scare shoppers off', greeter: 'shoppers are less patient', mascot: 'the crowd is smaller', host: 'gamblers are a little less happy' };
 let teamRole = 'all', hireRole = 'all';
 const registers = s => stores(s).filter(u => !C.STORES[u.store].attraction);
-const floorTag = u => ['', '2F', '3F'][floorOf(u.x)] || '';
+const floorTag = u => ['', '2F', '3F', 'B1'][floorOf(u.x)] || '';
 export function staffNeeds(s = S.save){
   const regs = registers(s), clerkAt = new Map(s.staff.filter(m => m.role === 'clerk' && m.storeId).map(m => [m.storeId, m]));
   const unstaffed = regs.filter(u => !clerkAt.has(u.id)), idle = s.staff.filter(m => m.role === 'clerk' && (!m.storeId || !regs.some(u => u.id === m.storeId)));

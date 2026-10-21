@@ -1,7 +1,7 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
-import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks } from './state.js';
-import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor } from './map.js';
+import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks, restoreStorage, takeCarried } from './state.js';
+import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor, openFloors, floorLevel } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
 import { initInput } from './input.js';
@@ -38,9 +38,11 @@ UI.buildHud({
   notebook: () => openNotebook(),
   settings: () => settings(true),
   open: () => openDoors(),
-  floorUp: () => { view.camTarget = null; setFloor(view.floor + 1); },
-  floorDown: () => { view.camTarget = null; setFloor(view.floor - 1); },
+  floorUp: () => { view.camTarget = null; stepFloor(1); },
+  floorDown: () => { view.camTarget = null; stepFloor(-1); },
 });
+// The ▲/▼ buttons step through the open floors in order: the basement, the ground floor, then up.
+function stepFloor(d){ const fl = openFloors(), i = fl.indexOf(view.floor); if (fl[i + d] !== undefined) setFloor(fl[i + d]); }
 setLevelUpHandler(async levels => {
   await UI.showLevelUp(levels);
   if (phase === 'night' && S.save.level >= 3) runDeeScene();
@@ -71,9 +73,11 @@ function boot(){
   // The title is the outside of the mall at dusk; starting walks in through its doors.
   titleScene = startTitleScene(document.getElementById('ui'), { mall: saved && saved.player && saved.player.mall });
   view.covered = true;
-  const enter = go => async () => { await titleScene.enter(); view.covered = false; go(); titleScene.fadeOut(); titleScene = null; };
+  let frameTip = null;
+  const enter = go => async () => { if (frameTip) frameTip.remove(); await titleScene.enter(); view.covered = false; go(); titleScene.fadeOut(); titleScene = null; };
   UI.showTitle({ hasSave: !!saved, onContinue: enter(continueGame), onNew: enter(newGame), onSettings: () => settings(false) });
   UI.iosInstallTip();
+  frameTip = UI.frameSaveTip();
 }
 async function newGame(){
   clearSave();
@@ -279,6 +283,8 @@ async function enterNight(report, gusVisited = false){
   await runExpandScene();
   setNightIntro(false);
   nightTips(report);
+  // Inside itch.io's frame on iPhone the day just saved is gone once Safari closes, so ask again each night.
+  if (report) UI.frameSaveTip(true);
 }
 function openDoors(){
   if (placing()){ UI.toast('Finish or cancel what you’re placing first'); return; }
@@ -303,6 +309,7 @@ function pauseMenu(){
     UI.h('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Your mall saves every night. If you close the app mid-day, today starts over.'),
     UI.h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap' },
       UI.h('button', { class: 'btn', onclick: () => { close(); settings(true, pauseMenu); } }, 'Settings'),
+      UI.h('button', { class: 'btn', onclick: () => UI.showDevOptions() }, 'Dev options'),
       UI.h('button', { class: 'btn primary', onclick: () => { close(); sim.paused = false; } }, 'Resume'))), { onBackdrop: () => { close(); sim.paused = false; } });
   const close = () => { m.close(); pauseOpen = false; };
 }
@@ -317,7 +324,7 @@ function floorsNeedingYou(){
     if ((p.kind === 'customer' && p.state === 'queue' && p.patience / p.patienceMax < 0.35) || (p.kind === 'trouble' && (p.state === 'roam' || p.state === 'act'))) need.add(floorOf(p.x));
   }
   for (const u of S.save.units) if (u.state === 'restroom' && (sim.rooms.get(u.id) || {}).dirt >= 70) need.add(floorOf(u.x));
-  return [[...need].some(f => f > view.floor), [...need].some(f => f < view.floor)];
+  return [[...need].some(f => floorLevel(f) > floorLevel(view.floor)), [...need].some(f => floorLevel(f) < floorLevel(view.floor))];
 }
 
 // The escalator under (x, y), if any: switch to the floor at its other end and look at where it comes out.
@@ -357,7 +364,7 @@ function frame(now){
   if (view.camTarget){
     const c = view.cam, T = view.camTarget, k = Math.min(1, dt * 4);
     // Heading for something on the other floor: switch floors and cut straight there.
-    if (floorOf(T.x) !== view.floor && floorOf(T.x) <= topFloor()){ setFloor(floorOf(T.x)); c.x = T.x; }
+    if (floorOf(T.x) !== view.floor && openFloors().includes(floorOf(T.x))){ setFloor(floorOf(T.x)); c.x = T.x; }
     const px = c.x, py = c.y, ps = c.s;
     c.x += (T.x - c.x) * k; c.y += (T.y - c.y) * k;
     if (T.s) c.s += (T.s - c.s) * k;
@@ -369,9 +376,11 @@ function frame(now){
   if (!view.covered) render(t);
   const p2 = performance.now();
   perf.step = perf.step * 0.95 + (p1 - p0) * 0.05; perf.render = perf.render * 0.95 + (p2 - p1) * 0.05;
-  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? topFloor() : 0, view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }
+  if ((hudT -= dt) <= 0 || phase === 'day'){ hudT = 0.1; if (phase === 'day' || phase === 'night' || phase === 'report'){ UI.updateHud(phase !== 'day'); UI.updateFloorBtn(phase !== 'report' ? openFloors() : [0], view.floor, phase === 'day' ? floorsNeedingYou() : undefined); } }
   requestAnimationFrame(frame);
 }
-document.fonts && document.fonts.ready ? document.fonts.ready.then(() => { invalidate(); boot(); requestAnimationFrame(frame); }) : (boot(), requestAnimationFrame(frame));
+// The save may need putting back from its second copy first (state.js, restoreStorage).
+const ready = Promise.all([document.fonts && document.fonts.ready, restoreStorage()]);
+ready.then(() => { takeCarried(); loadSettings(); applySettings(); invalidate(); boot(); requestAnimationFrame(frame); }, () => { boot(); requestAnimationFrame(frame); });
 // Debug hooks for automated playtests.
 window.__mall = { S, sim, view, perf, ride: rideEscalatorAt, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };

@@ -780,3 +780,41 @@ v0.17.5:
 - **Guards, supervisors and mascots split up between floors.** With two or more of a role and shops on more than one floor, each keeps to their own floor (the ground floor gets the extra one); a lone one still covers the whole mall (`beatFloor` in sim.js).
 
 v0.17.7: the title screen buttons sit higher, clear of the bottom of the screen. On itch.io, going full screen in Chrome on Android shows a "To exit full screen" notice across the bottom middle, right on top of where Continue / New game were.
+
+v0.20.1: the title screen buttons are back at their original spot near the bottom of the screen (the v0.17.7 raise is undone at logan's request).
+
+v0.20.2 polish:
+- **Shop:** tapping something you can't afford in the Mall Market shakes the card and says how much it costs, instead of starting placement.
+- **Eating:** diners' hands and food come up in front of the table at every eatery and the food court (the eating arm is drawn as its own layer after the table: `eatOverlay` in art.js, `drawEatArms` in render.js); the hand rests over the plate between bites.
+- **Carousel:** real carousel horses (arched neck, flowing mane and tail, bridle, fringed saddle, galloping legs, six coats), poles that reach the canopy, a painted deck skirt with chasing bulbs, slower bobbing, and the rider sits in the saddle.
+- **Crafty Corner:** a proper artist's palette icon, a craft table with a drawing, paint pots, pom-poms and a turning pinwheel, a finished landscape on the easel, and bunting along the wall.
+- **Bake My Day:** a three-tier pastry case (croissants, sprinkle donuts, cupcakes, a layer cake), a bread rack, a brick oven with a live fire and steaming loaves, a chalkboard menu with a rolling pin and whisk, a cake under a glass dome on the counter, candy-stripe wallpaper with an awning, and pink harlequin tiles.
+
+
+v0.20.3: **Pizza eating.** Diners at Slice Society (and anyone eating pizza at the food court) hold a real slice by the crust instead of a little pizza icon. It rests tip-out over the plate, swings up tip-first into the mouth, a bite comes off with a string of cheese stretching back as it pulls away, and the slice gets shorter bite by bite (four bites, then a fresh slice). It is drawn from the shared arm rig (`pizzaBites` in art.js), so it fits every shopper's look and kids at their smaller scale. Animation previews: `eat-pizza`, `eat-pizza-2` and `eat-pizza-close` in tools/anim-entry.js.
+
+v0.20.4 (the Velvet Rose):
+- **The basement opens with just the Velvet Rose bar and the restrooms.** The three empty storefronts are gone from the expansion; old saves lose them only if they're still empty (built stores stay), once, behind `flags.speakLots`.
+- **Patrons sit at the bar.** About two in three who buy a drink pull up one of the bar's stools (the dine-in seat system, with `barSeats` in art6.js as the bar's seats), sit with their back to us, and take 11–18 s over it; their glass stands on the bar between sips. Browse spots are all in front of the bar, so nobody wanders behind it.
+- **Drinking:** seated drinkers lift the glass to their lips, tip it back for a swallow (head tilting back, eyes closed), set it down and look pleased; the glass empties as they go (`barDrink` in art.js, `held(kind, x, y, lvl)` in art6.js). From behind, the glass comes up past the ear.
+- **Bartender:** works a loop with everything in his hands: polishing a glass with a towel, shaking a cocktail at his shoulder, walking to the taps to pull a pint that's left on the bar, and back. The shaker on the counter stands still.
+- **Velvet booth:** a channel-tufted horseshoe with a walnut cap, brass nailheads and end posts around a round pedestal table with a fringed lamp; two sit at the back facing out, one on each arm facing in, and they walk in round the table.
+- **Pool:** a player at either end of the table is drawn in front of it, with their cue, never tucked behind the rail.
+
+v0.20.5:
+- **Barrel tables** (beside the bar stools) are real whiskey barrels: bellied staves, four iron hoops, a lid with end-grain boards inside its rim, a bung and the rose brand (`barrelTable` in art6.js).
+- **Shuffleboard:** the table starts a little further in so the shooter stands behind its near end, side on and bent low with a hand on the puck; a couple of practice strokes, a draw back, a step into the push with the arm following through down the table, then they straighten up to watch it stop (`shufPose`/`shufHeld` in art7.js). The shooter is drawn over the table end.
+- **High Roller Suite carpet:** champagne gold with a soft pile, woven with a bronze art-deco lattice, a fan-petal medallion with a garnet in every diamond and cream stars where the lines cross. It's drawn clipped to each floor strip from world coordinates, so it runs seamlessly (`vipcarpet` in art.js).
+
+v0.20.6: **Reset volume.** Settings has a Reset volume button under the three sliders that puts Master, Sound effects and Music back to their starting levels (`VOLUME_DEFAULTS` in state.js: 80/80/70) and saves.
+
+v0.20.7: **Saves on itch.io.** Safari (so every iPhone browser) and Firefox don't keep storage for a game inside another site's frame, which is how itch.io runs HTML games, so an iPhone player's mall was gone after closing Safari.
+- Everything saved (each slot, the active slot, settings) is written to localStorage and copied to IndexedDB. On start, `restoreStorage` (state.js) puts back whatever one of them lost, or an older save (saves carry `savedAt`). If localStorage refuses outright, the session keeps working from memory.
+- Inside a frame on Safari, iOS or Firefox, the title shows "Keep your mall saved" with **Open in a tab**, which opens the game page on its own, where the save sticks and an iPhone can add it to the Home Screen.
+
+v0.20.8: **Open in a tab brings the mall along.** On an iPhone the v0.20.7 IndexedDB copy didn't survive inside itch.io's frame either, and the game in its own tab has separate storage, so opening the tab started from nothing.
+- **Open in a tab** now builds its link on the tap with the save inside it (`#carry=<slot>.<backup code>`, state.js `carryLink`). On start, `takeCarried` puts that save in its slot unless the tab already holds a newer one, and clears the link's hash.
+- If no tab opens, the card switches to **Copy link** (the same link, to paste into the address bar) and **Try again**.
+- The card comes back each night inside the frame, saying the day is only kept until Safari closes.
+
+v0.20.9: **Nobody behind the bar.** The Velvet Rose's long bar stands out in the basement room, and people heading for the games, restrooms and seats up top took the row right behind its back wall, where the wall hid all but their heads, so they looked like they were behind the counter. Stepping onto the row behind any store's back wall now costs extra in the path search (`map.behind`, `BEHIND_COST` in map.js), so walkers go round the front unless decor leaves no other way.

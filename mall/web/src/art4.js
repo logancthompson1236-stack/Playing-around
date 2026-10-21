@@ -247,6 +247,17 @@ export const ICONS2 = ['noodle', 'cotton', 'brush', 'sushi'];
 ICONS.push(...ICONS2);
 const PAINT = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5', '#ff9f1c', '#f15bb5'];
 
+// The outline of a painter's palette, about 1 wide, centred on the origin.
+function paletteShape(){
+  g.beginPath();
+  g.moveTo(0.36, 0.02);
+  g.bezierCurveTo(0.5, -0.2, 0.3, -0.42, 0.0, -0.4);
+  g.bezierCurveTo(-0.36, -0.38, -0.52, -0.12, -0.46, 0.12);
+  g.bezierCurveTo(-0.4, 0.36, -0.1, 0.42, 0.14, 0.36);
+  g.bezierCurveTo(0.3, 0.32, 0.28, 0.22, 0.2, 0.2);
+  g.bezierCurveTo(0.1, 0.18, 0.18, 0.06, 0.36, 0.02);
+  g.closePath();
+}
 export function icon2(name, c){
   if (name === 'noodle'){
     g.beginPath(); g.moveTo(-0.44, -0.04); g.lineTo(0.44, -0.04); g.quadraticCurveTo(0.4, 0.42, 0, 0.44); g.quadraticCurveTo(-0.4, 0.42, -0.44, -0.04); g.closePath(); fs(c('#c1121f'), 0.07);
@@ -260,9 +271,21 @@ export function icon2(name, c){
     for (const [x, y, r] of [[-0.18, -0.12, 0.2], [0.18, -0.12, 0.2], [0, -0.3, 0.24], [-0.06, -0.06, 0.18], [0.12, -0.36, 0.14]]){ circ(x, y, r - 0.03); fs(c('#ffafcc'), 0); }
     circ(0.06, -0.24, 0.12); fs(c('#a2d2ff'), 0); circ(-0.08, -0.32, 0.06); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
   } else if (name === 'brush'){
-    ell(0, 0.08, 0.46, 0.32, -0.2); fs(c('#e9c46a'), 0.07); circ(0.22, 0.22, 0.07); fs(c('#fff8e1'), 0.04);
-    [['#ef476f', -0.24, 0.0], ['#06d6a0', -0.06, -0.1], ['#118ab2', 0.14, -0.06], ['#ffd166', -0.2, 0.2]].forEach(([col, x, y]) => { circ(x, y, 0.08); fs(c(col), 0.03); });
-    g.save(); g.rotate(-0.7); rr(-0.04, -0.62, 0.08, 0.44, 0.03); fs(c('#8a5a44'), 0.04); rr(-0.05, -0.2, 0.1, 0.08, 0.02); fs(c('#c0c6cc'), 0.03); g.beginPath(); g.moveTo(-0.05, -0.12); g.quadraticCurveTo(0, 0.08, 0.05, -0.12); fs(c('#9b5de5'), 0.04); g.restore();
+    // An artist's palette (a rounded wooden board with a thumb hole and a notch), dabs of paint round its edge,
+    // and a brush laid across it.
+    paletteShape(); fs(c('#e0b47a'), 0.07);
+    g.save(); paletteShape(); g.clip(); ell(0.1, 0.24, 0.5, 0.2); g.fillStyle = 'rgba(160,100,50,.22)'; g.fill(); g.restore();
+    circ(0.22, 0.14, 0.075); fs(c('#fffaf3'), 0.05);
+    [['#ef476f', -0.3, 0.04, 0.09], ['#ffd166', -0.18, -0.18, 0.085], ['#06d6a0', 0.04, -0.24, 0.08], ['#118ab2', 0.26, -0.15, 0.075], ['#9b5de5', -0.12, 0.22, 0.08]].forEach(([col, x, y, r]) => {
+      g.beginPath(); for (let k = 0; k <= 8; k++){ const a = k / 8 * Math.PI * 2, rr2 = r * (1 + 0.16 * Math.sin(a * 3 + x * 9)); const px = x + Math.cos(a) * rr2, py = y + Math.sin(a) * rr2 * 0.85; k ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath(); fs(c(col), 0.03);
+      ell(x - r * 0.3, y - r * 0.3, r * 0.28, r * 0.18); g.fillStyle = 'rgba(255,255,255,.55)'; g.fill();
+    });
+    g.save(); g.translate(0.1, 0.06); g.rotate(-0.75);
+    rr(-0.035, -0.62, 0.07, 0.46, 0.035); fs(c('#c0392b'), 0.04);
+    rr(-0.045, -0.18, 0.09, 0.09, 0.015); fs(c('#c0c6cc'), 0.03);
+    g.beginPath(); g.moveTo(-0.045, -0.09); g.quadraticCurveTo(-0.05, 0.04, 0, 0.1); g.quadraticCurveTo(0.05, 0.04, 0.045, -0.09); g.closePath(); fs(c('#3d2b35'), 0.03);
+    g.beginPath(); g.moveTo(-0.025, 0.03); g.quadraticCurveTo(0, 0.13, 0.025, 0.03); g.fillStyle = c('#118ab2'); g.fill();
+    g.restore();
   } else if (name === 'sushi'){
     circ(0, 0, 0.42); fs(c('#1b2d2a'), 0.07);
     circ(0, 0, 0.32); fs(c('#fffaf3'), 0.03);
@@ -319,6 +342,10 @@ export function wallpaper2(ic, x0, y0, w, H){
     // Clean white, splattered with paint.
     g.fillStyle = '#fbf7ff'; g.fillRect(x0, y0, w, H);
     let k = 0; for (let x = x0 + 0.15; x < x0 + w; x += 0.37) for (let y = y0 + 0.12; y < y0 + H; y += 0.33){ k++; circ(x + (k % 3) * 0.05, y + (k % 2) * 0.06, 0.045 + (k % 3) * 0.015); g.fillStyle = PAINT[k % PAINT.length] + '66'; g.fill(); circ(x + 0.07, y - 0.05, 0.015); g.fill(); }
+    // A garland of felt bunting strung across the top.
+    g.strokeStyle = 'rgba(61,43,53,.5)'; g.lineWidth = 0.01; g.beginPath(); g.moveTo(x0, y0 + 0.06);
+    for (let x = x0; x <= x0 + w; x += 0.2) g.lineTo(x, y0 + 0.06 + Math.sin((x - x0) / w * Math.PI) * 0.04); g.stroke();
+    let f = 0; for (let x = x0 + 0.06; x < x0 + w - 0.08; x += 0.2){ const y = y0 + 0.06 + Math.sin((x + 0.07 - x0) / w * Math.PI) * 0.04; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 0.14, y); g.lineTo(x + 0.07, y + 0.12); g.closePath(); g.fillStyle = PAINT[f++ % PAINT.length]; g.fill(); }
   } else if (ic === 'sushi'){
     // Deep indigo with white wave lines.
     g.fillStyle = '#1d3557'; g.fillRect(x0, y0, w, H);
@@ -439,18 +466,51 @@ export function mid2(ic, u, W, H, t){
     g.save(); rr(ex - 0.22, ey - 0.82, 0.44, 0.36, 0.02); g.clip();
     g.fillStyle = '#a2d2ff'; g.fillRect(ex - 0.22, ey - 0.82, 0.44, 0.22); g.fillStyle = '#7bd389'; g.fillRect(ex - 0.22, ey - 0.6, 0.44, 0.14);
     circ(ex + 0.12, ey - 0.72, 0.05); g.fillStyle = '#ffd166'; g.fill();
+    // A tree and a little red house, with a fresh brush stroke of sky still going on.
+    rr(ex - 0.15, ey - 0.62, 0.025, 0.1, 0.005); g.fillStyle = '#8a5a44'; g.fill(); circ(ex - 0.14, ey - 0.66, 0.06); g.fillStyle = '#2a9d8f'; g.fill();
+    g.fillStyle = '#ef476f'; g.fillRect(ex + 0.0, ey - 0.6, 0.1, 0.07); g.beginPath(); g.moveTo(ex - 0.01, ey - 0.6); g.lineTo(ex + 0.05, ey - 0.65); g.lineTo(ex + 0.11, ey - 0.6); g.closePath(); g.fillStyle = '#9d4e6a'; g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 0.02; g.lineCap = 'round'; g.beginPath(); g.moveTo(ex - 0.18, ey - 0.76); g.quadraticCurveTo(ex - 0.08, ey - 0.79, ex, ey - 0.75); g.stroke();
     g.restore();
     rr(ex - 0.22, ey - 0.44, 0.44, 0.04, 0.01); fs('#8a5a44', 0.015);
+    // A palette and brush resting on the ledge.
+    g.save(); g.translate(ex + 0.12, ey - 0.47); g.scale(0.11, 0.11); icon2('brush', c => c); g.restore();
     // The craft table goes by the window when the door faces down; facing up that spot is the doorway, so a basket of
     // yarn sits by the easel instead.
     if (u.face !== 'down'){ const [bx, by] = local(u, 0.82, 2.3); ell(bx, by, 0.16, 0.06); fs('#c98b55', 0.02); rr(bx - 0.16, by - 0.14, 0.32, 0.14, 0.05); fs('#a77d55', 0.02); PAINT.slice(0, 4).forEach((c, i) => { circ(bx - 0.1 + i * 0.065, by - 0.16 - (i % 2) * 0.03, 0.05); fs(c, 0.012); }); return true; }
-    const [tx, ty] = local(u, 0.95, 1.95, 0.8, 0.4);
-    box(tx, ty, 0.8, 0.4, 0.32, '#f3ead8', '#c9b49a');
-    PAINT.slice(0, 3).forEach((c, i) => { circ(tx + 0.18 + i * 0.2, ty - 0.24, 0.06); fs(c, 0.012); });
-    rr(tx + 0.1, ty - 0.18, 0.24, 0.12, 0.01); fs('#fff', 0.01); rr(tx + 0.44, ty - 0.18, 0.24, 0.12, 0.01); fs('#ffe5ec', 0.01);
+    craftTable(...local(u, 0.95, 1.95, 0.8, 0.4), t);
     return true;
   }
   return false;
+}
+
+// A wooden craft table with a project laid out on it: a drawing in progress with crayons, three lidded paint pots,
+// a glue bottle, pom-poms and a little pinwheel that turns.
+function craftTable(tx, ty, t){
+  shadow(tx + 0.4, ty + 0.4, 0.44, 0.08);
+  for (const lx of [0.06, 0.7]){ rr(tx + lx, ty - 0.02, 0.05, 0.42, 0.015); fs('#8a5a44', 0.015); }
+  rr(tx - 0.02, ty - 0.12, 0.84, 0.16, 0.03); fs('#c98b55', 0.025);                 // tabletop edge
+  rr(tx - 0.02, ty - 0.22, 0.84, 0.14, 0.03); fs('#e2b07a', 0.025);                 // tabletop
+  // The drawing: a sun and a house on a sheet of paper, with crayons beside it.
+  rr(tx + 0.04, ty - 0.21, 0.3, 0.12, 0.008); fs('#fffaf3', 0.01);
+  circ(tx + 0.09, ty - 0.18, 0.018); g.fillStyle = '#ffd166'; g.fill();
+  g.beginPath(); g.moveTo(tx + 0.18, ty - 0.12); g.lineTo(tx + 0.18, ty - 0.16); g.lineTo(tx + 0.22, ty - 0.19); g.lineTo(tx + 0.26, ty - 0.16); g.lineTo(tx + 0.26, ty - 0.12); g.closePath(); g.strokeStyle = '#ef476f'; g.lineWidth = 0.01; g.stroke();
+  g.strokeStyle = '#06d6a0'; g.lineWidth = 0.008; g.beginPath(); g.moveTo(tx + 0.05, ty - 0.11); g.quadraticCurveTo(tx + 0.17, ty - 0.13, tx + 0.33, ty - 0.11); g.stroke();
+  ['#118ab2', '#9b5de5'].forEach((c, i) => { g.save(); g.translate(tx + 0.37 + i * 0.03, ty - 0.14); g.rotate(0.4 + i * 0.3); rr(-0.008, -0.05, 0.016, 0.1, 0.006); fs(c, 0.006); g.restore(); });
+  // Paint pots with lids propped against them.
+  PAINT.slice(0, 3).forEach((c, i) => {
+    const px = tx + 0.48 + i * 0.1, py = ty - 0.16;
+    rr(px - 0.035, py - 0.06, 0.07, 0.07, 0.015); fs('#eef1f4', 0.012);
+    ell(px, py - 0.06, 0.035, 0.014); fs(c, 0.01);
+  });
+  // Glue bottle and pom-poms.
+  rr(tx + 0.76, ty - 0.29, 0.04, 0.12, 0.012); fs('#fffaf3', 0.01); rr(tx + 0.77, ty - 0.33, 0.02, 0.04, 0.006); fs('#ff9f1c', 0.008);
+  [['#f15bb5', 0.42, -0.13], ['#ffd166', 0.46, -0.11], ['#06d6a0', 0.5, -0.135]].forEach(([c, dx, dy]) => { circ(tx + dx + 0.24, ty + dy, 0.018); fs(c, 0.006); });
+  // The pinwheel, on a stick in a cup, turning slowly.
+  const wx = tx + 0.04, wy = ty - 0.42;
+  rr(tx + 0.0, ty - 0.24, 0.06, 0.07, 0.015); fs('#a2d2ff', 0.01);
+  g.strokeStyle = '#8a5a44'; g.lineWidth = 0.01; g.beginPath(); g.moveTo(tx + 0.03, ty - 0.22); g.lineTo(wx, wy); g.stroke();
+  for (let k = 0; k < 4; k++){ const a = t * 1.6 + k * Math.PI / 2; g.beginPath(); g.moveTo(wx, wy); g.lineTo(wx + Math.cos(a) * 0.08, wy + Math.sin(a) * 0.08); g.lineTo(wx + Math.cos(a + 0.7) * 0.06, wy + Math.sin(a + 0.7) * 0.06); g.closePath(); fs(PAINT[k], 0.008); }
+  circ(wx, wy, 0.012); fs('#fffaf3', 0.006);
 }
 
 /* ---------- Decor: the food court ---------- */
@@ -525,9 +585,14 @@ export function carousel(d, t, live, person){
   const phase = live && run > 0 && run < 1 ? (run * run * (3 - 2 * run)) * Math.PI * 4 : 0;
   const going = live && run > 0 && run < 1;
   const rider = going && live.rider ? live.rider : null;
-  shadow(cx, cy + 0.1, 1.45, 0.5, 0.18);
-  // The platform.
-  ell(cx, cy + 0.08, 1.38, 0.72); fs('#b5838d', 0.045);
+  shadow(cx, cy + 0.2, 1.5, 0.55, 0.18);
+  // The platform: a round deck with a painted skirt (gold trim and a row of bulbs) around its edge.
+  const sk = 0.16;
+  ell(cx, cy + sk, 1.38, 0.72); fs('#9d4e6a', 0.045);
+  g.fillStyle = '#9d4e6a'; g.fillRect(cx - 1.38, cy, 2.76, sk);
+  g.beginPath(); g.moveTo(cx - 1.38, cy); g.lineTo(cx - 1.38, cy + sk); g.moveTo(cx + 1.38, cy); g.lineTo(cx + 1.38, cy + sk); g.strokeStyle = OUT; g.lineWidth = 0.045; g.stroke();
+  g.save(); g.beginPath(); g.ellipse(cx, cy + sk * 0.55, 1.38, 0.72, 0, 0, Math.PI); g.strokeStyle = '#f2c14e'; g.lineWidth = 0.035; g.stroke(); g.restore();
+  for (let b = 0; b < 13; b++){ const a = Math.PI * (0.06 + b * 0.88 / 12), lit = !going || (b + Math.floor(t * 6)) % 2 === 0; circ(cx + Math.cos(a) * 1.38, cy + sk * 0.55 + Math.sin(a) * 0.72, 0.03); fs(lit ? '#fff2a8' : '#c9a227', 0.01); }
   ell(cx, cy, 1.38, 0.72); fs('#ffe5d9', 0.045);
   g.save(); ell(cx, cy, 1.38, 0.72); g.clip();
   for (let a = 0; a < 12; a++){ const a0 = a * Math.PI / 6 + phase; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, 2, a0, a0 + Math.PI / 12); g.closePath(); g.fillStyle = 'rgba(255,175,204,.35)'; g.fill(); }
@@ -535,14 +600,19 @@ export function carousel(d, t, live, person){
   ell(cx, cy, 1.38, 0.72); fs(null, 0.045);
   // Horses, back half first.
   const horses = [];
-  for (let i = 0; i < 6; i++){ const a = Math.PI / 2 + phase + i * Math.PI / 3; horses.push({ i, a, hx: cx + Math.cos(a) * 1.0, hy: cy + Math.sin(a) * 0.5, z: 0.42 + (going ? Math.sin(t * 4 + i * 1.7) * 0.09 : 0) }); }
+  for (let i = 0; i < 6; i++){ const a = Math.PI / 2 + phase + i * Math.PI / 3; horses.push({ i, a, hx: cx + Math.cos(a) * 0.98, hy: cy + Math.sin(a) * 0.48, z: 0.5 + (going ? Math.sin(t * 2.6 + i * 1.7) * 0.1 : 0) }); }
   horses.sort((p, q) => p.hy - q.hy);
-  const pole = h => { rr(h.hx - 0.02, cy - 1.75 + (h.hy - cy), 0.04, 1.75, 0.01); fs('#f2c14e', 0.015); };
+  // Each pole runs from the deck up to the canopy's rim (further round the back, higher up the screen).
+  const rimY = h => cy - 1.82 + Math.sin(h.a) * 0.15 + 0.1;
+  const pole = h => { const top = rimY(h); rr(h.hx - 0.022, top, 0.044, h.hy - top, 0.012); fs('#f2c14e', 0.015); g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(h.hx - 0.01, top + 0.05, 0.01, h.hy - top - 0.1); };
   const drawHorse = h => {
     pole(h);
     const dir = -Math.sin(h.a) > 0 ? 1 : -1;       // which way it's travelling across the screen
-    horse(h.hx, h.hy - h.z, dir, ['#fffaf3', '#a2d2ff', '#ffd6a5', '#cdb4db', '#fffaf3', '#b9fbc0'][h.i]);
-    if (rider && h.i === 0) person(h.hx - dir * 0.02, h.hy - h.z - 0.02, { ...rider, t, s: 0.6, sit: true, sitSide: true, flip: dir < 0, play: Math.sin(t * 2.5) > 0.3, mood: 'happy', noShadow: true });
+    // Further back is a touch smaller.
+    const sc = 1.25 + (h.hy - cy) * 0.18;
+    horse(h.hx, h.hy - h.z, dir, h.i, sc);
+    // The rider sits in the saddle, legs astride, hands on the pole.
+    if (rider && h.i === 0) person(h.hx - dir * 0.01 * sc, h.hy - h.z + 0.01 * sc, { ...rider, t, s: 0.58, sit: true, sitSide: true, flip: dir < 0, play: Math.sin(t * 2.5) > 0.3, mood: 'happy', noShadow: true });
   };
   for (const h of horses) if (h.hy < cy) drawHorse(h);
   // The center column, mirrored and lit.
@@ -559,16 +629,67 @@ export function carousel(d, t, live, person){
   rr(cx - 0.015, ty - 0.92, 0.03, 0.32, 0.01); fs('#3d405b', 0.012);
   g.beginPath(); g.moveTo(cx + 0.015, ty - 0.92); g.lineTo(cx + 0.22, ty - 0.86 + Math.sin(t * 4) * 0.02); g.lineTo(cx + 0.015, ty - 0.8); g.closePath(); fs('#2ec4b6', 0.015);
 }
-// A carousel horse in profile, facing dir (1 right, -1 left), its saddle at (x, y).
-function horse(x, y, dir, col){
-  g.save(); g.translate(x, y); g.scale(dir, 1);
-  for (const [lx, a] of [[-0.14, 0.5], [-0.08, -0.3], [0.1, -0.5], [0.16, 0.4]]){ g.save(); g.translate(lx, 0.06); g.rotate(a); rr(-0.022, 0, 0.044, 0.18, 0.02); fs(col, 0.018); g.restore(); }
-  ell(0, 0.02, 0.22, 0.1); fs(col, 0.025);
-  g.beginPath(); g.moveTo(0.12, -0.02); g.lineTo(0.22, -0.2); g.lineTo(0.3, -0.22); g.lineTo(0.32, -0.15); g.lineTo(0.2, 0.02); g.closePath(); fs(col, 0.022);
-  g.beginPath(); g.moveTo(0.14, -0.06); g.quadraticCurveTo(0.16, -0.22, 0.24, -0.24); g.strokeStyle = '#e63946'; g.lineWidth = 0.035; g.stroke();
-  circ(0.27, -0.18, 0.012); fs(OUT, 0);
-  g.beginPath(); g.moveTo(-0.2, -0.02); g.quadraticCurveTo(-0.32, 0.02, -0.3, 0.14); g.strokeStyle = '#f2c14e'; g.lineWidth = 0.035; g.stroke();
-  rr(-0.08, -0.08, 0.16, 0.06, 0.02); fs('#e63946', 0.015);
+// A carousel horse in profile, facing dir (1 right, -1 left), its saddle at (x, y): mid-gallop, front legs tucked
+// up and back legs stretched out, an arched neck with a flowing mane, a long tail, a bridle and a fancy saddle.
+const HORSE_COATS = [['#fffaf3', '#f2c14e'], ['#a2d2ff', '#fffaf3'], ['#ffd6a5', '#8a5a44'], ['#cdb4db', '#fff1f8'], ['#6b4f3f', '#2b2230'], ['#b9fbc0', '#ff8fab']];
+function horse(x, y, dir, i, s = 1){
+  const [coat, mane] = HORSE_COATS[i % HORSE_COATS.length], dark = shade(coat, -0.22), gold = '#f2c14e';
+  g.save(); g.translate(x, y); g.scale(dir * s, s);
+  const leg = (hx, hy, a1, a2, far) => {
+    // Upper leg from the hip/shoulder, then the lower leg bent at the knee, ending in a gold hoof.
+    const c = far ? dark : coat, L1 = 0.13, L2 = 0.12;
+    g.save(); g.translate(hx, hy); g.rotate(a1);
+    rr(-0.032, -0.01, 0.064, L1 + 0.02, 0.03); fs(c, 0.018);
+    g.translate(0, L1); g.rotate(a2 - a1);
+    rr(-0.024, -0.01, 0.048, L2 + 0.01, 0.022); fs(c, 0.016);
+    rr(-0.03, L2 - 0.01, 0.06, 0.04, 0.015); fs(gold, 0.014);
+    g.restore();
+  };
+  // Far legs first, a shade darker.
+  leg(0.13, 0.07, -1.2, 0.15, true); leg(-0.14, 0.08, 0.75, 0.25, true);
+  // The tail: a few wavy strands streaming back.
+  g.lineCap = 'round';
+  for (const [w, c, dy] of [[0.07, OUT, 0], [0.05, mane, 0], [0.02, shade(mane, 0.25), -0.01]]){
+    g.beginPath(); g.moveTo(-0.2, -0.01 + dy); g.bezierCurveTo(-0.32, -0.04 + dy, -0.3, 0.12 + dy, -0.4, 0.16 + dy); g.strokeStyle = c; g.lineWidth = w; g.stroke();
+  }
+  // Body: barrel, chest and rump.
+  ell(0, 0.05, 0.22, 0.105); fs(coat, 0.026);
+  ell(0.15, 0.03, 0.09, 0.09); fs(coat, 0);
+  ell(-0.15, 0.03, 0.09, 0.09); fs(coat, 0);
+  // Neck: a thick arched column up from the chest to the head.
+  g.beginPath(); g.moveTo(0.1, -0.02); g.quadraticCurveTo(0.12, -0.2, 0.22, -0.3); g.lineTo(0.31, -0.25); g.quadraticCurveTo(0.24, -0.12, 0.25, 0.04); g.closePath(); fs(coat, 0.024);
+  // Head: tapering down to a soft muzzle, with ears up top.
+  g.save(); g.translate(0.27, -0.3); g.rotate(0.75);
+  g.beginPath(); g.moveTo(-0.06, -0.05); g.quadraticCurveTo(0.08, -0.07, 0.17, -0.035); g.quadraticCurveTo(0.21, 0, 0.17, 0.04); g.quadraticCurveTo(0.08, 0.06, -0.06, 0.05); g.closePath(); fs(coat, 0.024);
+  ell(0.17, 0.003, 0.04, 0.038); fs(shade(coat, -0.08), 0);
+  circ(0.185, -0.012, 0.009); fs(OUT, 0);                         // nostril
+  g.restore();
+  for (const ex of [-0.012, 0.03]){ g.beginPath(); g.moveTo(0.2 + ex, -0.33); g.lineTo(0.215 + ex, -0.41); g.lineTo(0.245 + ex, -0.34); g.closePath(); fs(ex < 0 ? dark : coat, 0.016); }
+  circ(0.285, -0.28, 0.016); fs(OUT, 0); circ(0.29, -0.286, 0.005); fs('#fff', 0);   // eye
+  // Mane: a flowing, wavy crest down the back of the neck, and a forelock between the ears.
+  g.beginPath(); g.moveTo(0.24, -0.36); g.quadraticCurveTo(0.14, -0.26, 0.11, -0.02);
+  const crest = [[0.06, -0.06], [0.07, -0.13], [0.08, -0.2], [0.12, -0.27], [0.17, -0.33], [0.24, -0.36]];
+  let px = 0.11, py = -0.02;
+  for (const [qx, qy] of crest){ g.quadraticCurveTo((px + qx) / 2 - 0.04, (py + qy) / 2 + 0.01, qx, qy); px = qx; py = qy; }
+  g.closePath(); fs(mane, 0.02);
+  g.strokeStyle = shade(mane, -0.18); g.lineWidth = 0.008; g.beginPath(); for (const [qx, qy] of crest.slice(0, 5)){ g.moveTo(qx + 0.02, qy); g.quadraticCurveTo(qx + 0.05, qy - 0.02, qx + 0.07, qy + 0.01); } g.stroke();
+  ell(0.255, -0.37, 0.03, 0.02); fs(mane, 0.014);
+  // Bridle and reins up to the pole.
+  g.strokeStyle = '#e63946'; g.lineWidth = 0.018;
+  g.beginPath(); g.moveTo(0.25, -0.33); g.lineTo(0.33, -0.17); g.moveTo(0.28, -0.2); g.lineTo(0.36, -0.22); g.stroke();
+  g.beginPath(); g.moveTo(0.34, -0.18); g.quadraticCurveTo(0.2, -0.12, 0.05, -0.06); g.strokeStyle = gold; g.lineWidth = 0.012; g.stroke();
+  // Near legs.
+  leg(0.16, 0.07, -0.9, 0.55, false); leg(-0.12, 0.09, 0.55, 0.05, false);
+  // Saddle: a blanket draped over the back with gold fringe, a curved seat with a horn up front, and a stirrup.
+  g.beginPath(); g.moveTo(-0.1, -0.045); g.quadraticCurveTo(-0.01, -0.06, 0.08, -0.045); g.lineTo(0.075, 0.05); g.quadraticCurveTo(-0.01, 0.075, -0.095, 0.05); g.closePath(); fs('#e63946', 0.016);
+  g.beginPath(); g.moveTo(0.075, 0.045); g.quadraticCurveTo(-0.01, 0.07, -0.095, 0.045); g.strokeStyle = gold; g.lineWidth = 0.014; g.stroke();
+  for (let k = 0; k < 6; k++){ const fx = -0.085 + k * 0.03; g.beginPath(); g.moveTo(fx, 0.055 + Math.sin(k) * 0.004); g.lineTo(fx, 0.075); g.stroke(); }
+  g.beginPath(); g.moveTo(-0.09, -0.1); g.quadraticCurveTo(-0.08, -0.05, -0.01, -0.05); g.quadraticCurveTo(0.05, -0.05, 0.06, -0.09); g.lineTo(0.08, -0.1); g.lineTo(0.075, -0.04); g.quadraticCurveTo(-0.01, -0.025, -0.095, -0.04); g.closePath(); fs('#8a2a35', 0.016);
+  circ(0.075, -0.11, 0.015); fs(gold, 0.01);
+  g.beginPath(); g.moveTo(-0.01, -0.03); g.lineTo(-0.01, 0.11); g.strokeStyle = '#8a5a44'; g.lineWidth = 0.012; g.stroke();
+  rr(-0.035, 0.1, 0.05, 0.022, 0.01); fs(gold, 0.012);
+  // A painted flower on the rump.
+  circ(-0.16, 0.04, 0.022); fs('#ff8fab', 0.01); circ(-0.16, 0.04, 0.008); fs(gold, 0);
   g.restore();
 }
 

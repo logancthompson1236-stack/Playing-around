@@ -5,6 +5,8 @@ const GOLDEN = '#f2c14e';
 import * as A2 from './art2.js';
 import * as A3 from './art3.js';
 import * as A4 from './art4.js';
+import * as A5 from './art5.js';
+import * as A6 from './art6.js';
 // Older WebViews and Safari before 16 lack roundRect.
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect){
   CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r){
@@ -228,11 +230,46 @@ export function floor(kind, x, y, w, h, seed){
     }
   }
   else if (kind === 'vipcarpet'){
-    g.fillStyle = '#c99a2e'; g.fillRect(x, y, w, h);
-    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){
-      g.fillStyle = 'rgba(40,20,10,.75)'; g.beginPath(); g.moveTo(i + 0.5, j + 0.2); g.lineTo(i + 0.8, j + 0.5); g.lineTo(i + 0.5, j + 0.8); g.lineTo(i + 0.2, j + 0.5); g.closePath(); g.fill();
-      circ(i + 0.5, j + 0.5, 0.06); g.fillStyle = '#ffe9a8'; g.fill();
+    // The High Roller Suite: a plush champagne-gold carpet woven with an art-deco lattice. Bronze diamonds two tiles
+    // across, each holding a medallion (a ring of fan petals round a garnet), cream four-point stars where the
+    // diamonds meet, and a soft pile that catches the light. Drawn clipped to this strip so the pattern runs on
+    // seamlessly across strips and tiles.
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.fillStyle = '#cfa24a'; g.fillRect(x, y, w, h);
+    const i0 = Math.floor(x) - 1, i1 = Math.ceil(x + w) + 1, j0 = Math.floor(y) - 1, j1 = Math.ceil(y + h) + 1;
+    // Pile: faint stripes of lighter and darker nap.
+    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++){ const v = hash(i, j, 77); g.fillStyle = v < 0.5 ? `rgba(255,236,180,${0.02 + v * 0.04})` : `rgba(120,80,20,${(v - 0.5) * 0.05})`; g.fillRect(i, j, 1, 1); }
+    // The lattice.
+    g.strokeStyle = 'rgba(110,66,18,.55)'; g.lineWidth = 0.05; g.beginPath();
+    // Lines x - y = c and x + y = c for every even c, so every strip lines up with the next.
+    for (let c = 2 * Math.floor((i0 - j1) / 2); c <= i1 - j0; c += 2){ g.moveTo(j0 + c, j0); g.lineTo(j1 + c, j1); }
+    for (let c = 2 * Math.floor((i0 + j0) / 2); c <= i1 + j1; c += 2){ g.moveTo(c - j0, j0); g.lineTo(c - j1, j1); }
+    g.stroke();
+    g.strokeStyle = 'rgba(255,240,200,.35)'; g.lineWidth = 0.015; g.stroke();
+    // Medallions in each diamond (on odd-sum tile corners), stars where the lattice lines cross (even-sum).
+    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++){
+      if (((i + j) % 2 + 2) % 2 === 1){
+        const cx = i, cy = j;
+        circ(cx, cy, 0.34); g.fillStyle = 'rgba(150,96,30,.22)'; g.fill();
+        g.strokeStyle = 'rgba(110,66,18,.6)'; g.lineWidth = 0.03; g.stroke();
+        circ(cx, cy, 0.28); g.strokeStyle = 'rgba(255,236,190,.55)'; g.lineWidth = 0.014; g.stroke();
+        for (let k = 0; k < 8; k++){
+          const a = k * Math.PI / 4;
+          g.save(); g.translate(cx, cy); g.rotate(a);
+          g.beginPath(); g.moveTo(0, -0.07); g.quadraticCurveTo(0.075, -0.17, 0, -0.24); g.quadraticCurveTo(-0.075, -0.17, 0, -0.07); g.fillStyle = k % 2 ? 'rgba(255,238,196,.75)' : 'rgba(132,80,22,.6)'; g.fill();
+          g.restore();
+        }
+        circ(cx, cy, 0.07); g.fillStyle = '#7a1f2b'; g.fill(); circ(cx - 0.02, cy - 0.02, 0.022); g.fillStyle = 'rgba(255,200,200,.6)'; g.fill();
+      } else {
+        const cx = i, cy = j;
+        g.fillStyle = 'rgba(255,244,214,.8)'; g.beginPath();
+        for (let k = 0; k < 8; k++){ const a = k * Math.PI / 4, r = k % 2 ? 0.035 : 0.13; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+        g.closePath(); g.fill();
+      }
+      // Little bronze dots halfway along each lattice line.
+      circ(i + 0.5, j + 0.5, 0.03); g.fillStyle = 'rgba(110,66,18,.6)'; g.fill();
     }
+    g.restore();
   }
   else if (kind === 'play'){ checker(1, '#e8f4ff', '#fff4d6'); grid(1, 'rgba(90,141,238,.18)', 0.025); for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){ const v = hash(i, j, 9); if (v < 0.3){ circ(i + 0.5, j + 0.5, 0.08); g.fillStyle = ['rgba(239,71,111,.35)', 'rgba(255,210,63,.45)', 'rgba(6,214,160,.35)'][Math.floor(v * 10) % 3]; g.fill(); } } }
   else if (kind === 'blush'){ checker(0.5, '#fff0f6', '#fbe3ef'); grid(1, 'rgba(199,125,255,.18)', 0.02); }
@@ -250,6 +287,15 @@ export function floor(kind, x, y, w, h, seed){
   else if (kind === 'wood2'){ planks('#c49a6c', '#b98d5f', 'rgba(70,40,20,.25)'); }
   else if (kind === 'grass'){ checker(0.5, '#d5f0d0', '#c2e8bb'); grid(0.5, 'rgba(40,120,60,.12)', 0.02); }
   else if (kind === 'cafe'){ checker(0.5, '#f2e3cf', '#c99f7a'); grid(0.5, 'rgba(80,50,30,.15)', 0.02); }
+  else if (kind === 'bakery'){
+    // Cream and strawberry-pink harlequin tiles with a thin gold line.
+    g.fillStyle = '#fff4e6'; g.fillRect(x, y, w, h);
+    for (let i = Math.floor(x * 2) / 2; i < x + w; i += 0.5) for (let j = Math.floor(y * 2) / 2; j < y + h; j += 0.5){
+      if (((i + j) * 2) % 2 === 0) continue;
+      g.beginPath(); g.moveTo(i + 0.25, j); g.lineTo(i + 0.5, j + 0.25); g.lineTo(i + 0.25, j + 0.5); g.lineTo(i, j + 0.25); g.closePath(); g.fillStyle = '#f9cfd8'; g.fill();
+    }
+    grid(0.5, 'rgba(201,162,39,.18)', 0.012);
+  }
   else if (kind === 'plain'){ checker(1, '#efe8f5', '#e7def0'); grid(1, 'rgba(90,70,110,.15)', 0.025); }
   else if (kind === 'sidewalk'){ g.fillStyle = '#d6d0c6'; g.fillRect(x, y, w, h); grid(1, 'rgba(80,70,60,.2)', 0.03); }
   else if (kind === 'asphalt'){
@@ -277,6 +323,7 @@ export function floor(kind, x, y, w, h, seed){
       g.fillStyle = kind === 'dark' ? 'rgba(160,150,140,.5)' : 'rgba(240,235,220,.8)'; g.fillRect(-0.07, -0.05, 0.14, 0.1); g.restore();
     }
   }
+  else if (!A6.floor(kind, x, y, w, h)) A5.floor(kind, x, y, w, h);
   g.restore();
 }
 
@@ -373,6 +420,8 @@ export function storeIcon(icon, x, y, s, mono = null){
     case 'cupcake': A2.cupcakeIcon(c); break;
     case 'comic': A2.comicIcon(c); break;
     case 'lemon': case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'cotton': case 'brush': case 'sushi': A4.icon(icon, c); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': case 'smoothie': case 'bowling': case 'golf': A5.icon(icon, c); break;
+    case 'bar': A6.icon(icon, c); break;
     case 'pizza': A2.pizzaIcon(c); break;
     case 'dollar': text('$', 0, 0.02, 1.25, c('#2f9e6a'), 700); break;
     case 'candy':
@@ -550,7 +599,12 @@ function profileHead(o){
   else { ell(0.13, -0.865, 0.032, 0.045); fs(OUT, 0); circ(0.142, -0.88, 0.011); fs('#fff', 0); }
   ell(0.13, -0.79, 0.05, 0.028); g.fillStyle = 'rgba(255,110,140,.4)'; g.fill();
   g.beginPath(); g.moveTo(0.262, -0.87); g.quadraticCurveTo(0.31, -0.83, 0.262, -0.805); g.strokeStyle = OUT; g.lineWidth = 0.025; g.stroke();
-  g.beginPath(); if (o.mood === 'wait' || o.mood === 'mad'){ g.moveTo(0.17, -0.785); g.lineTo(0.22, -0.785); } else g.arc(0.2, -0.8, 0.03, 0.4, Math.PI - 0.8); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke();
+  if (o.chew !== undefined){
+    // Chewing: the cheek puffs out and the mouth works open and shut.
+    ell(0.15, -0.79, 0.065, 0.045); g.fillStyle = 'rgba(255,110,140,.3)'; g.fill();
+    if (o.chew){ ell(0.205, -0.795, 0.022, 0.018); fs(OUT, 0); }
+    else { g.beginPath(); g.moveTo(0.18, -0.795); g.lineTo(0.225, -0.79); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke(); }
+  } else { g.beginPath(); if (o.mood === 'wait' || o.mood === 'mad'){ g.moveTo(0.17, -0.785); g.lineTo(0.22, -0.785); } else g.arc(0.2, -0.8, 0.03, 0.4, Math.PI - 0.8); g.strokeStyle = OUT; g.lineWidth = 0.025; g.lineCap = 'round'; g.stroke(); }
   if (o.glasses){ circ(0.13, -0.865, 0.07); fs(null, 0.025); }
 }
 function face(o){
@@ -578,13 +632,19 @@ export function person(x, y, o){
   g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s);
   if (o.mop !== undefined){ ell(0.5, 0.04, 0.32, 0.1); g.fillStyle = 'rgba(150,210,240,.45)'; g.fill(); }
   if (!o.noShadow) shadow(0, 0, 0.24, 0.085, 0.22);
-  const ph = t * 9, sw = walking ? Math.sin(ph) : 0, sit = !!o.sit;
-  // Walking bobs twice a stride; standing still, folks breathe and now and then blink.
-  const bob = walking ? Math.abs(Math.sin(ph)) * 0.04 : 0, breathe = walking ? 0 : Math.sin(t * 2.2) * 0.01;
+  // Walking: steps keep pace with the ground covered (o.stride, in tiles) so feet don't skate, and kids take more of
+  // them. A full stride (two steps) is about 0.85 tiles, 1.2 at a run. o.side is how sideways they're heading (0 =
+  // toward or away from us, 1 = across): across, the legs and arms swing fore and aft; toward us, the feet lift.
+  const run = walking && !!o.run, side = walking ? Math.min(1, o.side ?? (o.back ? 0 : 1)) : 0, sit = !!o.sit;
+  const ph = o.stride !== undefined ? o.stride / s * (run ? 5.2 : 7.4) : t * 9, sw = walking ? Math.sin(ph) : 0;
+  // Highest when passing (one foot up), lowest as the heel lands; breathing and the odd blink when standing still.
+  const bob = walking ? Math.abs(Math.cos(ph)) * (run ? 0.07 : 0.04) : 0, breathe = walking ? 0 : Math.sin(t * 2.2) * 0.01;
   o = { ...o, blink: !walking && (t % 3.7) < 0.13 };
   // Side-on seats and machines show the person in profile.
   const profile = !o.back && (o.sitSide || o.reachSide);
   if (o.eat && !profile) o = { ...o, hold: o.eat, eat: undefined };
+  // Crouching down (to fish a can out of a machine's tray, say): knees bend, the body drops and leans in.
+  const crouch = o.crouch || 0, drop = crouch * 0.13, lean = (run ? 0.09 : walking ? 0.03 * side : 0) + crouch * 0.38;
   if (sit){
     // Seated: knees toward us, shins hanging over the seat edge, feet swinging a little.
     const swing = Math.sin(t * 2.4) * 0.025;
@@ -602,15 +662,22 @@ export function person(x, y, o){
     }
     g.translate(0, 0.1);
   } else {
-    // Each leg lifts and swings a touch forward in turn; the lifted one is a little shorter (knee bent).
+    // Each leg swings from the hip: forward with the foot up, back with it planted. Across the screen that's a
+    // stride; toward us it's mostly the foot lifting (and landing a touch nearer, or farther when seen from behind).
     for (const [lx, k] of [[-0.13, 1], [0.02, -1]]){
-      const lift = Math.max(0, sw * k) * 0.07, fwd = walking ? sw * k * 0.025 : 0;
-      rr(lx + fwd, -0.27 - lift * 0.4, 0.11, 0.24 - lift * 0.6, 0.05); fs(o.pants);
-      ell(lx + 0.055 + fwd, -0.035 - lift, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+      const fwd = walking ? Math.sin(ph) * k : 0, lift = walking ? Math.max(0, Math.cos(ph) * k) : 0;
+      const len = 0.235 - lift * (run ? 0.07 : 0.045) - crouch * 0.09, a = -fwd * side * (run ? 0.55 : 0.36) - crouch * 0.5;
+      const near = fwd * (1 - side) * (o.back ? -0.025 : 0.025);
+      g.save(); g.translate(lx + 0.055 + crouch * 0.04, -0.27 + drop + near - lift * (1 - side) * 0.03); g.rotate(a);
+      rr(-0.055, 0, 0.11, len + 0.035, 0.05); fs(o.pants);
+      ell(0.012 * side, len, 0.075, 0.04); fs(o.shoe || '#4a3a44', 0.03);
+      g.restore();
     }
   }
-  g.translate(0, -bob);
-  if (walking) g.rotate(sw * 0.03);
+  // The body hangs from the hips, so a lean or a crouch tips it over the legs.
+  g.translate(0, -0.27 - bob + drop); g.rotate(lean + (walking ? sw * 0.03 * (1 - side) : 0)); g.translate(0, 0.27);
+  // Where a point at the feet's frame (x, y) lands in the body's, for reaching to a spot on a machine.
+  const toBody = (x, y) => { const c = Math.cos(lean), sn = Math.sin(lean), dx = x, dy = y + 0.27 + bob - drop; return [dx * c + dy * sn, -dx * sn + dy * c - 0.27]; };
   if (o.back && o.hood){ circ(0, -0.88, 0.31); fs(o.shirt); }
   if (o.hairStyle === 'long' && !o.back){ if (profile){ rr(-0.32, -1.02, 0.36, 0.62, 0.18); fs(o.hair); } else { rr(-0.3, -1.05, 0.6, 0.6, 0.26); fs(o.hair); } }
   if (profile){ rr(-0.15, -0.63 - breathe, 0.3, 0.43 + breathe, 0.12); fs(o.shirt); }
@@ -646,15 +713,32 @@ export function person(x, y, o){
     g.restore();
   }
   // Sipping: every few seconds a drink (or a cone) comes up to the mouth.
-  const sipping = (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail') && !o.back && !walking && (t % 3.2) < 0.8;
+  const hand = [0.235, -0.31];   // the right hand, where a held item goes
+  // Sat down with a drink from the speakeasy: a slower, proper sip (see barDrink), and the glass empties as they go.
+  const barSip = sit && BAR_DRINKS.has(o.hold), bk = barSip ? barSipK(t, o.seed || 0) : null;
+  const sipping = !barSip && (o.hold === 'can' || o.hold === 'coffee' || o.hold === 'cone' || o.hold === 'burger' || o.hold === 'hotdog' || o.hold === 'pizza' || o.hold === 'boba' || o.hold === 'cupcake' || o.hold === 'cocktail' || o.hold === 'smoothie' || o.hold === 'beer' || o.hold === 'whiskey' || o.hold === 'martini') && !o.back && !walking && sipK(t) > 0;
+  const sipU = sipping ? sipK(t) : 0;
   if (profile){
     // One arm shows: reaching out to the machine, or resting forward in the lap.
-    if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
+    // Reaching for a spot on a machine (o.reachTo, from the feet), maybe with something in hand (o.reachHold).
+    if (o.cheer) raisedArm(o, 0.04, 0.16, -1.0);
+    else if (o.reachTo){ const [hx, hy] = toBody(o.reachTo[0], o.reachTo[1]); raisedArm(o, 0.04, hx, hy, 0.46); if (o.reachHold) heldItem(o.reachHold, hx + 0.01, hy + 0.06, o.bagColor, o.prize); }
+    else if (o.reachSide) raisedArm(o, 0.04, 0.42, -0.6);
     else if (o.eat){ /* drawn after the head */ }
-    else if (!sipping){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
+    else if (!sipping && !barSip){ g.save(); g.translate(0.03, -0.58); g.rotate(-0.55); rr(-0.055, 0, 0.11, 0.24, 0.055); fs(o.sleeve || o.shirt); g.restore(); circ(0.17, -0.37, 0.055); fs(o.skin, 0.035); }
   }
   else for (const [ax, dir] of [[-0.215, 1], [0.215, -1]]){
-    if (ax > 0 && sipping) continue;   // drawn after the head, so the drink is in front of the face
+    // Climbing a ladder, hand over hand; arms up for the ride down a slide; flailing in the ball pit; a wave.
+    // Both hands on a putter's grip; the bowling arm follows the ball through its swing.
+    if (o.putter && !o.walkProp && !o.cheer){ raisedArm(o, ax, ax * 0.12, -0.36); continue; }
+    if (ax > 0 && o.bowlBall && !o.cheer){ const bh = A5.bowlHand(o); if (bh){ raisedArm(o, ax, bh[0], bh[1], 0.5); continue; } }
+    if (o.climb){ const up = Math.sin(ph + (ax > 0 ? Math.PI : 0)); raisedArm(o, ax, ax * 0.75, -0.84 - Math.max(0, up) * 0.12); continue; }
+    if (o.cheer){ raisedArm(o, ax, ax * 1.7, -0.96); continue; }
+    if (o.splash){ raisedArm(o, ax, ax * 1.6 + Math.sin(t * 7 + ax * 9) * 0.06, -0.74 + Math.sin(t * 9 + ax * 12) * 0.12); continue; }
+    if (ax > 0 && o.wave){ raisedArm(o, ax, 0.32 + Math.sin(t * 12) * 0.06, -0.92); continue; }
+    // Both hands placed (from the feet: [left, right]), like a bartender polishing a glass or shaking a cocktail.
+    if (o.handsAt){ const [hx, hy] = toBody(...o.handsAt[ax > 0 ? 1 : 0]); raisedArm(o, ax, hx, hy, 0.5); continue; }
+    if (ax > 0 && (sipping || barSip)) continue;   // drawn after the head, so the drink is in front of the face
     if (ax > 0 && o.reach){ if (o.reachSide) raisedArm(o, ax, 0.42, -0.6); else raisedArm(o, ax, 0.2, -0.82); continue; }
     if (sit && !o.play){
       // Hands resting in the lap.
@@ -669,11 +753,20 @@ export function person(x, y, o){
       circ(ax * 0.85, -0.66 + jig, 0.055); fs(o.skin, 0.035);
       continue;
     }
-    const swing = o.torch !== undefined && ax > 0 ? 0 : sw * dir * 0.065;
-    rr(ax - 0.055, -0.6 + swing, 0.11, 0.28, 0.055); fs(o.sleeve || o.shirt);
-    circ(ax, -0.31 + swing, 0.055); fs(o.skin, 0.035);
+    // Arms swing from the shoulder against the legs (the left arm with the right leg): fore and aft when heading
+    // across, bent at a run; toward us the forward hand just dips a little nearer.
+    // (We see a sideways walker more or less face on, so an arm swinging across the body only goes a little way.)
+    const af = walking && !(o.torch !== undefined && ax > 0) ? -sw * dir : 0, out = af * Math.sign(ax) > 0 ? 1 : 0.3;
+    const a = -af * side * out * (run ? 0.85 : 0.32), L = run ? 0.21 : 0.27;
+    const dip = af * (1 - side) * 0.035;
+    g.save(); g.translate(ax, -0.58 + dip); g.rotate(a);
+    rr(-0.055, -0.02, 0.11, L + 0.03, 0.055); fs(o.sleeve || o.shirt);
+    circ(0, L, 0.055); fs(o.skin, 0.035);
+    g.restore();
+    if (ax > 0){ hand[0] = ax - Math.sin(a) * L + 0.02; hand[1] = -0.58 + dip + Math.cos(a) * L; }
   }
-  if (o.hold && !o.back && !sipping) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : 0.235, profile ? -0.35 : sit ? -0.33 : -0.31, o.bagColor, o.prize);
+  if ((o.putter || o.bowlBall) && !o.cheer) A5.prop(o);
+  if (o.hold && !o.back && !sipping && !barSip) heldItem(o.hold, profile ? 0.19 : sit ? 0.13 : hand[0], profile ? -0.35 : sit ? -0.33 : hand[1], o.bagColor, o.prize);
   if (o.clipboard && !o.back){ rr(0.12, -0.5, 0.2, 0.26, 0.03); fs('#c98b55', 0.03); rr(0.15, -0.46, 0.14, 0.19, 0.01); fs('#fff', 0); rr(0.18, -0.53, 0.08, 0.05, 0.015); fs('#a0a8b0', 0.02); }
   if (o.phone && !o.back){ rr(0.12, -0.64, 0.12, 0.2, 0.03); fs('#3d405b', 0.025); rr(0.14, -0.62, 0.08, 0.14, 0.02); fs('#8ecae6', 0); }
   if (o.carry){ box(-0.21, -0.47, 0.42, 0.12, 0.26, '#e8c08a', '#c4925f', 0, 0.03, 0.03); g.fillStyle = 'rgba(61,43,53,.3)'; g.fillRect(-0.03, -0.73, 0.06, 0.38); }
@@ -684,31 +777,100 @@ export function person(x, y, o){
     g.beginPath(); g.moveTo(0.22, -0.32); g.quadraticCurveTo(0.35, -0.9, bx, -1.45); g.strokeStyle = OUT; g.lineWidth = 0.02; g.stroke();
     ell(bx, -1.66, 0.19, 0.23); fs(o.balloon, 0.04); ell(bx - 0.06, -1.74, 0.045, 0.07); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
   }
+  // From behind, the glass comes up in front of the face: drawn first, so the head hides most of it.
+  if (barSip && o.back) barDrink(o, bk, 'back');
+  // A good swallow tips the head back a little.
+  const tilt = bk ? bk.u * (0.06 + 0.1 * bk.gulp) : 0;
+  g.save();
+  if (tilt){ if (profile){ g.translate(0, -0.62); g.rotate(-tilt); g.translate(0, 0.62); } else g.translate(0, o.back ? tilt * 0.12 : -tilt * 0.15); }
+  if (bk && !o.back && bk.u > 0.8) o = { ...o, blink: true };
+  else if (bk && bk.after) o = { ...o, mood: 'happy' };
   circ(0, -0.88, 0.27); fs(o.skin);
   if (o.back){
     circ(0, -0.89, 0.28); fs(o.hood ? shade(o.shirt, -0.15) : o.hair);
     if (o.hood){ circ(0, -0.89, 0.2); fs(o.hair, 0); }
     if (o.vr){ rr(-0.28, -0.95, 0.56, 0.07, 0.03); fs('#2b2d42', 0.03); }
+    A5.headwear(o, true, false);
+    g.restore();
   } else {
+    // Eating: chew after each bite (and look pleased about it).
+    if (o.eat && profile){ const c = eatCycle(t, o.seed); if (c > 0.66 || c < 0.3) o = { ...o, chew: Math.sin(t * 16) > 0, mood: c > 0.84 && c < 0.97 ? 'happy' : o.mood }; }
     if (profile) profileHead(o); else { hairFront(o); face(o); }
+    A5.headwear(o, false, profile);
     if (o.vr){ rr(-0.25, -0.99, 0.5, 0.18, 0.07); fs('#2b2d42', 0.035); rr(-0.2, -0.95, 0.4, 0.06, 0.03); fs(`hsl(${(t * 120) % 360},90%,65%)`, 0); }
     if (o.hold === 'gum'){ const r = 0.03 + Math.abs(Math.sin(t * 1.3)) * 0.08; circ(0.03, -0.77, r); fs('rgba(255,143,200,.92)', 0.025); }
-    if (o.eat && profile) eatArm(o, t);
-    if (sipping){ raisedArm(o, profile ? 0.04 : 0.215, profile ? 0.2 : 0.09, -0.66); g.save(); g.translate(0.06, -0.64); g.rotate(-0.6); heldItem(o.hold, 0, 0.1, o.bagColor, o.prize); g.restore(); }
+    if (o.eat && profile && !o.eatLater) eatArm(o, t);
+    g.restore();
+    if (barSip) barDrink(o, bk, profile ? 'side' : 'front');
+    if (sipping){
+      // The drink comes up from the hand to the mouth, tips, and goes back down.
+      const u = sipU, rx = profile ? 0.19 : 0.235, ry = profile ? -0.35 : -0.31, hx = rx + ((profile ? 0.2 : 0.09) - rx) * u, hy = ry + (-0.66 - ry) * u;
+      raisedArm(o, profile ? 0.04 : 0.215, hx, hy);
+      g.save(); g.translate(hx - 0.03 * u, hy + 0.02 * u); g.rotate(-0.6 * u); heldItem(o.hold, 0, 0.1 * u, o.bagColor, o.prize); g.restore();
+    }
+    // Just cracked open: a can fizzes over the top.
+    if (o.fizz !== undefined && o.hold === 'can' && !sipping) fizz(hand[0], hand[1] - 0.14, o.fizz);
   }
   g.restore();
 }
+// The speakeasy's drinks, sipped properly when sat down: lift, tip it back for a swallow or two, lower it, ahh.
+// u: 0 at rest to 1 at the lips; gulp: 0 to 1 through the swallow; after: just set it down, looking pleased.
+const BAR_DRINKS = new Set(['beer', 'whiskey', 'martini']);
+export function barSipK(t, seed){
+  const c = (t + seed * 7.3) % 5.2;
+  const e = k => { k = Math.max(0, Math.min(1, k)); return k * k * (3 - 2 * k); };
+  const u = c < 0.55 ? e(c / 0.55) : c < 1.55 ? 1 : c < 2.0 ? 1 - e((c - 1.55) / 0.45) : 0;
+  return { u, gulp: c < 0.55 ? 0 : c < 1.55 ? (c - 0.55) : 1, after: c > 2.0 && c < 2.9 };
+}
+// The glass (sized per drink: gh is base to rim) goes from where it rests to the lips, tipping as they drink.
+// Front on, the right hand brings it to the middle of the mouth; side on, out in front of the face; from behind,
+// up past the right ear. lvl: how much is left.
+const GLASS = { beer: [0.17, 1.2], whiskey: [0.11, 1.05], martini: [0.2, 0.9] };
+function barDrink(o, k, view){
+  const GS = 1.4, [gh0, peak] = GLASS[o.hold], gh = gh0 * GS, lvl = o.drinkLeft ?? 1;
+  const rest = o.restAt || (view === 'side' ? [0.24, -0.36] : view === 'back' ? [0.2, -0.34] : [0.15, -0.33]);
+  const lip = view === 'side' ? [0.19, -0.83] : view === 'back' ? [0.17, -0.92] : [0.03, -0.8];
+  const u = k.u, th = u * peak * (0.7 + 0.3 * k.gulp);
+  // The rim's near edge: at rest straight above the hand; at the lips, touching them.
+  const rx = rest[0] + (lip[0] - rest[0]) * u, ry = rest[1] - gh + (lip[1] - rest[1] + gh) * u;
+  const c = Math.cos(-th), sn = Math.sin(-th), at = (x, y) => [rx + x * c - y * sn, ry + x * sn + y * c];
+  const [hx, hy] = at(0.02, gh * 0.55);
+  // At rest from behind, it's set on the bar (o.restAt) or out of sight in front of them.
+  if (view === 'back' && u < 0.05) return;
+  const sh = view === 'side' ? 0.04 : 0.215;
+  raisedArm(o, sh, hx, hy, 0.4);
+  // Held a little larger than a carried drink, so the glass reads in the hand; the hand shows through it.
+  g.save(); g.translate(rx, ry); g.rotate(-th); g.scale(GS, GS); A6.held(o.hold, 0, gh0, lvl); g.restore();
+}
+// A sip every few seconds: 0 at rest, easing up to 1 at the mouth and back down.
+function sipK(t){
+  const c = t % 3.2;
+  const u = c < 0.18 ? c / 0.18 : c < 0.62 ? 1 : c < 0.8 ? 1 - (c - 0.62) / 0.18 : 0;
+  return u * u * (3 - 2 * u);
+}
+// Bubbles spraying up out of a just-opened can, k from 0 (pop) to 1 (settled).
+function fizz(x, y, k){
+  if (k >= 1) return;
+  for (let i = 0; i < 6; i++){
+    const a = -Math.PI / 2 + (i - 2.5) * 0.32, d = 0.04 + k * (0.14 + (i % 3) * 0.04), r = 0.022 * (1 - k * 0.6);
+    circ(x + Math.cos(a) * d, y + Math.sin(a) * d + k * k * 0.08, r); g.fillStyle = `rgba(220,245,255,${0.9 * (1 - k)})`; g.fill();
+  }
+}
+// Where a diner is in their bite-chew cycle, 0 to 1 (about 2.4 s round).
+const eatCycle = (t, seed) => (t * 0.42 + (seed || 0)) % 1;
 // Eating at a table, side on: the hand rests at the plate a moment, then a bite comes up to the mouth, every couple of
 // seconds. Noodles come up twirled on a fork, sushi in chopsticks; anything else is eaten out of the hand.
 function eatArm(o, t){
-  const c = (t * 0.42 + (o.seed || 0)) % 1;
+  const c = eatCycle(t, o.seed);
   let u = c < 0.45 ? 0 : c < 0.6 ? (c - 0.45) / 0.15 : c < 0.82 ? 1 : 1 - (c - 0.82) / 0.18;
   u = u * u * (3 - 2 * u);
   const dig = c < 0.45 ? Math.sin(t * 8) * 0.012 : 0;
-  const hx = 0.3 - u * 0.1, hy = -0.48 - u * 0.2 + dig;      // at the plate → at the mouth
-  if (o.eat === 'noodles' || o.eat === 'sushi'){
-    // Tines (or tips) point down into the bowl, then swing up toward the mouth.
-    const a = 0.3 + (-2.3 - 0.3) * u, L = 0.17, ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
+  // The hand rests just over the plate (on the table top, in front of it) and comes up to the mouth.
+  const utensil = o.eat === 'noodles' || o.eat === 'sushi';
+  const px = o.plateX ?? 0.24, hx = (utensil ? px - 0.12 : px - 0.03) + u * (utensil ? 0.33 - px : 0.23 - px), hy = (utensil ? -0.63 : -0.6) - u * (utensil ? 0.08 : 0.1) + dig;
+  if (utensil){
+    // Tines (or tips) dip into the bowl, then swing up toward the mouth.
+    const a = 0.35 + (-2.3 - 0.35) * u, L = 0.17, ex = hx + Math.cos(a) * L, ey = hy + Math.sin(a) * L;
     g.lineCap = 'round';
     if (o.eat === 'noodles'){
       g.strokeStyle = '#c0c6cc'; g.lineWidth = 0.022; g.beginPath(); g.moveTo(hx, hy); g.lineTo(ex, ey); g.stroke();
@@ -722,18 +884,69 @@ function eatArm(o, t){
     raisedArm(o, 0.04, hx, hy);
     return;
   }
+  if (o.eat === 'pizza') return pizzaBites(o, t, c, u);
   raisedArm(o, 0.04, hx, hy);
   g.save(); g.translate(hx - 0.02, hy + 0.02); g.rotate(-0.5 * u); heldItem(o.eat, 0, 0.02, o.bagColor, o.prize); g.restore();
 }
+// A slice of pizza eaten crust-first in the hand, tip to the mouth: it lifts off the plate, the tip goes in, a bite
+// comes off (with a string of cheese as it pulls away), and it gets shorter bite by bite until a fresh slice comes up.
+// Drawn only from the shared arm rig, so it fits every shopper whatever their looks, and kids via the overlay's scale.
+const MOUTH = [0.205, -0.795], SLICE = 0.17, SLICE_W = 0.065;
+function pizzaBites(o, t, c, u){
+  const bites = Math.floor(t * 0.42 + (o.seed || 0)) % 4 + (c > 0.7 ? 1 : 0), left = 1 - bites * 0.24;
+  const len = 0.035 + (SLICE - 0.035) * left;
+  // Resting: crust in hand over the plate, tip out over the table. Eating: tip angled up into the mouth, with a small
+  // push in for the bite itself.
+  const a = 2.75 + (0.38 - 2.75) * u, chomp = c > 0.62 && c < 0.7 ? Math.sin((c - 0.62) / 0.08 * Math.PI) * 0.018 : 0;
+  const px = o.plateX ?? 0.24, rest = [px - 0.06, -0.58 + Math.sin(t * 8) * 0.006 * (1 - u)];
+  const reach = len * 0.75 - chomp, mouthHand = [MOUTH[0] + Math.cos(a) * reach, MOUTH[1] + Math.sin(a) * reach];
+  const hx = rest[0] + (mouthHand[0] - rest[0]) * u, hy = rest[1] + (mouthHand[1] - rest[1]) * u;
+  raisedArm(o, 0.04, hx, hy, 0.42);
+  g.save(); g.translate(hx, hy); g.rotate(a);
+  slice(len, left);
+  g.restore();
+  circ(hx + 0.004, hy - 0.006, 0.032); fs(o.skin, 0.02);   // fingers over the crust
+  // Pulling away from a bite: a string of cheese from the tip back to the mouth, thinning out until it snaps.
+  if (c > 0.8 && c < 0.94 && u > 0.2){
+    const k = (c - 0.8) / 0.14, tx = hx - Math.cos(a) * len, ty = hy - Math.sin(a) * len;
+    const sag = 0.03 + k * 0.04, mx = (tx + MOUTH[0]) / 2, my = Math.max(ty, MOUTH[1]) + sag;
+    g.lineCap = 'round';
+    for (const [w, col] of [[0.022 * (1 - k * 0.6), OUT], [0.012 * (1 - k * 0.6), '#ffd166']]){
+      g.beginPath(); g.moveTo(MOUTH[0] + 0.01, MOUTH[1] + 0.01); g.quadraticCurveTo(mx, my, tx, ty); g.lineWidth = w; g.strokeStyle = col; g.stroke();
+    }
+  }
+}
+// The slice in its own frame: crust at the origin, pointing along -x. left (0..1) is how much is still uneaten;
+// a bitten end shows two scallops.
+function slice(len, left){
+  const w = y => SLICE_W * (1 - y / SLICE), e = w(len);
+  g.beginPath(); g.moveTo(0, -SLICE_W);
+  if (left > 0.99) g.lineTo(-SLICE, 0);
+  else { g.lineTo(-len, -e); g.quadraticCurveTo(-len + 0.03, -e / 2, -len, 0); g.quadraticCurveTo(-len + 0.03, e / 2, -len, e); }
+  g.lineTo(0, SLICE_W); g.closePath();
+  g.save(); fs('#ffd166', 0.016); g.clip();
+  for (const [x, y, r] of [[-0.045, -0.022, 0.02], [-0.05, 0.03, 0.017], [-0.1, 0.004, 0.016]]){ circ(x, y, r); fs('#e63946', 0.008); }
+  circ(-0.08, -0.026, 0.007); fs('#2f9e6a', 0); circ(-0.025, 0.04, 0.007); fs('#2f9e6a', 0);
+  g.restore();
+  rr(-0.018, -SLICE_W - 0.01, 0.04, SLICE_W * 2 + 0.02, 0.02); fs('#d4883c', 0.016);
+}
+// The eating arm (and the bite in it) of someone sat side on at (x, y), on its own: drawn after the table, so the
+// hand and food come up in front of the table top instead of behind it. Pairs with person(x, y, { ...o, eatLater }).
+export function eatOverlay(x, y, o){
+  const s = o.s || 1;
+  g.save(); g.translate(x, y); g.scale(s * (o.flip ? -1 : 1), s); g.translate(0, 0.1);
+  eatArm(o, o.t || 0);
+  g.restore();
+}
 // An arm raised from the shoulder at (ax, -0.56) to a hand at (hx, hy).
-function raisedArm(o, ax, hx, hy){
+function raisedArm(o, ax, hx, hy, reach = 0.26){
   g.save(); g.translate(ax, -0.56); g.rotate(Math.atan2(-(hx - ax), hy + 0.56));
-  rr(-0.055, -0.02, 0.11, Math.min(0.26, Math.hypot(hx - ax, hy + 0.56) + 0.04), 0.055); fs(o.sleeve || o.shirt); g.restore();
+  rr(-0.055, -0.02, 0.11, Math.min(reach, Math.hypot(hx - ax, hy + 0.56) + 0.04), 0.055); fs(o.sleeve || o.shirt); g.restore();
   circ(hx, hy, 0.055); fs(o.skin, 0.035);
 }
 // Something a shopper bought, held in the right hand at (hx, hy).
 function heldItem(kind, hx, hy, color, prize){
-  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy)) return;
+  if (A2.heldNew(kind, hx, hy) || A3.heldCasino(kind, hx, hy) || A4.held(kind, hx, hy) || A5.held(kind, hx, hy) || A6.held(kind, hx, hy)) return;
   switch (kind){
     case 'cone':
       g.beginPath(); g.moveTo(hx - 0.06, hy - 0.06); g.lineTo(hx + 0.06, hy - 0.06); g.lineTo(hx, hy + 0.1); g.closePath(); fs('#e0a96d', 0.025);
@@ -783,7 +996,7 @@ function heldItem(kind, hx, hy, color, prize){
 export function family(x, y, o){
   const k = o.kid;
   const side = o.sit && o.sitSide, kx = side ? x : x + (o.flip ? 0.38 : -0.38);
-  person(kx, y + (side ? 0.45 : o.sit ? 0 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
+  person(kx, y + (side ? 0.45 : o.sit ? 0 : 0.12) + (o.kidBob || 0), { ...k, t: (o.t || 0) + 0.3, walk: o.walk, stride: o.stride !== undefined ? o.stride + 0.2 : undefined, side: o.side, run: o.run, flip: o.flip, s: 0.68, play: o.play || o.kidPlay, back: o.back, sit: o.sit, sitSide: o.sitSide, noShadow: o.noShadow });
   person(x, y, o);
 }
 
@@ -805,8 +1018,10 @@ export const WALLPAPER = {
   crystal: { face: '#eee8fb', dark: '#cfc3ee', cap: '#ffffff', base: '#9b8ad0' },
   casino:  { face: '#7a1734', dark: '#4f0e22', cap: '#f2c14e', base: '#1b1440' },
   neonights: { face: '#2a1650', dark: '#1b0e38', cap: '#ff6fb5', base: '#4cc9f0' },
+  ...A5.WALLPAPER,
+  ...A6.WALLPAPER,
 };
-const FLOOR_KIND = { classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
+const FLOOR_KIND = { ...A5.FLOOR_KIND, ...A6.FLOOR_KIND, classic: 'concourse', diner: 'diner', terracotta: 'terracotta', flagstone: 'flagstone', herring: 'herring', marble: 'marble', mosaic: 'mosaic', starlight: 'starlight', bamboo: 'bamboo', gold: 'goldterrazzo', ocean: 'seatile', velvet: 'royal', crystal: 'crystal', casino: 'casinocarpet', starburst: 'starburst' };
 let style = { wall: 'classic', floor: 'classic' };
 export function setStyle(st){ if (st) style = st; }
 export const wallpaper = (id = style.wall) => WALLPAPER[id] || WALLPAPER.classic;
@@ -989,7 +1204,7 @@ function wallPattern(id, P, w, top){
     for (let x = 0.15; x < w; x += 0.3){ circ(x, top + 0.12, 0.06); g.fillStyle = Math.floor(x / 0.3) % 2 ? '#fff3b0' : '#ffd23f'; g.fill(); }
     const suits = ['♠', '♥', '♦', '♣'];
     for (let i = 0; i < w; i += 1.5){ const k = Math.floor(i / 1.5) % 4; text(suits[k], i + 0.75, -0.55, 0.3, k === 1 || k === 2 ? '#ff4f6d' : '#f2c14e', 700); }
-  } else {
+  } else if (!A5.wallPattern(id, P, w, top) && !A6.wallPattern(id, P, w, top)){
     g.fillStyle = '#ddcdf0'; for (let i = 0; i < w; i++) g.fillRect(i + 0.45, top, 0.1, WALL_H);
   }
 }
@@ -1193,6 +1408,12 @@ export function storeSpots(u){
   for (let ly = 0.9; ly <= H - 0.35; ly += 0.55) for (let lx = lx0; lx <= Math.max(lx0, W - 1.35); lx += 0.45){
     // Not standing in the middle of Threads' tee table or on the mannequin.
     if (u.store === 'boutique' && H >= 3 && ((lx > 0.75 && lx < 1.75 && ly > 1.1 && ly < 1.75) || (lx < 0.7 && ly > 1.7))) continue;
+    // Clear of the stuffing machine, the quarter pipe and the eye chart.
+    if (u.store === 'bears' && H >= 3 && lx < 1.2 && ly > 1.6 && ly < 2.4) continue;
+    if (u.store === 'skate' && H >= 3 && ly > 2.1) continue;
+    if (u.store === 'specs' && H >= 3 && ly > 1.8 && ly < 2.2) continue;
+    // Out from behind the long bar: in front of it, by the stools.
+    if (u.store === 'bar' && ly < 1.95) continue;
     browse.push(at(lx, ly));
   }
   if (u.store === 'noodle') browse.splice(0, browse.length, at(1.12, 1.88));
@@ -1324,6 +1545,8 @@ function storeWallpaper(u, def, x0, y0, w, H){
     case 'pizza': A2.pizzaWallpaper(x0, y0, w, H); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallpaper(ic, x0, y0, w, H); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallpaper(ic, x0, y0, w, H); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallpaper(ic, x0, y0, w, H); break;
+    case 'bar': A6.wallpaper(ic, x0, y0, w, H); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallpaper(ic, x0, y0, w, H); break;
     case 'burger':
       g.fillStyle = '#fff6e0'; g.fillRect(x0, y0, w, H);
@@ -1388,6 +1611,8 @@ function wallPieceArt(ic, wx, wy, t){
     case 'pizza': A2.pizzaMenu(wx, wy); break;
     case 'leaf': case 'ring': case 'vr': case 'cupcake': case 'comic': A2.newWallPiece(ic, wx, wy, t); break;
     case 'ball': case 'lipstick': case 'taco': case 'noodle': case 'brush': case 'sushi': A4.wallPiece(ic, wx, wy, t); break;
+    case 'hat': case 'candle': case 'bear': case 'skate': case 'glasses': A5.wallPiece(ic, wx, wy, t); break;
+    case 'bar': A6.wallPiece(ic, wx, wy, t); break;
     case 'chip': case 'cocktail': case 'clover': A3.casinoWallPiece(ic, wx, wy, t); break;
     case 'burger':  // a lit menu board
       rr(wx + 0.05, wy - 0.24, 0.8, 0.42, 0.04); fs('#2b2d42', 0.035);
@@ -1492,6 +1717,12 @@ function counter(u, def){
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
     A2.newCounter(ic, cx, top);
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (A6.ICONS.includes(ic)){
+    A6.counter(ic, cx, top, performance.now() / 1000);
+    register(cx + 0.55, cy + 0.1, H, def.trim);
+  } else if (A5.ICONS.includes(ic)){
+    A5.counter(ic, cx, top, performance.now() / 1000);
     register(cx + 0.55, cy + 0.1, H, def.trim);
   } else if (A4.ICONS.includes(ic)){
     A4.counter(ic, cx, top, performance.now() / 1000);
@@ -1637,6 +1868,10 @@ export function storeFurniture(u, def, t, layer){
       A3.casinoBack(ic, x, y, sw, t);
     } else if (['leaf', 'ring', 'vr', 'cupcake', 'comic'].includes(ic)){
       A2.newBack(ic, x, y, sw, t, u.id);
+    } else if (A6.ICONS.includes(ic)){
+      A6.back(ic, x, y, sw, t, u.id);
+    } else if (A5.ICONS.includes(ic)){
+      A5.back(ic, x, y, sw, t, u.id);
     } else if (A4.ICONS.includes(ic)){
       A4.back(ic, x, y, sw, t, u.id);
     } else if (ic === 'pizza'){
@@ -1662,7 +1897,7 @@ export function storeFurniture(u, def, t, layer){
     if (W >= 2){ box(tx, ty, 0.62, 0.35, 0.32, '#e9dcc8', '#c9b79c'); for (let i = 0; i < 3; i++){ rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.06, 0.16, 0.1, 0.02); fs(['#5a8dee', '#ffd23f', '#ff8fab'][i], 0.015); rr(tx + 0.05 + i * 0.19, ty - 0.32 + 0.0, 0.16, 0.08, 0.02); fs(['#9bbcf5', '#ffe68a', '#ffc2d4'][i], 0.015); } }
       return;
   }
-  if (A4.mid(ic, u, W, H, t)) return;
+  if (A4.mid(ic, u, W, H, t) || A5.mid(ic, u, W, H, t) || A6.mid(ic)) return;
   if (ic === 'vr'){
     // Glowing play pads where folks try the headsets.
     for (const [lx, ly] of [[0.7, 1.55], [1.75, 1.95]]){
@@ -1756,6 +1991,8 @@ export function storeFurniture(u, def, t, layer){
 // has just one little lacquered table for two, tucked by its kitchen.
 const NOODLE_SEAT = 0.25;
 export function dineSpots(u){
+  // The speakeasy's bar: no tables, just the stools along the bar.
+  if (u.store === 'bar') return { tables: [], seats: A6.barSeats(u) };
   const at = (lx, ly) => { const [x, y] = local(u, lx, ly); return { x, y }; };
   const noodle = u.store === 'noodle', off = noodle ? NOODLE_SEAT : 0.42;
   const tables = noodle ? [at(0.55, 1.5)] : [at(0.75, 1.55), at(0.75, 2.45)].slice(0, u.h >= 3 ? 2 : 1);
@@ -1909,12 +2146,19 @@ export function attractionSpots(u, def){
   if (def.attraction === 'theater'){
     // Two rows of four, split by a center aisle, all facing the screen on the back wall.
     [1.55, 2.45].forEach((ly, row) => { for (const lx of [0.75, 1.55, W - 1.55, W - 0.75]) seats.push({ row, ly, lx, at: at(lx, ly), path: [at(dl, ly + 0.5), at(lx, ly + 0.5), at(lx, ly)] }); });
-  } else {
+  } else if (A5.ATTR.includes(def.attraction)) seats.push(...A5.seats(def, W, H, at, dl, u));
+  else {
     for (const ly of [1.2, 2.45]) for (const lx of [0.95, W / 2, W - 0.95]) seats.push({ ly, lx, at: at(lx, ly), path: [at(dl, H - 0.7), at(lx, H - 0.7), at(lx, ly)] });
   }
   return { door, front, seats, queue: [], staff: front, staffPath: [], browse: [], counter: [u.x, u.y, 0, 0] };
 }
 function attractionBack(u, def, t){
+  if (A5.ATTR.includes(def.attraction)){
+    // Lanes or greens lie flat on the floor; with doors facing up the renderer draws them early (see render.js).
+    if (u.face === 'down') A5.floorLayer(u, def);
+    A5.backLayer(u, def, t, A5.live.get(u.id));
+    return;
+  }
   if (def.attraction === 'theater'){
     // The big screen, playing a cartoon: rolling hills, a bouncing ball and a sun that won't stop grinning.
     const [x, y] = local(u, 0.35, 0.3, u.w - 0.7, 0.18), sw = u.w - 0.7, top = y - 0.72, sh = 0.62;
@@ -1934,6 +2178,12 @@ function attractionBack(u, def, t){
     const [mx, my] = local(u, 0.08, 0.08, u.w - 0.16, 0.3); box(mx, my, u.w - 0.16, 0.3, 0.35, '#ffd23f', '#f4b942');
     if (u.face === 'down') trampolines(u, def);
   }
+}
+// What lies flat on an attraction's floor (trampolines, lanes, greens). With doors facing up the renderer draws
+// this early, so the people on it aren't hidden underneath.
+export function attractionFloor(u, def){
+  if (def.attraction === 'jump') trampolines(u, def);
+  else if (A5.ATTR.includes(def.attraction)) A5.floorLayer(u, def);
 }
 // Trampolines: a padded frame with a stretchy blue bed.
 export function trampolines(u, def){
@@ -2042,6 +2292,7 @@ export function kiosk(k, def, t){
   if (def.icon === 'hotdog') A2.hotdogCounter(x, y, t);
   else if (def.icon === 'lemon') A4.lemonCounter(x, y, t);
   else if (def.icon === 'cotton') A4.cottonCounter(x, y, t);
+  else if (def.icon === 'smoothie') A5.smoothieCounter(x, y, t);
   else if (def.icon === 'boba') A2.bobaCounter(x, y, t);
   else if (def.icon === 'cone'){
     // Tubs of ice cream under a glass sneeze guard.
@@ -2109,7 +2360,7 @@ const BENCH = { back: ['#f0b57e', '#d08e57'], seat: ['#f3c08c', '#c98b55'], legs
 const SOFA = { back: ['#e891b3', '#c86a90'], seat: ['#f4a9c6', '#d47fa1'], legs: '#5a3a44', backH: 0.78, seatH: 0.38, arms: ['#e891b3', '#b85f84'], cushions: true };
 // Live state for decor (is someone using it, and how far along), set by the renderer.
 // A decor piece drawn to fit a 1×1 icon (the Build list, level-up cards), centered at (0.5, 0.5).
-const THUMB = { slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35] };
+const THUMB = { popcorn: [2.3, 0.35], hotair: [3.4, 1.2], iceswan: [2.2, 0.3], penny: [2.2, 0.3], slots: [2.2, 0.3], goldslots: [2.2, 0.3], blackjack: [3.2, -0.55], roulette: [3.2, -0.55], poker: [3.2, -0.55], craps: [3.2, -0.55], wheel: [2.6, 0.5], neon: [2.6, 0.5], jackpot: [2.5, 0.45], rope: [1.6, -0.1], dicestatue: [2.2, 0.3], champagne: [2.2, 0.3], balloons: [2.2, 0.3], arcadecab: [2.0, 0.2], bubbles: [2.2, 0.3], koi: [2.1, -0.55], lamp: [2.7, 0.38], tree: [2.7, 0.38], topiary: [2.3, 0.3], photobooth: [2.3, 0.3], arch: [2.4, 0.25], ride: [1.45, -0.3], piano: [2.6, -0.45], playarea: [3.2, -0.5], foodcourt: [4.3, -0.2], carousel: [3.4, 0.3], clock: [3.2, 0.35], ...A6.THUMB };
 export function decorThumb(type, w){
   const [span, dy] = THUMB[type] || [1.45, -0.15], k = 1 / Math.max(w, span);
   g.translate(0.5, 0.5); g.scale(k, k); g.translate(-w / 2, dy);
@@ -2118,6 +2369,7 @@ export function decorThumb(type, w){
 export const decorState = new WeakMap();
 export function decor(d, t = 0){
   const r = d.rot || 0, x = d.x, y = d.y, live = decorState.get(d);
+  if (A6.TYPES.has(d.type)) return A6.decor(d, t, live);
   switch (d.type){
     case 'plant': palm(x + 0.5, y + 0.85); break;
     case 'bin': trashCan(x + 0.5, y + 0.8); break;
@@ -2128,7 +2380,7 @@ export function decor(d, t = 0){
     case 'vending': vending(x, y, r, t, live); break;
     case 'ride': kiddieRide(x, y, r, t, live); break;
     case 'claw': clawMachine(x, y, r, t, live); break;
-    case 'gumball': gumball(x + 0.5, y + 0.8); break;
+    case 'gumball': gumball(x + 0.5, y + 0.8, live); break;
     case 'directory': directory(x, y, r); break;
     case 'tree': shadeTree(x + 0.5, y + 0.85); break;
     // In the mall the pit's near edge, the chute and the front rail are their own layers (render.js); thumbnails and
@@ -2157,6 +2409,10 @@ export function decor(d, t = 0){
     case 'jackpot': A3.jackpotBoard(x, y, t); break;
     case 'dicestatue': A3.diceStatue(x + 0.5, y + 0.82); break;
     case 'champagne': A3.champagneTower(x + 0.5, y + 0.82, t); break;
+    case 'popcorn': A5.popcornCart(x + 0.5, y + 0.82, t, live); break;
+    case 'hotair': A5.hotAirBalloon(x, y, t); break;
+    case 'iceswan': A5.iceSwan(x + 0.5, y + 0.82, t); break;
+    case 'penny': A5.pennyPress(x, y, r, t, live); break;
   }
 }
 function seatPiece(x, y, r, st){
@@ -2216,23 +2472,38 @@ export function lampPost(x, y){
   rr(x - 0.15, y - 2.28, 0.3, 0.34, 0.08); fs('#fff3b0', 0.035);
   g.beginPath(); g.moveTo(x - 0.2, y - 2.26); g.lineTo(x, y - 2.42); g.lineTo(x + 0.2, y - 2.26); g.closePath(); fs('#3d405b', 0.035);
 }
+// The soda machine's routine, as fractions of live.k (how far along the shopper's turn is; it ends a little past
+// 0.9): step up, feed in a coin, punch a button, the can drops into the tray, crouch to fish it out, stand, step off.
+export const VEND = { coin: 0.1, press: 0.22, drop: 0.42, land: 0.48, grab: 0.72 };
 function vending(x, y, r, t = 0, live = null){
-  const bx = x + 0.12, by = y + 0.3, bw = 0.76, bd = 0.5, H = 1.3;
+  const bx = x + 0.12, by = y + 0.3, bw = 0.76, bd = 0.5, H = 1.3, k = live ? live.k : -1, V = VEND;
   shadow(x + 0.5, y + 0.82, 0.42, 0.1);
+  // A little shudder as the can thunks down.
+  const shake = k > V.land - 0.02 && k < V.land + 0.05 ? Math.sin(k * 900) * 0.012 : 0;
+  g.save(); g.translate(shake, 0);
   box(bx, by, bw, bd, H, '#c23e63', r === 2 ? '#b8355a' : '#ef476f');
-  const top = by + bd - H, k = live ? live.k : -1;
+  const top = by + bd - H;
   if (r === 0){
     // Lit header with the brand, a window full of cans, buttons, and the pickup tray.
     rr(bx + 0.05, top + 0.05, bw - 0.1, 0.16, 0.04); fs('#fff6ea', 0.025);
     text('POP!', bx + bw / 2, top + 0.135, 0.13, '#ef476f', 700);
     g.save(); g.globalAlpha = 0.25 + 0.15 * Math.sin(t * 3); rr(bx + 0.06, top + 0.25, 0.44, 0.78, 0.04); g.fillStyle = '#fffbe0'; g.fill(); g.restore();
     rr(bx + 0.06, top + 0.25, 0.44, 0.78, 0.04); fs('rgba(200,235,250,.85)', 0.03);
-    for (let row = 0; row < 4; row++){ g.fillStyle = 'rgba(61,43,53,.25)'; g.fillRect(bx + 0.07, top + 0.43 + row * 0.18, 0.42, 0.02); for (let i = 0; i < 3; i++){ rr(bx + 0.1 + i * 0.13, top + 0.29 + row * 0.18, 0.09, 0.14, 0.03); fs(['#118ab2', '#ffd23f', '#06d6a0', '#ff9f43'][(row + i) % 4], 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(bx + 0.115 + i * 0.13, top + 0.31 + row * 0.18, 0.015, 0.09); } }
-    for (let i = 0; i < 4; i++){ rr(bx + 0.56, top + 0.3 + i * 0.11, 0.14, 0.07, 0.02); fs(k > 0 && k < 0.5 && i === 1 ? '#7bd389' : '#fff6ea', 0.015); }
-    rr(bx + 0.58, top + 0.78, 0.1, 0.16, 0.02); fs('#3d2b35', 0); rr(bx + 0.61, top + 0.8, 0.04, 0.06, 0.01); fs('#ffd23f', 0);
+    const sold = k >= V.drop;   // the bottom-right can is the one that drops
+    for (let row = 0; row < 4; row++){ g.fillStyle = 'rgba(61,43,53,.25)'; g.fillRect(bx + 0.07, top + 0.43 + row * 0.18, 0.42, 0.02); for (let i = 0; i < 3; i++){ if (sold && row === 3 && i === 2) continue; rr(bx + 0.1 + i * 0.13, top + 0.29 + row * 0.18, 0.09, 0.14, 0.03); fs(['#118ab2', '#ffd23f', '#06d6a0', '#ff9f43'][(row + i) % 4], 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(bx + 0.115 + i * 0.13, top + 0.31 + row * 0.18, 0.015, 0.09); } }
+    // The pressed button lights up (and stays lit while the machine works).
+    const lit = k >= V.press + 0.03 && k < V.land + 0.06;
+    for (let i = 0; i < 4; i++){ rr(bx + 0.56, top + 0.3 + i * 0.11, 0.14, 0.07, 0.02); fs(lit && i === 3 ? '#7bd389' : '#fff6ea', 0.015); }
+    // The coin slot glints as the coin goes in.
+    const glint = k >= V.coin && k < V.press;
+    rr(bx + 0.58, top + 0.78, 0.1, 0.16, 0.02); fs('#3d2b35', 0); rr(bx + 0.61, top + 0.8, 0.04, 0.06, 0.01); fs(glint ? '#fff6c9' : '#ffd23f', 0);
     rr(bx + 0.1, top + 1.08, 0.4, 0.12, 0.03); fs('#3d2b35', 0.02);
-    // A can rolls down into the tray once it's paid for.
-    if (k >= 0.45){ const d = Math.min(1, (k - 0.45) / 0.2); rr(bx + 0.24, top + 0.85 + d * 0.25, 0.12, 0.08, 0.02); fs('#118ab2', 0.015); }
+    // The can: drops off its shelf, falls behind the glass and rolls into the tray, waiting there to be picked up.
+    if (k >= V.drop && k < V.grab){
+      const f = Math.min(1, (k - V.drop) / (V.land - V.drop)), cy = top + 0.83 + f * f * 0.3, cx = bx + 0.36 + f * 0.02;
+      if (f < 1){ rr(cx, cy, 0.09, 0.14, 0.03); fs('#ff9f43', 0.015); }
+      else { rr(cx, top + 1.11, 0.14, 0.08, 0.025); fs('#ff9f43', 0.015); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(cx + 0.02, top + 1.125, 0.09, 0.012); }
+    }
   } else if (r === 2){
     g.strokeStyle = 'rgba(61,43,53,.35)'; g.lineWidth = 0.025;
     for (let i = 0; i < 5; i++){ g.beginPath(); g.moveTo(bx + 0.15, top + 0.2 + i * 0.08); g.lineTo(bx + bw - 0.15, top + 0.2 + i * 0.08); g.stroke(); }
@@ -2245,6 +2516,7 @@ function vending(x, y, r, t = 0, live = null){
     const ex = r === 1 ? bx : bx + bw - 0.08;
     rr(ex, top + 0.08, 0.08, 1.0, 0.02); fs('rgba(200,235,250,.95)', 0.02);
   }
+  g.restore();
 }
 // The kiddie ride: a fat little rocket on a coin-op base. A kid rides in the open cockpit (see rideSeat), rocking
 // with it; while it runs, the base lights chase and the rocket puffs exhaust. live.k is how far along the ride is
@@ -2362,14 +2634,31 @@ function clawMachine(x, y, r, t, live){
   if (r === 0){ rr(x + 0.3, base + 0.52 - 0.4, 0.4, 0.16, 0.03); fs('#3d2b35', 0.02); circ(x + 0.42, base + 0.52 - 0.34, 0.035); fs('#ef476f', 0.015); rr(x + 0.58, base + 0.52 - 0.37, 0.04, 0.1, 0.015); fs('#fff', 0.015); }
   else if (r !== 2){ rr(r === 1 ? x + 0.14 : x + 0.8, base + 0.52 - 0.42, 0.06, 0.2, 0.02); fs('#3d2b35', 0.02); }
 }
-function gumball(x, y){
+// The gumball machine's routine, as fractions of live.k: step up, turn the crank a full turn, a gumball rolls out
+// into the little door at the bottom, crouch and take it, step off.
+export const GUM = { crank: 0.16, turned: 0.5, out: 0.58, grab: 0.72 };
+function gumball(x, y, live){
+  const k = live ? live.k : -1, G = GUM;
   shadow(x, y, 0.22, 0.07);
   rr(x - 0.18, y - 0.12, 0.36, 0.12, 0.04); fs('#c0392b', 0.03);
   rr(x - 0.1, y - 0.5, 0.2, 0.4, 0.05); fs('#e63946', 0.035);
   rr(x - 0.05, y - 0.38, 0.1, 0.08, 0.02); fs('#e9e1d4', 0.02);
+  // The crank: a knob on the plate that goes once round while it's turned.
+  const turn = k > G.crank && k < G.turned ? (k - G.crank) / (G.turned - G.crank) : 0, a = -Math.PI / 2 + turn * Math.PI * 2;
+  g.beginPath(); g.moveTo(x, y - 0.34); g.lineTo(x + Math.cos(a) * 0.045, y - 0.34 + Math.sin(a) * 0.035); g.strokeStyle = OUT; g.lineWidth = 0.022; g.lineCap = 'round'; g.stroke();
+  circ(x + Math.cos(a) * 0.045, y - 0.34 + Math.sin(a) * 0.035, 0.016); fs('#ffd23f', 0.01);
+  // The little door at the bottom, and a gumball waiting in it.
+  rr(x - 0.045, y - 0.22, 0.09, 0.07, 0.02); fs('#3d2b35', 0.015);
   circ(x, y - 0.72, 0.24); fs('rgba(232,248,255,.9)', 0.035);
   const cols = ['#ff6b8b', '#ffd23f', '#5cc8bf', '#9b7bff', '#ff9f43', '#7bd389'];
-  for (let i = 0; i < 9; i++){ const a = i * 2.4, rr2 = 0.05 + (i % 3) * 0.05; circ(x + Math.cos(a) * rr2, y - 0.68 + Math.sin(a) * rr2 * 0.8, 0.045); fs(cols[i % cols.length], 0.012); }
+  // The balls settle a little as one drops out the bottom.
+  const settle = k > G.turned - 0.1 && k < G.out ? Math.sin((k - G.turned + 0.1) / (G.out - G.turned + 0.1) * Math.PI) * 0.02 : 0;
+  for (let i = 0; i < 9; i++){ const a2 = i * 2.4, rr2 = 0.05 + (i % 3) * 0.05; circ(x + Math.cos(a2) * rr2, y - 0.68 + Math.sin(a2) * rr2 * 0.8 + settle * (i % 2 ? 1 : 0.5), 0.045); fs(cols[i % cols.length], 0.012); }
+  if (k >= G.turned && k < G.grab){
+    const f = Math.min(1, (k - G.turned) / (G.out - G.turned));
+    if (f >= 1){ circ(x, y - 0.185, 0.035); fs('#ff6b8b', 0.012); }
+    else if (f > 0.4){ circ(x, y - 0.3 + (f - 0.4) / 0.6 * 0.115, 0.035); fs('#ff6b8b', 0.012); }
+  }
   rr(x - 0.08, y - 0.99, 0.16, 0.07, 0.03); fs('#e63946', 0.03);
 }
 function directory(x, y, r){

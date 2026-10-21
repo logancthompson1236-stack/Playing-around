@@ -1,10 +1,11 @@
 // DOM overlay: HUD, panels, dialogs, tips, toasts and full-screen screens. Game rules live elsewhere.
 import * as A from './art.js';
 import * as C from './config.js';
-import { S, levelProgress, exportSave, readSaveCode, importSave } from './state.js';
+import { S, VOLUME_DEFAULTS, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot, carryLink } from './state.js';
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
+import { floorName } from './map.js';
 
 const root = document.getElementById('ui');
 
@@ -85,14 +86,15 @@ export function buildHud(on){
   setHudMode('none');
 }
 // top: the highest floor open (0 = ground only). alert: [up, down] whether a floor that way needs you.
-export function updateFloorBtn(top, floor, alert = [false, false]){
-  hud.floor.hidden = !top || hud.top.hidden;
-  if (!top) return;
-  const txt = `${floor + 1}F`;
+// floors: the open floors, bottom to top (the basement first).
+export function updateFloorBtn(floors, floor, alert = [false, false]){
+  hud.floor.hidden = floors.length < 2 || hud.top.hidden;
+  if (floors.length < 2) return;
+  const txt = floorName(floor), i = floors.indexOf(floor), top = i >= floors.length - 1, bottom = i <= 0;
   if (hud.floorLabel.textContent !== txt) hud.floorLabel.textContent = txt;
-  hud.floorUp.disabled = floor >= top; hud.floorDown.disabled = floor <= 0;
-  hud.floorUp.querySelector('.dot').hidden = !alert[0] || floor >= top;
-  hud.floorDown.querySelector('.dot').hidden = !alert[1] || floor <= 0;
+  hud.floorUp.disabled = top; hud.floorDown.disabled = bottom;
+  hud.floorUp.querySelector('.dot').hidden = !alert[0] || top;
+  hud.floorDown.querySelector('.dot').hidden = !alert[1] || bottom;
 }
 export function setHudMode(mode){
   hud.top.hidden = mode === 'none';
@@ -304,6 +306,44 @@ export function iosInstallTip(){
   root.append(el);
 }
 
+// Inside another site's page (itch.io's frame), Safari (and so every iPhone browser) and Firefox can throw the save
+// away when the browser closes. A card says so and offers the game in its own tab, where the save sticks (and on an
+// iPhone it can go on the home screen from there).
+export function frameSaveTip(night = false){
+  let framed = false; try { framed = window.top !== window; } catch { framed = true; }
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const forgets = ios || /Firefox\//.test(ua) || (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/.test(ua));
+  if (!framed || !forgets || window.Capacitor) return;
+  root.querySelector('.frame-tip')?.remove();
+  const browser = ios ? 'Safari' : 'the browser';
+  // The link is made on the tap, so it carries the newest save over to the tab (state.js, carryLink).
+  const open = h('a', { class: 'btn small primary', href: location.href.split('#')[0], target: '_blank', rel: 'noopener', style: 'text-decoration:none;text-align:center',
+    onclick: () => { sfx('tap'); open.href = carryLink(); setTimeout(opened, 400); } }, 'Open in a tab');
+  const text = h('p', {}, night
+    ? `Today is saved, but only until ${browser} closes: inside this page your mall gets wiped. Open it in its own tab and your mall comes along and stays.`
+    : `Inside this page ${browser} wipes your mall when it closes. Open the game in its own tab, your mall comes along, and it stays saved there` + (ios ? ' (add it to your Home Screen from there).' : '.'));
+  const el = h('div', { class: 'ios-tip frame-tip', role: 'dialog', 'aria-label': 'Keep your save' },
+    h('b', {}, 'Keep your mall saved'), text,
+    h('span', { style: 'grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;gap:5px' },
+      open, h('button', { class: 'btn small', onclick: () => { sfx('tap'); el.remove(); } }, 'Not now')));
+  // If the tab was blocked, the same link can be pasted into the address bar instead.
+  function opened(){
+    if (!el.isConnected) return;
+    text.textContent = `No new tab? Copy the link and paste it into ${browser}'s address bar. It brings your mall with it.`;
+    const copy = h('button', { class: 'btn small primary', onclick: async () => {
+      const link = carryLink(); let ok = false;
+      try { await navigator.clipboard.writeText(link); ok = true; } catch {
+        const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = link; document.body.append(ta); ta.select();
+        try { ok = document.execCommand('copy'); } catch {} ta.remove();
+      }
+      sfx('tap'); copy.textContent = ok ? 'Copied' : 'Copy failed';
+    } }, 'Copy link');
+    open.textContent = 'Try again'; open.classList.remove('primary'); open.style.color = 'inherit'; open.before(copy);
+  }
+  root.append(el);
+  return el;
+}
+
 /* ---------- Intro ---------- */
 function drawScene(ctx, w, scene, t, mallName){
   const ppt = w / 16;
@@ -483,14 +523,18 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
     const b = h('button', { class: 'toggle', 'aria-pressed': set[key] ? 'true' : 'false', 'aria-label': label, onclick: () => { set[key] = !set[key]; b.setAttribute('aria-pressed', set[key]); onChange(); } });
     return h('div', { class: 'row' }, h('span', {}, label, note ? h('small', {}, note) : null), b);
   };
+  const sliders = [];
   const slider = (key, label, preview) => {
     const val = h('span', { class: 'val' }, `${set[key]}%`);
     const r = h('input', { type: 'range', min: 0, max: 100, step: 5, value: set[key], 'aria-label': label });
-    r.addEventListener('input', () => { set[key] = +r.value; val.textContent = set[key] ? `${set[key]}%` : 'Off'; onChange(); });
+    const show = () => { r.value = set[key]; val.textContent = set[key] ? `${set[key]}%` : 'Off'; };
+    r.addEventListener('input', () => { set[key] = +r.value; show(); onChange(); });
     r.addEventListener('change', () => preview && preview());
-    if (!set[key]) val.textContent = 'Off';
+    show(); sliders.push(show);
     return h('div', { class: 'row slider' }, h('span', {}, label), r, val);
   };
+  // Puts all three volumes back where a new player starts.
+  const resetVolume = () => { Object.assign(set, VOLUME_DEFAULTS); sliders.forEach(f => f()); onChange(); sfx('coin'); };
   const close = () => { m.close(); onClose && onClose(); };
   const hasSave = !!exportSave();
   const m = modal(h('div', { class: 'settings' },
@@ -498,7 +542,9 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
     h('div', { class: 'set-cols' },
       h('section', {},
         h('div', { class: 'section-label' }, 'Sound'),
-        slider('volMaster', 'Master', () => sfx('coin')), slider('volSfx', 'Sound effects', () => sfx('coin')), slider('volMusic', 'Music')),
+        slider('volMaster', 'Master', () => sfx('coin')), slider('volSfx', 'Sound effects', () => sfx('coin')), slider('volMusic', 'Music'),
+        h('div', { class: 'row' }, h('span', {}, 'Default volume', h('small', {}, 'All three back to how they started')),
+          h('button', { class: 'btn small', onclick: resetVolume }, 'Reset volume'))),
       h('section', {},
         h('div', { class: 'section-label' }, 'Game'),
         tog('tips', 'Notebook tips', 'Helpful tips at night'),
@@ -509,10 +555,45 @@ export function showSettings({ onRestart, onChange, inGame, onClose }){
             h('button', { class: 'btn small', disabled: !hasSave, onclick: () => backupBox() }, 'Back up'),
             h('button', { class: 'btn small', onclick: () => restoreBox() }, 'Restore'))),
         inGame ? h('div', { class: 'row' }, h('span', {}, 'Start over', h('small', {}, 'Deletes this mall for good')),
-          h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save')) : null)),
+          h('button', { class: 'btn small danger', onclick: async () => { if (await confirmResetSave()){ m.close(); onRestart(); } } }, 'Reset save')) : null,
+        h('div', { class: 'section-label' }, 'Dev options'),
+        h('div', { class: 'row' }, h('span', {}, 'Save slots', h('small', {}, `Playing slot ${activeSlot()} · keep several malls`)),
+          h('button', { class: 'btn small', onclick: () => showDevOptions() }, 'Open')))),
     h('div', { style: 'display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:12px' },
       h('span', { class: 'muted' }, `Mall Revival v${C.VERSION}`),
       h('button', { class: 'btn primary small', onclick: close }, 'Done'))), { onBackdrop: close });
+}
+// Dev options: several malls side by side. Each slot is its own save; the game opens whichever was picked last.
+// Switching (or starting a new mall in an empty slot) reloads the game into that slot.
+export function showDevOptions(){
+  const midDay = sim.phase === 'day' || sim.phase === 'closing';
+  const list = h('div', { class: 'slots' });
+  const go = n => { setActiveSlot(n); location.reload(); };
+  const leaveOk = async what => !midDay || await confirmBox(what, 'Switch', 'Cancel', 'Today hasn’t been saved yet (the mall saves at night), so today starts over in this mall next time you play it.');
+  const render = () => {
+    const slots = listSlots();
+    list.replaceChildren(...slots.map(({ n, info, active }) => {
+      const label = info ? (info.broken ? 'Unreadable save' : `${info.mall}`) : 'Empty';
+      const sub = info && !info.broken ? `Day ${info.day} · Level ${info.level} · $${Math.round(info.money).toLocaleString()}` : info ? 'This slot’s data is damaged' : 'Start a new mall here';
+      const btns = [];
+      if (active) btns.push(h('span', { class: 'tag' }, 'Playing'));
+      else if (info && !info.broken) btns.push(h('button', { class: 'btn small primary', onclick: async () => { if (await leaveOk(`Switch to ${info.mall}?`)) go(n); } }, 'Play'));
+      if (!info && !active){
+        if (slots.find(q => q.active).info) btns.push(h('button', { class: 'btn small', onclick: () => { if (copySlot(activeSlot(), n)){ sfx('coin'); render(); } } }, 'Copy current'));
+        btns.push(h('button', { class: 'btn small primary', onclick: async () => { if (await leaveOk('Start a new mall in this slot?')) go(n); } }, 'New mall'));
+      }
+      if (info && !active) btns.push(h('button', { class: 'btn small danger', onclick: async () => {
+        if (await confirmBox(`Delete ${label}?`, 'Delete', 'Cancel', `Slot ${n} will be emptied for good.`)){ deleteSlot(n); render(); }
+      } }, 'Delete'));
+      return h('div', { class: 'row' }, h('span', {}, `${n}. ${label}`, h('small', {}, sub)), h('span', { style: 'display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end' }, ...btns));
+    }));
+  };
+  render();
+  const m = modal(h('div', { class: 'settings' }, h('h2', {}, 'Dev options'),
+    h('div', { class: 'section-label' }, 'Save slots'),
+    h('p', { class: 'muted', style: 'margin:0 0 6px' }, 'Keep up to five malls. The game always opens the one you played last. Copy current makes a copy of the mall as of its last night.'),
+    list,
+    h('div', { style: 'display:flex;justify-content:flex-end;margin-top:12px' }, h('button', { class: 'btn primary small', onclick: () => m.close() }, 'Done'))), { onBackdrop: () => m.close() });
 }
 // The backup code, ready to copy.
 function backupBox(){
@@ -553,7 +634,7 @@ export function unlockList(levels){
   for (const lv of levels) for (const u of C.LEVEL_UNLOCKS[lv] || []){
     let paint, title, where;
     if (u.store){ const d = C.STORES[u.store]; paint = () => A.storeIcon(d.icon, 0.5, 0.5, 0.62); title = d.name; where = d.attraction ? `New ${d.w}×${d.h} attraction. It needs a big plot, like the ones on the second floor.` : `New ${d.kiosk ? 'kiosk' : `${d.w}×${d.h} store`}. Tap Build to open one.`; }
-    else if (u.expand){ const e = C.EXPANSIONS.find(q => q.id === u.expand); paint = () => A.storeIcon(u.expand === 'casino' || u.expand === 'vip' ? 'chip' : 'sun', 0.5, 0.5, 0.62); title = e.name; where = `${e.sub}. Build, then Fix up ($${e.cost.toLocaleString()}).`; }
+    else if (u.expand){ const e = C.EXPANSIONS.find(q => q.id === u.expand); paint = () => A.storeIcon(u.expand === 'casino' || u.expand === 'vip' ? 'chip' : u.expand === 'speakeasy' ? 'bar' : 'sun', 0.5, 0.5, 0.62); title = e.name; where = `${e.sub}. Build, then Fix up ($${e.cost.toLocaleString()}).`; }
     else if (u.zone){ const z = C.ZONES.find(q => q.id === u.zone); paint = () => A.storeIcon('broom', 0.5, 0.5, 0.62); title = z.name; where = 'More room to build. It clears out when you build a store there.'; }
     else if (u.decor){ const d = C.DECOR[u.decor]; paint = () => A.decorThumb(u.decor, d.w); title = d.name; where = `New decor: ${d.sub.toLowerCase()}. Build, then Decor.`; }
     else if (u.hire){
