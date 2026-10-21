@@ -816,3 +816,5 @@ v0.20.8: **Open in a tab brings the mall along.** On an iPhone the v0.20.7 Index
 - **Open in a tab** now builds its link on the tap with the save inside it (`#carry=<slot>.<backup code>`, state.js `carryLink`). On start, `takeCarried` puts that save in its slot unless the tab already holds a newer one, and clears the link's hash.
 - If no tab opens, the card switches to **Copy link** (the same link, to paste into the address bar) and **Try again**.
 - The card comes back each night inside the frame, saying the day is only kept until Safari closes.
+
+v0.20.9: **Nobody behind the bar.** The Velvet Rose's long bar stands out in the basement room, and people heading for the games, restrooms and seats up top took the row right behind its back wall, where the wall hid all but their heads, so they looked like they were behind the counter. Stepping onto the row behind any store's back wall now costs extra in the path search (`map.behind`, `BEHIND_COST` in map.js), so walkers go round the front unless decor leaves no other way.

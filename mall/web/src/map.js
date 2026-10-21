@@ -30,6 +30,7 @@ export const map = {
   occ: new Int32Array(GW * GH),
   zone: new Array(GW * GH).fill(null),
   hidden: new Uint8Array(GW * GH),   // 1 where something tall drawn in front would cover the floor
+  behind: new Uint8Array(GW * GH),   // 1 on the row right behind a store's back wall (walking there costs extra)
   garden: new Uint8Array(GW * GH),   // special floor: 1 the garden's grass, 2 casino carpet, 3 the high-roller suite's gold carpet
   w: MAP_W, f2w: 0, fw: [MAP_W, 0, 0, 0],
   esc: [],              // the escalators that are running (their floors are open)
@@ -83,11 +84,11 @@ export function rebuildMap(save){
 }
 // In the 3/4 view, tall things cover the row (or two) behind them. Litter never lands there.
 function markHidden(save){
-  map.hidden.fill(0);
+  map.hidden.fill(0); map.behind.fill(0);
   const row = (x0, w, y) => { for (let x = x0; x < x0 + w; x++) if (inBounds(x, y)) map.hidden[idx(x, y)] = 1; };
   for (const u of save.units){
     if (u.kiosk){ row(u.x, u.w, u.y - 1); row(u.x, u.w, u.y - 2); }
-    else row(u.x, u.w, u.y - 1);
+    else { row(u.x, u.w, u.y - 1); for (let x = u.x; x < u.x + u.w; x++) if (inBounds(x, u.y - 1)) map.behind[idx(x, u.y - 1)] = 1; }
   }
   for (const d of save.decor){ const z = decorSize(d); row(d.x, z.w, d.y - 1); if (['plant', 'lamp', 'vending', 'directory', 'tree', 'topiary', 'photobooth', 'arch', 'piano', 'balloons', 'arcadecab', 'bubbles', 'slots', 'goldslots', 'neon', 'jackpot', 'wheel', 'dicestatue', 'champagne', 'popcorn', 'iceswan', 'penny', 'hotair', 'jukebox', 'barrels', 'darts', 'pinball', 'booth', 'pool'].includes(d.type)) row(d.x, z.w, d.y - 2); if (d.type === 'tree') row(d.x - 1, 3, d.y - 1); }
   row(FOUNTAIN.x, FOUNTAIN.w, FOUNTAIN.y - 1);
@@ -141,6 +142,7 @@ function neighbors(x, y, occ, cb){
 export const isRide = (x0, x1) => Math.abs(x1 - x0) > 1;
 export const escalatorAt = (x, y) => map.esc.find(e => e.land.x === x && e.land.y === y) || null;
 
+const BEHIND_COST = 4;
 // Distance field toward a target tile (Dijkstra over the walkable grid), cached until the layout changes.
 export function field(tx, ty){
   const key = idx(tx, ty);
@@ -156,6 +158,9 @@ export function field(tx, ty){
     const d = f[idx(x, y)];
     neighbors(x, y, map.occ, (nx, ny, c) => {
       const ni = idx(nx, ny);
+      // Squeezing along behind a store (e.g. the speakeasy's bar, out in the room) hides people behind its back wall,
+      // so they look like they're behind the counter. They go round the front unless that's the only way.
+      if (map.behind[ni]) c += BEHIND_COST;
       if (d + c < f[ni]){ if (f[ni] === Infinity) open.push([nx, ny]); f[ni] = d + c; }
     });
   }
