@@ -1,6 +1,6 @@
 // Boot and game flow: title → intro → Day 1 with Gus → (report → night → next day) forever.
 import * as C from './config.js';
-import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks, restoreStorage } from './state.js';
+import { S, newSave, loadSave, writeSave, clearSave, hasSave, loadSettings, writeSettings, stores, assignClerks, restoreStorage, takeCarried } from './state.js';
 import { rebuildMap, occAt, FOUNTAIN_ID, validatePlacement, map, clearEscalators, fixDoors, floorOf, hasUpstairs, topFloor, openFloors, floorLevel } from './map.js';
 import { sim, step, startDay, buildReport, addJob, GUS_LINES, stepGus, staffLook } from './sim.js';
 import { initRender, resize, render, view, invalidate, clampCam, restroomBubble, setFloor } from './render.js';
@@ -283,6 +283,8 @@ async function enterNight(report, gusVisited = false){
   await runExpandScene();
   setNightIntro(false);
   nightTips(report);
+  // Inside itch.io's frame on iPhone the day just saved is gone once Safari closes, so ask again each night.
+  if (report) UI.frameSaveTip(true);
 }
 function openDoors(){
   if (placing()){ UI.toast('Finish or cancel what you’re placing first'); return; }
@@ -379,6 +381,6 @@ function frame(now){
 }
 // The save may need putting back from its second copy first (state.js, restoreStorage).
 const ready = Promise.all([document.fonts && document.fonts.ready, restoreStorage()]);
-ready.then(() => { loadSettings(); applySettings(); invalidate(); boot(); requestAnimationFrame(frame); }, () => { boot(); requestAnimationFrame(frame); });
+ready.then(() => { takeCarried(); loadSettings(); applySettings(); invalidate(); boot(); requestAnimationFrame(frame); }, () => { boot(); requestAnimationFrame(frame); });
 // Debug hooks for automated playtests.
 window.__mall = { S, sim, view, perf, ride: rideEscalatorAt, phase: () => phase, toScreen: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: (x - view.cam.x) * view.cam.s + view.W / 2 + r.left, y: (y - view.cam.y) * view.cam.s + view.H / 2 + r.top }; } };

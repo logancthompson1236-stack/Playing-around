@@ -811,3 +811,8 @@ v0.20.6: **Reset volume.** Settings has a Reset volume button under the three sl
 v0.20.7: **Saves on itch.io.** Safari (so every iPhone browser) and Firefox don't keep storage for a game inside another site's frame, which is how itch.io runs HTML games, so an iPhone player's mall was gone after closing Safari.
 - Everything saved (each slot, the active slot, settings) is written to localStorage and copied to IndexedDB. On start, `restoreStorage` (state.js) puts back whatever one of them lost, or an older save (saves carry `savedAt`). If localStorage refuses outright, the session keeps working from memory.
 - Inside a frame on Safari, iOS or Firefox, the title shows "Keep your mall saved" with **Open in a tab**, which opens the game page on its own, where the save sticks and an iPhone can add it to the Home Screen.
+
+v0.20.8: **Open in a tab brings the mall along.** On an iPhone the v0.20.7 IndexedDB copy didn't survive inside itch.io's frame either, and the game in its own tab has separate storage, so opening the tab started from nothing.
+- **Open in a tab** now builds its link on the tap with the save inside it (`#carry=<slot>.<backup code>`, state.js `carryLink`). On start, `takeCarried` puts that save in its slot unless the tab already holds a newer one, and clears the link's hash.
+- If no tab opens, the card switches to **Copy link** (the same link, to paste into the address bar) and **Try again**.
+- The card comes back each night inside the frame, saying the day is only kept until Safari closes.

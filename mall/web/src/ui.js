@@ -1,7 +1,7 @@
 // DOM overlay: HUD, panels, dialogs, tips, toasts and full-screen screens. Game rules live elsewhere.
 import * as A from './art.js';
 import * as C from './config.js';
-import { S, VOLUME_DEFAULTS, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot } from './state.js';
+import { S, VOLUME_DEFAULTS, levelProgress, exportSave, readSaveCode, importSave, listSlots, activeSlot, setActiveSlot, deleteSlot, copySlot, carryLink } from './state.js';
 import { sim, clockText, GUS_LOOK } from './sim.js';
 import { sfx } from './audio.js';
 import { INTRO, LETTER, TIPS } from './story.js';
@@ -309,17 +309,37 @@ export function iosInstallTip(){
 // Inside another site's page (itch.io's frame), Safari (and so every iPhone browser) and Firefox can throw the save
 // away when the browser closes. A card says so and offers the game in its own tab, where the save sticks (and on an
 // iPhone it can go on the home screen from there).
-export function frameSaveTip(){
+export function frameSaveTip(night = false){
   let framed = false; try { framed = window.top !== window; } catch { framed = true; }
   const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const forgets = ios || /Firefox\//.test(ua) || (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Android/.test(ua));
   if (!framed || !forgets || window.Capacitor) return;
-  const el = h('div', { class: 'ios-tip', role: 'dialog', 'aria-label': 'Keep your save' },
-    h('b', {}, 'Keep your mall saved'),
-    h('p', {}, 'This browser can forget games saved inside this page when it closes. Open the game in its own tab and your mall stays put' + (ios ? ' (you can add it to your Home Screen from there).' : '.')),
+  root.querySelector('.frame-tip')?.remove();
+  const browser = ios ? 'Safari' : 'the browser';
+  // The link is made on the tap, so it carries the newest save over to the tab (state.js, carryLink).
+  const open = h('a', { class: 'btn small primary', href: location.href.split('#')[0], target: '_blank', rel: 'noopener', style: 'text-decoration:none;text-align:center',
+    onclick: () => { sfx('tap'); open.href = carryLink(); setTimeout(opened, 400); } }, 'Open in a tab');
+  const text = h('p', {}, night
+    ? `Today is saved, but only until ${browser} closes: inside this page your mall gets wiped. Open it in its own tab and your mall comes along and stays.`
+    : `Inside this page ${browser} wipes your mall when it closes. Open the game in its own tab, your mall comes along, and it stays saved there` + (ios ? ' (add it to your Home Screen from there).' : '.'));
+  const el = h('div', { class: 'ios-tip frame-tip', role: 'dialog', 'aria-label': 'Keep your save' },
+    h('b', {}, 'Keep your mall saved'), text,
     h('span', { style: 'grid-column:2;grid-row:1 / span 2;display:flex;flex-direction:column;gap:5px' },
-      h('a', { class: 'btn small primary', href: location.href, target: '_blank', rel: 'noopener', style: 'text-decoration:none;text-align:center', onclick: () => sfx('tap') }, 'Open in a tab'),
-      h('button', { class: 'btn small', onclick: () => { sfx('tap'); el.remove(); } }, 'Not now')));
+      open, h('button', { class: 'btn small', onclick: () => { sfx('tap'); el.remove(); } }, 'Not now')));
+  // If the tab was blocked, the same link can be pasted into the address bar instead.
+  function opened(){
+    if (!el.isConnected) return;
+    text.textContent = `No new tab? Copy the link and paste it into ${browser}'s address bar. It brings your mall with it.`;
+    const copy = h('button', { class: 'btn small primary', onclick: async () => {
+      const link = carryLink(); let ok = false;
+      try { await navigator.clipboard.writeText(link); ok = true; } catch {
+        const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = link; document.body.append(ta); ta.select();
+        try { ok = document.execCommand('copy'); } catch {} ta.remove();
+      }
+      sfx('tap'); copy.textContent = ok ? 'Copied' : 'Copy failed';
+    } }, 'Copy link');
+    open.textContent = 'Try again'; open.classList.remove('primary'); open.style.color = 'inherit'; open.before(copy);
+  }
   root.append(el);
   return el;
 }

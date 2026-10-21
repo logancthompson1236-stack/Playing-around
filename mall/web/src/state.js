@@ -179,6 +179,23 @@ export function importSave(s){
   s.savedAt = Date.now();
   try { put(saveKey(), JSON.stringify(s)); return true; } catch { return false; }
 }
+// itch.io's frame on iPhone keeps nothing once Safari closes, and the game in its own tab has separate storage, so
+// "Open in a tab" (ui.js, frameSaveTip) passes the save along in the link: #carry=<slot>.<backup code>.
+export function carryLink(){
+  const base = location.href.split('#')[0], code = exportSave();
+  return code ? `${base}#carry=${activeSlot()}.${encodeURIComponent(code)}` : base;
+}
+// On start, in the new tab: takes the carried save unless this tab already has a newer one in that slot.
+export function takeCarried(){
+  const m = /^#carry=(\d)\.(.+)$/.exec(location.hash);
+  if (!m) return;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+  let s = null; try { s = readSaveCode(decodeURIComponent(m[2])); } catch {}
+  if (!s) return;
+  const n = Math.min(SAVE_SLOTS, Math.max(1, +m[1])), here = get(slotKey(n));
+  let at = 0; try { at = here ? JSON.parse(here).savedAt || 0 : 0; } catch {}
+  try { if (!here || (s.savedAt || 0) >= at) put(slotKey(n), JSON.stringify(s)); setActiveSlot(n); } catch {}
+}
 export function clearSave(){
   try { drop(saveKey()); } catch {}
 }
