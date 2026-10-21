@@ -800,3 +800,8 @@ v0.20.4 (the Velvet Rose):
 - **Bartender:** works a loop with everything in his hands: polishing a glass with a towel, shaking a cocktail at his shoulder, walking to the taps to pull a pint that's left on the bar, and back. The shaker on the counter stands still.
 - **Velvet booth:** a channel-tufted horseshoe with a walnut cap, brass nailheads and end posts around a round pedestal table with a fringed lamp; two sit at the back facing out, one on each arm facing in, and they walk in round the table.
 - **Pool:** a player at either end of the table is drawn in front of it, with their cue, never tucked behind the rail.
+
+v0.20.5:
+- **Barrel tables** (beside the bar stools) are real whiskey barrels: bellied staves, four iron hoops, a lid with end-grain boards inside its rim, a bung and the rose brand (`barrelTable` in art6.js).
+- **Shuffleboard:** the table starts a little further in so the shooter stands behind its near end, side on and bent low with a hand on the puck; a couple of practice strokes, a draw back, a step into the push with the arm following through down the table, then they straighten up to watch it stop (`shufPose`/`shufHeld` in art7.js). The shooter is drawn over the table end.
+- **High Roller Suite carpet:** champagne gold with a soft pile, woven with a bronze art-deco lattice, a fan-petal medallion with a garnet in every diamond and cream stars where the lines cross. It's drawn clipped to each floor strip from world coordinates, so it runs seamlessly (`vipcarpet` in art.js).

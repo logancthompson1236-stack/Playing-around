@@ -230,11 +230,46 @@ export function floor(kind, x, y, w, h, seed){
     }
   }
   else if (kind === 'vipcarpet'){
-    g.fillStyle = '#c99a2e'; g.fillRect(x, y, w, h);
-    for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){
-      g.fillStyle = 'rgba(40,20,10,.75)'; g.beginPath(); g.moveTo(i + 0.5, j + 0.2); g.lineTo(i + 0.8, j + 0.5); g.lineTo(i + 0.5, j + 0.8); g.lineTo(i + 0.2, j + 0.5); g.closePath(); g.fill();
-      circ(i + 0.5, j + 0.5, 0.06); g.fillStyle = '#ffe9a8'; g.fill();
+    // The High Roller Suite: a plush champagne-gold carpet woven with an art-deco lattice. Bronze diamonds two tiles
+    // across, each holding a medallion (a ring of fan petals round a garnet), cream four-point stars where the
+    // diamonds meet, and a soft pile that catches the light. Drawn clipped to this strip so the pattern runs on
+    // seamlessly across strips and tiles.
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.fillStyle = '#cfa24a'; g.fillRect(x, y, w, h);
+    const i0 = Math.floor(x) - 1, i1 = Math.ceil(x + w) + 1, j0 = Math.floor(y) - 1, j1 = Math.ceil(y + h) + 1;
+    // Pile: faint stripes of lighter and darker nap.
+    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++){ const v = hash(i, j, 77); g.fillStyle = v < 0.5 ? `rgba(255,236,180,${0.02 + v * 0.04})` : `rgba(120,80,20,${(v - 0.5) * 0.05})`; g.fillRect(i, j, 1, 1); }
+    // The lattice.
+    g.strokeStyle = 'rgba(110,66,18,.55)'; g.lineWidth = 0.05; g.beginPath();
+    // Lines x - y = c and x + y = c for every even c, so every strip lines up with the next.
+    for (let c = 2 * Math.floor((i0 - j1) / 2); c <= i1 - j0; c += 2){ g.moveTo(j0 + c, j0); g.lineTo(j1 + c, j1); }
+    for (let c = 2 * Math.floor((i0 + j0) / 2); c <= i1 + j1; c += 2){ g.moveTo(c - j0, j0); g.lineTo(c - j1, j1); }
+    g.stroke();
+    g.strokeStyle = 'rgba(255,240,200,.35)'; g.lineWidth = 0.015; g.stroke();
+    // Medallions in each diamond (on odd-sum tile corners), stars where the lattice lines cross (even-sum).
+    for (let i = i0; i < i1; i++) for (let j = j0; j < j1; j++){
+      if (((i + j) % 2 + 2) % 2 === 1){
+        const cx = i, cy = j;
+        circ(cx, cy, 0.34); g.fillStyle = 'rgba(150,96,30,.22)'; g.fill();
+        g.strokeStyle = 'rgba(110,66,18,.6)'; g.lineWidth = 0.03; g.stroke();
+        circ(cx, cy, 0.28); g.strokeStyle = 'rgba(255,236,190,.55)'; g.lineWidth = 0.014; g.stroke();
+        for (let k = 0; k < 8; k++){
+          const a = k * Math.PI / 4;
+          g.save(); g.translate(cx, cy); g.rotate(a);
+          g.beginPath(); g.moveTo(0, -0.07); g.quadraticCurveTo(0.075, -0.17, 0, -0.24); g.quadraticCurveTo(-0.075, -0.17, 0, -0.07); g.fillStyle = k % 2 ? 'rgba(255,238,196,.75)' : 'rgba(132,80,22,.6)'; g.fill();
+          g.restore();
+        }
+        circ(cx, cy, 0.07); g.fillStyle = '#7a1f2b'; g.fill(); circ(cx - 0.02, cy - 0.02, 0.022); g.fillStyle = 'rgba(255,200,200,.6)'; g.fill();
+      } else {
+        const cx = i, cy = j;
+        g.fillStyle = 'rgba(255,244,214,.8)'; g.beginPath();
+        for (let k = 0; k < 8; k++){ const a = k * Math.PI / 4, r = k % 2 ? 0.035 : 0.13; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+        g.closePath(); g.fill();
+      }
+      // Little bronze dots halfway along each lattice line.
+      circ(i + 0.5, j + 0.5, 0.03); g.fillStyle = 'rgba(110,66,18,.6)'; g.fill();
     }
+    g.restore();
   }
   else if (kind === 'play'){ checker(1, '#e8f4ff', '#fff4d6'); grid(1, 'rgba(90,141,238,.18)', 0.025); for (let i = Math.floor(x); i < x + w; i++) for (let j = Math.floor(y); j < y + h; j++){ const v = hash(i, j, 9); if (v < 0.3){ circ(i + 0.5, j + 0.5, 0.08); g.fillStyle = ['rgba(239,71,111,.35)', 'rgba(255,210,63,.45)', 'rgba(6,214,160,.35)'][Math.floor(v * 10) % 3]; g.fill(); } } }
   else if (kind === 'blush'){ checker(0.5, '#fff0f6', '#fbe3ef'); grid(1, 'rgba(199,125,255,.18)', 0.02); }

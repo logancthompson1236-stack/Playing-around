@@ -50,7 +50,7 @@ export function gameSpots(d){
     case 'darts': return [{ x: x + 0.35, y: y + 2.72 }, { x: x + 1.65, y: y + 2.72 }];
     case 'pool': return [{ x: x + 0.3, y: y + 2.62 }, { x: x + 2.7, y: y + 2.62 }];
     case 'foosball': return [{ x: x + 0.16, y: y + 1.22 }, { x: x + 1.84, y: y + 1.22 }];
-    case 'shuffle': return [{ x: x + 0.55, y: y + 1.66 }, { x: x + 1.15, y: y + 1.72 }];
+    case 'shuffle': return [{ x: x + 0.45, y: y + 1.62 }, { x: x + 1.15, y: y + 1.72 }];
     case 'pinball': return [{ x: x + 0.5, y: y + 1.62 }];
   }
   return [];
@@ -451,10 +451,10 @@ function foosPose(d, slot, G, t){
 }
 
 /* ---------- Shuffleboard ---------- */
-// A long polished table. Each turn one puck is slid from the left end; the closer it stops to the far end the more
+// A long polished table. Each turn the shooter steps up to the left end, behind the table, and slides one puck; the closer it stops to the far end the more
 // it scores (1, 2, 3, and 4 hanging over the edge), and it can knock an opponent's puck on or off.
 function shufGeom(d){
-  const X0 = d.x + 0.15, X1 = d.x + 3.85, Y0 = d.y + 0.25, Y1 = d.y + 0.9, H = 0.4;
+  const X0 = d.x + 0.62, X1 = d.x + 3.88, Y0 = d.y + 0.25, Y1 = d.y + 0.9, H = 0.4;
   return { X0, X1, Y0, Y1, H, at: (u, v) => ({ x: lerp(X0 + 0.12, X1 - 0.1, u), y: lerp(Y0 + 0.08, Y1 - 0.12, v) - H }) };
 }
 // Every puck slid so far: where it ended up (u along the table, v across), whose it is, and whether it fell off.
@@ -465,7 +465,7 @@ function shufPucks(G, upTo){
     const last = n === Math.floor((G.len - 0.01) / TURN.shuffle);
     let u = last ? 0.95 + r(1) * 0.03 : 0.62 + r(1) * 0.38, v = 0.25 + r(2) * 0.5;
     const hit = pucks.find(p => !p.off && Math.abs(p.u - u) < 0.06 && Math.abs(p.v - v) < 0.22);
-    pucks.push({ n, who, u, v, from: 0.04, hit: hit ? hit.idx : -1, idx: pucks.length, off: u > 1.0 });
+    pucks.push({ n, who, u, v, from: 0.02, hit: hit ? hit.idx : -1, idx: pucks.length, off: u > 1.0 });
     if (hit){ hit.knockN = n; hit.knockFrom = hit.u; hit.u += 0.1 + r(3) * 0.08; hit.v = clamp01(hit.v + (r(4) - 0.5) * 0.3); if (hit.u > 1.0) hit.off = true; }
   }
   return pucks;
@@ -473,8 +473,8 @@ function shufPucks(G, upTo){
 const shufPoints = u => u > 1 ? 0 : u > 0.985 ? 4 : u > 0.9 ? 3 : u > 0.8 ? 2 : u > 0.68 ? 1 : 0;
 function shufTable(d, t, G){
   const S = shufGeom(d);
-  shadow(d.x + 2, S.Y1 + 0.03, 1.95, 0.12, 0.2);
-  for (const lx of [S.X0 + 0.1, d.x + 1.95, S.X1 - 0.22]){ rr(lx, S.Y1 - 0.3, 0.12, 0.3, 0.03); fs('#3d2219', 0.02); }
+  shadow((S.X0 + S.X1) / 2, S.Y1 + 0.03, (S.X1 - S.X0) / 2 + 0.05, 0.12, 0.2);
+  for (const lx of [S.X0 + 0.1, (S.X0 + S.X1) / 2 - 0.06, S.X1 - 0.22]){ rr(lx, S.Y1 - 0.3, 0.12, 0.3, 0.03); fs('#3d2219', 0.02); }
   box(S.X0, S.Y0, S.X1 - S.X0, S.Y1 - S.Y0, 0.14, WALNUT, '#4e2c20', 0.26, 0.05);
   // The playing surface: glossy maple, a sprinkle of sawdust, the scoring lines and numbers at the far end.
   rr(S.X0 + 0.05, S.Y0 - S.H + 0.04, S.X1 - S.X0 - 0.1, S.Y1 - S.Y0 - 0.1, 0.04); fs('#e9c48f', 0.02);
@@ -504,7 +504,7 @@ function shufTable(d, t, G){
   if (!on){ for (const [u, v, s] of [[0.04, 0.3, 0], [0.04, 0.55, 1], [0.08, 0.42, 0], [0.08, 0.68, 1]]){ const p = S.at(u, v); puck(p.x, p.y, TEAM[s]); } return; }
   for (const p of pucks){
     let u = p.u, v = p.v, vis = true;
-    if (p.n === k.n){ const r = (k.c - 1.0) / 1.0; if (r < 0) { u = 0.0; v = 0.5; vis = k.c > 0.45; } else u = lerp(p.from, p.u, 1 - (1 - clamp01(r)) ** 2.4); }
+    if (p.n === k.n){ const r = (k.c - 1.0) / 1.0; if (r < 0) { u = shufHeld(k.c); v = 0.5; vis = k.c > 0.5; } else u = lerp(p.from, p.u, 1 - (1 - clamp01(r)) ** 2.4); }
     if (p.knockN !== undefined){ if (p.knockN > k.n || (p.knockN === k.n && k.c < 1.6)) u = p.knockFrom; else if (p.knockN === k.n && k.c < 1.9) u = lerp(p.knockFrom, p.u, seg(k.c, 1.6, 1.9)); }
     if (p.off && (p.n < k.n || k.c > 2.0) && !(p.knockN !== undefined && (p.knockN > k.n || (p.knockN === k.n && k.c < 1.9)))) continue;
     if (!vis) continue;
@@ -518,19 +518,31 @@ function puck(x, y, col){
   cylinder(x, y + 0.01, 0.055, 0.03, '#a0a8b0', col);
   ell(x - 0.015, y - 0.03, 0.025, 0.01); g.fillStyle = 'rgba(255,255,255,.4)'; g.fill();
 }
+// Where the shooter's puck sits before it's let go (u along the table): set down, slid back and forth a couple of
+// times to feel the wax, drawn back, then pushed (the table takes over at c = 1.0).
+function shufHeld(c){ return c < 0.6 ? 0.02 : c < 0.92 ? 0.02 + Math.sin((c - 0.6) / 0.32 * Math.PI * 2) * 0.018 : 0.02 - seg(c, 0.92, 1.0) * 0.015; }
+// The shooter stands behind the near end of the table, side on, bent low with a hand on the puck: a few practice
+// strokes, a step into the push, the arm following through down the table, then watching it stop.
 function shufPose(d, slot, G, t){
-  const sp = gameSpots(d)[slot], shoot = { x: d.x + 0.32, y: d.y + 1.22 };
+  const sp = gameSpots(d)[slot], S = shufGeom(d), shoot = { x: d.x + 0.3, y: S.Y1 - 0.12 };
   if (!G || !G.on) return { x: sp.x, y: sp.y, o: { flip: false } };
   if (G.done) return endPose(G, slot, sp);
   const k = clock(G, TURN.shuffle), c = k.c;
   if (k.who !== slot) return { x: sp.x, y: sp.y, o: { back: false, flip: false, mood: c > 1.8 && c < 2.6 && hash(G.seed, k.n, 9) < 0.4 ? 'happy' : undefined } };
   if (c < 0.45) return walkPose(sp, shoot, c / 0.45);
   if (c < 2.3){
-    // Lean over the table, puck under the fingertips, a couple of practice slides, then the push.
-    const lean = seg(c, 0.45, 0.7) * (1 - seg(c, 1.8, 2.2));
-    const push = c > 0.95 && c < 1.25;
-    const after = c < 1.0 ? () => { const S = shufGeom(d), p = S.at(0.0 + Math.sin(c * 9) * 0.01, 0.5); puck(p.x, p.y, TEAM[slot]); } : undefined;
-    return { x: shoot.x + (push ? 0.08 : 0), y: shoot.y, o: { reachSide: true, flip: false, crouch: 0.32 * lean, mood: c > 1.9 && shufPoints(shufPucks(G, k.n)[k.n].u) >= 3 ? 'happy' : undefined }, after };
+    const bend = seg(c, 0.45, 0.65) * (1 - seg(c, 1.9, 2.25) * 0.8);
+    // The lunge: weight back as they draw the puck back, then forward into the push.
+    const lunge = c < 0.92 ? 0 : c < 1.0 ? -seg(c, 0.92, 1.0) * 0.04 : -0.04 + seg(c, 1.0, 1.18) * 0.16 - seg(c, 1.6, 2.1) * 0.12;
+    const x = shoot.x + lunge, y = shoot.y;
+    // The hand: on the puck until it leaves, then following through as far as the arm reaches.
+    const pu = c < 1.0 ? shufHeld(c) : Math.min(0.02 + seg(c, 1.0, 1.15) * 0.12, 0.14), P = S.at(pu, 0.5);
+    let hx = P.x - 0.03 - x, hy = P.y + 0.01 - y;
+    if (c > 1.15) { const back = seg(c, 1.6, 2.1); hx = lerp(hx, 0.3, back); hy = lerp(hy, -0.45, back); }
+    const sx = 0.04 + bend * 0.22, sy = -0.56 + bend * 0.12, dd = Math.hypot(hx - sx, hy - sy);
+    if (dd > 0.44){ hx = sx + (hx - sx) * 0.44 / dd; hy = sy + (hy - sy) * 0.44 / dd; }
+    const good = c > 1.9 && shufPoints(shufPucks(G, k.n)[k.n].u) >= 3;
+    return { x, y, o: { reachSide: true, reachTo: [hx, hy], flip: false, crouch: 0.42 * bend, mood: good ? 'happy' : undefined, cheer: good && c > 2.0 && hash(G.seed, k.n, 5) < 0.5 } };
   }
   return walkPose(shoot, sp, (c - 2.3) / 0.6);
 }
@@ -652,6 +664,8 @@ export function playerPose(d, slot, G, p, t){
   // Off either end of the pool table, a player is drawn in front of it, never tucked behind the rail (their cue
   // then goes over them too, rather than with the table).
   if (d.type === 'pool'){ const P = poolGeom(d); if (r.x < P.X0 + 0.05 || r.x > P.X1 - 0.05){ r.sortY = Math.max(r.y, P.Y1 + 0.01); if (r.behind) r.after = r.behind; } }
+  // At the shuffleboard's near end the shooter leans over the table: drawn after it, arm over the wood.
+  if (d.type === 'shuffle'){ const S = shufGeom(d); if (r.x < S.X0 + 0.05) r.sortY = Math.max(r.y, S.Y1 + 0.01); }
   if (r.behind) delete r.behind;
   return r;
 }

@@ -371,12 +371,31 @@ const stoolSeat = (sx, sy) => {
   cylinder(sx, sy - 0.12, 0.13, 0.1, '#5e1c22', LEATHER);
   ell(sx - 0.03, sy - 0.235, 0.06, 0.02); g.fillStyle = 'rgba(255,255,255,.18)'; g.fill();
 };
+// An oak whiskey barrel stood on end as a little table: bellied staves, iron hoops, a lid with its rim (chime), a
+// bung stopper, and the rose burnt into its side.
 function barrelTable(cx, cy, drink){
-  shadow(cx, cy + 0.02, 0.18, 0.06);
-  cylinder(cx, cy, 0.15, 0.44, '#8a5a3a', '#a8714a');
-  for (const hy of [0.08, 0.36]){ g.beginPath(); g.ellipse(cx, cy - hy, 0.15, 0.05, 0, 0, Math.PI); g.strokeStyle = '#2b2230'; g.lineWidth = 0.025; g.stroke(); }
-  g.strokeStyle = 'rgba(60,30,15,.35)'; g.lineWidth = 0.01; g.beginPath(); for (const dx of [-0.07, 0, 0.07]){ g.moveTo(cx + dx, cy - 0.43); g.lineTo(cx + dx, cy - 0.02); } g.stroke();
-  tableDrink(drink, cx, cy - 0.44);
+  const h = 0.5, re = 0.155, rb = 0.19, k = 0.36, top = cy - h;
+  // Half-width at height y (0 at the foot, h at the lid): wider at the belly.
+  const wAt = y => re + (rb - re) * Math.sin(Math.PI * y / h);
+  shadow(cx, cy + 0.02, 0.22, 0.07);
+  const side = () => { g.beginPath(); g.moveTo(cx - re, cy); g.quadraticCurveTo(cx - 2 * rb + re, cy - h / 2, cx - re, top); g.lineTo(cx + re, top); g.quadraticCurveTo(cx + 2 * rb - re, cy - h / 2, cx + re, cy); g.ellipse(cx, cy, re, re * k, 0, 0, Math.PI); g.closePath(); };
+  side(); const gr = g.createLinearGradient(cx - rb, 0, cx + rb, 0); gr.addColorStop(0, '#6e4428'); gr.addColorStop(0.35, '#b07a4a'); gr.addColorStop(0.6, '#a06a3e'); gr.addColorStop(1, '#5c3820'); g.fillStyle = gr; g.fill(); g.strokeStyle = OUT; g.lineWidth = 0.03; g.stroke();
+  g.save(); side(); g.clip();
+  // Staves: seams that follow the belly.
+  g.strokeStyle = 'rgba(60,30,15,.45)'; g.lineWidth = 0.008;
+  for (const f of [-0.75, -0.42, -0.12, 0.18, 0.48, 0.78]){ g.beginPath(); for (let i = 0; i <= 8; i++){ const y = h * i / 8, w = wAt(y); g.lineTo(cx + f * w, cy - y + Math.sqrt(Math.max(0, 1 - f * f)) * w * k); } g.stroke(); }
+  // Iron hoops near each end and either side of the belly.
+  for (const y of [0.05, 0.16, 0.34, 0.45]){ const w = wAt(y); g.beginPath(); g.ellipse(cx, cy - y, w + 0.004, w * k, 0, 0, Math.PI); g.strokeStyle = '#2b2230'; g.lineWidth = 0.03; g.stroke(); g.beginPath(); g.ellipse(cx, cy - y - 0.008, w, w * k, 0, 0.3, Math.PI * 0.55); g.strokeStyle = 'rgba(200,205,215,.45)'; g.lineWidth = 0.008; g.stroke(); }
+  // The bung, and the rose brand.
+  circ(cx + 0.06, cy - h / 2 + 0.04, 0.022); fs('#4a2a18', 0.01);
+  circ(cx - 0.05, cy - h / 2, 0.035); g.strokeStyle = 'rgba(60,20,10,.55)'; g.lineWidth = 0.01; g.stroke(); g.beginPath(); g.moveTo(cx - 0.05, cy - h / 2 + 0.035); g.lineTo(cx - 0.05, cy - h / 2 + 0.075); g.stroke();
+  g.restore();
+  // The lid: end-grain boards inside the chime, under a ring of hoop.
+  ell(cx, top, re, re * k); fs('#8a5a36', 0.025);
+  ell(cx, top + 0.008, re - 0.025, (re - 0.025) * k); fs('#c08a58', 0);
+  g.save(); ell(cx, top + 0.008, re - 0.025, (re - 0.025) * k); g.clip(); g.strokeStyle = 'rgba(90,50,25,.4)'; g.lineWidth = 0.007; g.beginPath(); for (const dx of [-0.065, 0, 0.065]){ g.moveTo(cx + dx, top - 0.1); g.lineTo(cx + dx, top + 0.1); } g.stroke(); g.restore();
+  g.beginPath(); g.ellipse(cx, top, re, re * k, 0, 0, Math.PI * 2); g.strokeStyle = '#2b2230'; g.lineWidth = 0.02; g.stroke();
+  tableDrink(drink, cx, top + 0.01);
 }
 // Draws the seat pieces in sort layers via add(sortY, fn). live.drinks[seat] = what each sitter has, if anyone.
 function perchLayers(d, t, add, live){
