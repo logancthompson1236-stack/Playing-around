@@ -4,6 +4,14 @@ apply plugin: 'com.android.application'
 def webPkg = new groovy.json.JsonSlurper().parse(file('../../web/package.json'))
 def (vMajor, vMinor, vPatch) = webPkg.version.tokenize('.').collect { it.replaceAll(/[^0-9].*/, '') as int }
 
+// The private Google Play upload key, if this machine has it: android/keystore.properties (never committed,
+// see keystore/README.md) or the MALL_UPLOAD_* environment variables in CI. Without it, release builds keep the test key.
+def uploadProps = new Properties()
+def uploadPropsFile = rootProject.file('keystore.properties')
+if (uploadPropsFile.exists()) uploadPropsFile.withInputStream { uploadProps.load(it) }
+def upload = { String key, String env -> uploadProps.getProperty(key) ?: System.getenv(env) }
+def uploadStore = upload('storeFile', 'MALL_UPLOAD_STORE_FILE')
+
 android {
     namespace = "com.mallrevival.game"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -28,13 +36,21 @@ android {
             keyAlias 'mallrevival'
             keyPassword 'mallrevival'
         }
+        if (uploadStore) {
+            play {
+                storeFile rootProject.file(uploadStore)
+                storePassword upload('storePassword', 'MALL_UPLOAD_STORE_PASSWORD')
+                keyAlias upload('keyAlias', 'MALL_UPLOAD_KEY_ALIAS')
+                keyPassword upload('keyPassword', 'MALL_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.test
         }
         release {
-            signingConfig signingConfigs.test
+            signingConfig uploadStore ? signingConfigs.play : signingConfigs.test
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

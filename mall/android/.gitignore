@@ -99,3 +99,7 @@ app/src/main/assets/public
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
+
+# The private Google Play upload key and its passwords (see keystore/README.md)
+keystore.properties
+keystore/upload*.jks

@@ -2,6 +2,7 @@ name: Mall Revival build
 
 # Every push that touches the game builds both test versions:
 #   - the single-file HTML, published to GitHub Pages under /mall/ (latest) and /mall/vX.Y.Z/
+#   - the privacy policy (for Google Play), at /mall/privacy.html
 #   - the APK, attached to a GitHub Release tagged mall-vX.Y.Z
 on:
   push:
@@ -73,6 +74,7 @@ jobs:
           cp mall/web/dist/index.html "pages/mall/v${VERSION}/index.html"
           cp mall/web/dist/sw.js pages/mall/sw.js
           cp mall/web/dist/sw.js "pages/mall/v${VERSION}/sw.js"
+          cp mall/web/privacy.html pages/mall/privacy.html
           touch pages/.nojekyll
           [ -f pages/index.html ] || printf '<!doctype html><meta http-equiv="refresh" content="0; url=mall/"><a href="mall/">Mall Revival</a>\n' > pages/index.html
           cd pages
