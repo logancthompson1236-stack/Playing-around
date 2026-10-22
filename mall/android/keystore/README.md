@@ -28,4 +28,4 @@ Then run `mall/build-aab.sh`. With that file present, `assembleRelease` signs wi
 
 The workflow attaches the `.aab` to its run as an artifact (only people with access to the repo can download it); upload that to Play Console.
 
-Play-installed copies and test APKs are signed differently, so a phone can't update from one to the other: uninstall first, which deletes the save.
+Builds signed with the upload key use the Play package name `com.starlodevelopment.mallrevival`; test APKs keep `com.mallrevival.game`. They are separate apps on a phone, each with its own save.

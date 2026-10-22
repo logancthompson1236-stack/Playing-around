@@ -16,7 +16,9 @@ android {
     namespace = "com.mallrevival.game"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.mallrevival.game"
+        // Google Play registered the game as com.starlodevelopment.mallrevival. Test APKs keep the old id so they
+        // still install over earlier test builds; a Play install is a separate app on the phone.
+        applicationId uploadStore ? "com.starlodevelopment.mallrevival" : "com.mallrevival.game"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode vMajor * 10000 + vMinor * 100 + vPatch
