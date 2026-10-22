@@ -44,6 +44,10 @@ cd web && npm run balance -- 15 7     # plays 15 days headlessly with seed 7 and
 
 Requires Node 22+, JDK 21 and the Android SDK (platform 36). The version number lives in `web/package.json`; the APK's versionCode is derived from it.
 
+## Google Play builds
+
+Play takes an `.aab` signed with the private upload key, never the committed test key. Set up the key as in [android/keystore/README.md](android/keystore/README.md), then either run `./build-aab.sh` locally or push a `mall-play-vX.Y.Z` tag to have the **Mall Revival Play bundle** workflow build it (the `.aab` is attached to the run). The privacy policy for the listing is `web/privacy.html`, published at https://logancthompson1236-stack.github.io/Playing-around/mall/privacy.html.
+
 ## Project layout
 
 ```

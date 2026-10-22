@@ -1,0 +1,58 @@
+name: Mall Revival Play bundle
+
+# Builds the Google Play bundle (.aab), signed with the private upload key from the repository secrets
+# (see mall/android/keystore/README.md). It publishes nothing. Runs when a mall-play-vX.Y.Z tag is pushed
+# (works from any branch), or by hand once this file is on the default branch.
+on:
+  push:
+    tags:
+      - 'mall-play-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mall/web/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build web game
+        working-directory: mall/web
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+          echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+
+      - name: Build signed bundle
+        working-directory: mall/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MALL_UPLOAD_KEYSTORE_BASE64 }}
+          MALL_UPLOAD_STORE_PASSWORD: ${{ secrets.MALL_UPLOAD_STORE_PASSWORD }}
+          MALL_UPLOAD_KEY_ALIAS: ${{ secrets.MALL_UPLOAD_KEY_ALIAS }}
+          MALL_UPLOAD_KEY_PASSWORD: ${{ secrets.MALL_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::MALL_UPLOAD_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          MALL_UPLOAD_STORE_FILE="$RUNNER_TEMP/upload.jks" ./gradlew bundleRelease --no-daemon
+          cp app/build/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/MallRevival-v${VERSION}.aab"
+          rm -f "$RUNNER_TEMP/upload.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MallRevival-v${{ env.VERSION }}-play
+          path: MallRevival-v*.aab
+          if-no-files-found: error
